@@ -1,48 +1,66 @@
 # ADR-0004: Constraint solver architecture
 
-Status: accepted (2026-10-02)
+Status: accepted (2026-10-02), revised 2026-10-02 after implementation measurements
 
 ## Decision
 
 1. **Variables** are scalar parameters: entity geometry parameters (line endpoints,
    circle radius, ...) and numeric entity properties (shelf widths, block start times).
    Anchors are expressions of variables through the entity transform.
-2. **Graph and components.** Constraints and variables form a bipartite graph. Each
-   connected component is classified once per solve:
-   - *linear*: every enabled constraint is linear → **kasuari** (maintained Cassowary
-     implementation, MIT/Apache-2.0). Required constraints are hard; preferences and
-     drag/stay targets use `strong/medium/weak`. Edit variables make drags incremental.
+2. **Rows** are scalar `Expr` residuals (`= 0` or `≤ 0`) with exact derivatives
+   (forward-mode automatic differentiation on sparse gradients). Built-in geometric
+   rules and plugin expressions compile to the same representation; Jacobians are
+   checked against central differences in `crates/constraints/tests/jacobian.rs`.
+3. **Graph and components.** Rules and free variables form a bipartite graph. Fixed
+   variables do not connect rules. Each connected component is classified once per
+   solve:
+   - *linear*: every row is affine in the free variables → **kasuari** (maintained
+     Cassowary implementation, MIT/Apache-2.0). Required rules are hard; preferences and
+     targets use strong/medium/weak. Variables and rows are scaled to O(1) because
+     kasuari's internal zero test is absolute (1e-8). kasuari's hash maps are randomly
+     seeded, so every variable gets a stay preference whose weight differs slightly by
+     stable column order — ties are broken deterministically (tested 50× in-process).
    - *nonlinear/mixed*: the whole component goes to the numeric backend; its linear
-     constraints become exact linear rows. A variable is owned by exactly one backend
-     per solve, so backends never fight over it.
-3. **Numeric backend** = hierarchical (lexicographic) damped Gauss–Newton:
-   - level 0: hard equalities + active hard inequalities, solved as a minimum-norm
-     step `J₀ Δ = −r₀` (SVD via nalgebra);
-   - lower levels (drag target, preferences, stay-near-previous) are least-squares
-     objectives solved in the **null space** of the higher levels, so a soft objective
-     never trades off a hard residual;
-   - residuals are scaled per rule; analytic Jacobians are implemented per rule and
-     checked against central differences in tests;
-   - inequalities: active set (violated or binding inequalities become rows at their
-     bound; released when inactive);
-   - warm start from the previous valid solution, step-length limiting, explicit stop
-     criteria (`‖r_hard‖∞ ≤ tol`, small step, iteration budget).
-4. **Fixed variables** (locked parameters, `fix` rules) are eliminated from the
-   unknown vector.
+     rows are ordinary rows. A variable is owned by exactly one backend per solve.
+4. **Numeric backend** (`crates/constraints/src/numeric.rs`):
+   - *presolve* eliminates unknowns fixed by hard equalities that are linear in a single
+     unknown (`fix`, `fixPoint`, propagated chains); contradictions found here are
+     certain conflicts;
+   - *restoration phase* (start point violates hard rows): damped minimum-norm Newton
+     steps `Δ = Aᵀ(AAᵀ)⁻¹(−r)` on the hard rows only;
+   - *optimization phase* (feasible point): equality-constrained least-squares step
+     solved through the KKT system's Schur complement — hard rows are exact constraints
+     of the step, never penalty terms; preferences (strong 1, medium 0.1, weak 0.01)
+     and stays towards the previous valid values (0.001) form the objective. The bounded
+     weight ladder keeps the Schur complement well conditioned (an earlier variant with
+     a 1e-5…1e3 range lost the hard rows of cheap variables to rounding and was
+     rejected). Each trial step is projected back onto the hard manifold with damped
+     Newton steps and accepted only if all hard rows hold and the objective decreases;
+   - inequalities use a primal active set: the most violated linearized inequality is
+     added, active rows with negative multipliers are released;
+   - trust region on the scaled step, explicit stop criteria (hard rows within
+     `tolerance · row.scale`, relative objective gain ≤ 1e-9 or step ≤ 1e-12, iteration
+     budget). A feasible point reached when the budget runs out is still valid.
 5. **Status**: `solved` (no remaining DOF), `underconstrained { dof }` (valid and
-   usable), `conflicting { evidence }` (proven: kasuari required-failure for linear
-   components, or redundant inconsistent rows detected by rank analysis),
-   `notConverged { suspectedConflict }` (local minimum of the hard residual or budget
-   exhausted — never presented as proof), `cancelled`, `unsupported { rule }`.
-6. **Commit rule**: after solving, the engine re-evaluates every hard rule with an
-   independent evaluator; if any exceeds tolerance the transaction is rejected and the
-   document stays at the previous revision.
-7. **Explanation**: on linear conflicts the engine computes the nearest feasible value
-   of the edited variable by re-solving with the user's value demoted to `strong`
-   (shelf total 130 cm → feasible bound 140 cm). Conflict sets are computed only on the
-   failure path with a budget, never on every drag.
-8. **Cancellation**: solves are resumable state machines (`SolveJob::step(budget)`).
-9. **Branches**: geometric rules with two solutions (tangency side, angle direction,
-   distance orientation) keep the branch of the starting configuration because the
-   solver takes minimum-norm steps from the previous valid state; signed residuals
-   (e.g. signed angle) are used where the sign is part of the user's intent.
+   usable; DOF counts equality rows only — an inequality at its bound limits motion in
+   one direction but removes no freedom), `conflicting` (proven: kasuari
+   required-failure with a deletion-filter minimal set, presolve contradiction, rules
+   depending only on fixed values, or a rank-deficient *linear* row set violated by the
+   residual), `notConverged { suspectedConflict }` (local evidence only — never shown as
+   proof), `cancelled`, `unsupported`.
+6. **Commit rule**: the engine re-evaluates every hard rule with an independent
+   geometric evaluator after solving; if any exceeds tolerance the transaction is
+   rejected and the document stays at the previous revision.
+7. **Explanation**: on linear conflicts the engine re-solves with the user's edit
+   demoted to a strong target to report the nearest feasible value (shelf total
+   130 cm → 140 cm). Minimal conflict sets are computed only on the failure path and
+   are bounded by `conflict_search_limit`.
+8. **Cancellation**: `SolveJob::step(budget)` runs at most `budget` iterations (a
+   linear component counts as one); `cancel()` between steps finishes the job as
+   `cancelled` with the input values.
+9. **Branches**: minimum-norm restoration steps and stays keep the configuration of
+   the previous valid state (distance orientation, tangency side). Rules whose sign is
+   part of the intent use signed residuals (signed angle, signed point–line distance,
+   tangency side, internal tangency orientation) fixed at rule creation.
+10. **Interactive previews** may set `analyze: false` to skip the final rank analysis
+    (DOF/redundancy); commits keep it on.
