@@ -2,7 +2,7 @@
 resolver = "3"
 members = [
     "crates/geometry",
-
+    "crates/constraints",
 ]
 
 [workspace.package]
@@ -45,6 +45,11 @@ todo = "deny"
 unimplemented = "deny"
 dbg_macro = "deny"
 float_cmp = "allow"
+
+# Optimize dependencies (nalgebra, kasuari, ...) in dev/test builds; our crates keep
+# full debug info.
+[profile.dev.package."*"]
+opt-level = 2
 
 [profile.release]
 codegen-units = 4

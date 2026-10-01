@@ -74,17 +74,17 @@ that ran + documentation.
 
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
-| DL-SOLVE-1 | linear rules: fixed, equal, sum/difference, equal spacing, min/max, constant ratio, prioritized preferences | planned | |
-| DL-SOLVE-2 | geometric rules: coincident, horizontal, vertical, fixed point, equal length, distance, parallel, perpendicular, angle, concentric, line–circle and circle–circle tangency; anchor/geometry class checks | planned | |
-| DL-SOLVE-3 | unsupported equation classes return typed `unsupported` | planned | |
-| DL-SOLVE-4 | Cassowary-class incremental adapter for linear components (kasuari) | planned | |
-| DL-SOLVE-5 | numeric backend: scaled residuals, analytic Jacobian (checked numerically), damping, warm start, explicit stop criteria | planned | |
-| DL-SOLVE-6 | shared variable/constraint graph, component classification, no backend oscillation | planned | |
-| DL-SOLVE-7 | hard constraints exact (not penalties); fixed vars eliminated; equality/inequality feasibility checked; soft only within hard feasible set | planned | |
-| DL-SOLVE-8 | drag target / locks / preferences priority; stay near previous solution; branch preservation documented | planned | |
-| DL-SOLVE-9 | statuses: solved, underconstrained, conflicting (with evidence), not-converged, cancelled, unsupported; suspected vs certain conflicts | planned | |
-| DL-SOLVE-10 | structured diagnostics (rule ID, source label, residual, entities); no auto-removal of user locks; budget exhaustion keeps last valid document | planned | |
-| DL-SOLVE-11 | real cancellation: budgeted steps + event-loop yield; stale revision cannot commit; E2E timeout/cancel test | planned | |
+| DL-SOLVE-1 | linear rules: fixed, equal, sum/difference, equal spacing, min/max, constant ratio, prioritized preferences | local (crate) | `rules.rs` (`fix`, `equal`, `linear`, `ratio`, `at_least/at_most`, `equal_spacing`); `tests/solver.rs::equal_spacing_ratio_and_bounds`, `soft_rules_only_apply_inside_hard_set`, shelf tests |
+| DL-SOLVE-2 | geometric rules: coincident, horizontal, vertical, fixed point, equal length, distance, parallel, perpendicular, angle, concentric, line–circle and circle–circle tangency; anchor/geometry class checks | local (crate); class checks pending (engine) | `rules.rs`; `tests/solver.rs` (independent formula checks per rule) |
+| DL-SOLVE-3 | unsupported equation classes return typed `unsupported` | local (crate) | `Rule::unsupported`; `unsupported_rule_reports_unsupported` |
+| DL-SOLVE-4 | Cassowary-class incremental adapter for linear components (kasuari) | local (one-shot); incremental drag sessions pending | `linear.rs`; shelf tests, determinism test |
+| DL-SOLVE-5 | numeric backend: scaled residuals, analytic Jacobian (checked numerically), damping, warm start, explicit stop criteria | local (crate) | `numeric.rs`, `expr.rs`; `tests/jacobian.rs` (256 random configs × 22 builders) |
+| DL-SOLVE-6 | shared variable/constraint graph, component classification, no backend oscillation | local (crate) | `graph.rs` + unit tests |
+| DL-SOLVE-7 | hard constraints exact (not penalties); fixed vars eliminated; equality/inequality feasibility checked; soft only within hard feasible set | local (crate) | ADR-0004 §4; `drag_target_respects_hard_rules_numeric`, `equal_spacing_ratio_and_bounds` |
+| DL-SOLVE-8 | drag target / locks / preferences priority; stay near previous solution; branch preservation documented | local (crate); engine drag sessions pending | ADR-0004 §9; `distance_and_fixed_point` |
+| DL-SOLVE-9 | statuses: solved, underconstrained, conflicting (with evidence), not-converged, cancelled, unsupported; suspected vs certain conflicts | local (crate) | `solution.rs`; `constant_conflict_is_certain`, `linear_conflict_inside_mixed_component_is_certain`, `impossible_nonlinear_is_suspected_not_certain`, `budget_exhaustion_keeps_input_values` |
+| DL-SOLVE-10 | structured diagnostics (rule ID, source label, residual, entities); no auto-removal of user locks; budget exhaustion keeps last valid document | local (crate); engine part pending | `Diagnostic`; `shelf_130_is_rejected_with_certain_minimal_conflict` |
+| DL-SOLVE-11 | real cancellation: budgeted steps + event-loop yield; stale revision cannot commit; E2E timeout/cancel test | dev (crate stepping tested); worker + E2E pending | `job.rs`; `stepping_matches_one_shot`, `cancel_between_steps_keeps_values` |
 
 ## DL-RENDER — renderer
 
@@ -183,8 +183,8 @@ that ran + documentation.
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
 | DL-TEST-1 | geometry unit/property tests | local | `crates/geometry/tests/properties.rs` (512 cases/property) |
-| DL-TEST-2 | constraint tests per rule type, under/over-determined, mixed, priorities, non-convergence, budget cancel | planned | |
-| DL-TEST-3 | independent validation of final geometry | planned | |
+| DL-TEST-2 | constraint tests per rule type, under/over-determined, mixed, priorities, non-convergence, budget cancel | local | `crates/constraints/tests/solver.rs` (22 tests) |
+| DL-TEST-3 | independent validation of final geometry | local (solver tests); engine commit validator pending | closed-form checks in `tests/solver.rs` |
 | DL-TEST-4 | transaction/history tests | planned | |
 | DL-TEST-5 | file fixtures: round-trip, migration, unknown plugin, corrupt ZIP/JSON, missing asset, loss reports | planned | |
 | DL-TEST-6 | native/WASM parity on normalized output | planned | |
