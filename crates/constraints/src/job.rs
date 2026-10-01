@@ -119,6 +119,19 @@ impl SolveJob {
         self.cancelled || self.invalid.is_some() || self.next >= self.comps.len()
     }
 
+    /// Aggregate status of the components finished so far (meaningful once
+    /// [`SolveJob::is_finished`] is true).
+    #[must_use]
+    pub fn peek_status(&self) -> Status {
+        if self.cancelled {
+            return Status::Cancelled;
+        }
+        if self.invalid.is_some() {
+            return Status::Unsupported;
+        }
+        self.reports.iter().fold(Status::Solved, |acc, r| acc.combine(r.status))
+    }
+
     /// Run at most `budget` work units.
     pub fn step(&mut self, budget: u32) -> Progress {
         let mut left = budget.max(1);

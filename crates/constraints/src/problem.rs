@@ -147,13 +147,34 @@ pub struct Variable {
     /// Diagnostic label (`"e12.width"`).
     #[serde(default)]
     pub label: String,
+    /// Multiplier of the stay preference (how strongly this variable keeps its
+    /// previous value relative to others), clamped to `[0.1, 5]`.
+    #[serde(default = "one")]
+    pub stay: f64,
+}
+
+fn one() -> f64 {
+    1.0
+}
+
+/// Clamp a stay multiplier to the supported range.
+#[must_use]
+pub fn stay_factor(v: f64) -> f64 {
+    if v.is_finite() { v.clamp(0.1, 5.0) } else { 1.0 }
 }
 
 impl Variable {
     /// Free variable with scale 1.
     #[must_use]
     pub fn new(value: f64) -> Self {
-        Self { value, fixed: false, scale: 1.0, label: String::new() }
+        Self { value, fixed: false, scale: 1.0, label: String::new(), stay: 1.0 }
+    }
+
+    /// Builder: stay multiplier.
+    #[must_use]
+    pub fn stay(mut self, s: f64) -> Self {
+        self.stay = stay_factor(s);
+        self
     }
 
     /// Builder: scale.

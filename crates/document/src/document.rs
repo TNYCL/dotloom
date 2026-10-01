@@ -294,6 +294,14 @@ impl Document {
         }
     }
 
+    /// Replace the whole layer list (used by undo/redo).
+    pub fn set_layers(&mut self, layers: Vec<Layer>) {
+        for l in &layers {
+            self.reserve_id(l.id.0);
+        }
+        self.layers = layers;
+    }
+
     /// Insert a layer at an index.
     pub fn insert_layer_at(&mut self, l: Layer, index: usize) {
         self.reserve_id(l.id.0);

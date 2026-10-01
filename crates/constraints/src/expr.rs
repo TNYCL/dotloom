@@ -411,6 +411,29 @@ impl Expr {
         }
     }
 
+    /// Replace every variable by the expression returned by `f` (constant folding is
+    /// applied by the simplifying constructors).
+    #[must_use]
+    pub fn substitute(&self, f: &dyn Fn(VarId) -> Self) -> Self {
+        match self {
+            Self::Const(v) => Self::Const(*v),
+            Self::Var(v) => f(*v),
+            Self::Add(a, b) => Self::add(a.substitute(f), b.substitute(f)),
+            Self::Sub(a, b) => Self::sub(a.substitute(f), b.substitute(f)),
+            Self::Mul(a, b) => Self::mul(a.substitute(f), b.substitute(f)),
+            Self::Div(a, b) => Self::div(a.substitute(f), b.substitute(f)),
+            Self::Neg(a) => Self::neg(a.substitute(f)),
+            Self::Sin(a) => Self::sin(a.substitute(f)),
+            Self::Cos(a) => Self::cos(a.substitute(f)),
+            Self::Sqrt(a) => Self::sqrt(a.substitute(f)),
+            Self::Abs(a) => Self::abs(a.substitute(f)),
+            Self::Atan2(a, b) => Self::atan2(a.substitute(f), b.substitute(f)),
+            Self::Hypot(a, b) => Self::hypot(a.substitute(f), b.substitute(f)),
+            Self::Min(a, b) => Self::min(a.substitute(f), b.substitute(f)),
+            Self::Max(a, b) => Self::max(a.substitute(f), b.substitute(f)),
+        }
+    }
+
     /// Number of nodes (used for complexity limits).
     #[must_use]
     pub fn size(&self) -> usize {

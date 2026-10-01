@@ -2,7 +2,7 @@
 
 Resume point for any contributor or agent. Keep it short; never store secrets here.
 
-- Branch: `main` (bootstrap)
+- Branch: `feat/engine` (scene + engine)
 - Last updated: 2026-10-02
 - Overall: **in progress — phase A/B**. Not a release candidate.
 
@@ -10,8 +10,9 @@ Resume point for any contributor or agent. Keep it short; never store secrets he
 
 | What | How | Result |
 |---|---|---|
-| Geometry crate | `cargo test -p dotloom-geometry` (Windows 11, Rust 1.98.1) | 57 unit + 12 property (512 cases each) + 1 doctest passed |
-| Geometry lint | `cargo clippy -p dotloom-geometry --all-targets -- -D warnings` | clean |
+| Workspace tests | `cargo test --workspace` (Windows 11, Rust 1.98.1) | geometry 57+12 property+doc, constraints 7+22+1 Jacobian property+doc, document 8+13+doc, scene 4, engine 3+21 — all passed |
+| Workspace lint | `cargo clippy --workspace --all-targets -- -D warnings` | clean |
+| CI | PRs #1–#3 merged with green `rust fmt + clippy` and `rust test (ubuntu-24.04)` | see GitHub Actions |
 
 ## Environment facts (2026-10-02)
 
@@ -29,8 +30,8 @@ Resume point for any contributor or agent. Keep it short; never store secrets he
 
 ## Next
 
-1. `dotloom-document`, `dotloom-constraints`, `dotloom-engine` (phase B/C).
-2. GitHub repo + CI skeleton.
+1. `dotloom-io`: `.dotl` container, SVG/DXF import/export, CLI.
+2. `dotloom-wasm` binding + TypeScript SDK (Worker protocol), then wgpu renderer.
 
 ## Commands
 

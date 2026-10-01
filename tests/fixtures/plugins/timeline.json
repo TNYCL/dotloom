@@ -1,0 +1,24 @@
+{
+  "typeId": "timeline.block",
+  "version": 1,
+  "label": "Timeline block",
+  "props": {
+    "start": { "type": "number", "dim": "time", "default": "0h", "label": "Start" },
+    "duration": { "type": "number", "dim": "time", "default": "1h", "min": "5min", "label": "Duration" },
+    "lane": { "type": "number", "dim": "scalar", "default": 0, "solve": false, "label": "Lane" },
+    "title": { "type": "text", "default": "Task", "maxLen": 200, "label": "Title" }
+  },
+  "derived": [
+    { "name": "x0", "expr": "(start - axis.origin) * axis.mmPerSecond" },
+    { "name": "x1", "expr": "(start + duration - axis.origin) * axis.mmPerSecond" },
+    { "name": "y0", "expr": "lane * -120mm" }
+  ],
+  "anchors": [
+    { "name": "begin", "expr": "vec(x0, y0)", "kind": "endpoint" },
+    { "name": "finish", "expr": "vec(x1, y0)", "kind": "endpoint" }
+  ],
+  "primitives": [
+    { "kind": "polygon", "points": ["vec(x0, y0)", "vec(x1, y0)", "vec(x1, y0 - 100mm)", "vec(x0, y0 - 100mm)"], "style": { "fill": "#3b82f640" } },
+    { "kind": "text", "position": "vec(x0 + 10mm, y0 - 50mm)", "content": "{title}", "height": "30mm", "valign": "middle" }
+  ]
+}

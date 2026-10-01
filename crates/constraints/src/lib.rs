@@ -48,5 +48,5 @@ mod solution;
 pub use expr::{Dual, Expr, LinearForm, PointExpr, VarId};
 pub use graph::{Component, components};
 pub use job::{Progress, SolveJob, solve};
-pub use problem::{Problem, Relation, Row, Rule, STAY_WEIGHT, SolveOptions, Strength, Target, Variable};
+pub use problem::{Problem, Relation, Row, Rule, STAY_WEIGHT, SolveOptions, Strength, Target, Variable, stay_factor};
 pub use solution::{Backend, Certainty, ComponentReport, Diagnostic, DiagnosticKind, Solution, Status};

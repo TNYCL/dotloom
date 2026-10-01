@@ -64,3 +64,16 @@ Status: accepted (2026-10-02), revised 2026-10-02 after implementation measureme
    tangency side, internal tangency orientation) fixed at rule creation.
 10. **Interactive previews** may set `analyze: false` to skip the final rank analysis
     (DOF/redundancy); commits keep it on.
+11. **User intent and priority** (engine, `crates/engine/src/solve.rs`):
+    - typed values are *exact* edits (hard rules of that transaction); drags and
+      "prefer" edits are strong targets;
+    - every variable has a stay multiplier: plugin properties declare
+      `stay: low | normal | high` (a door offset slides before a door width changes),
+      parameters of directly edited entities keep their values 5× more strongly;
+    - weighted stays alone share a forced change between variables, so each solve
+      first runs a **pinned attempt** in which the non-edited parameters of edited
+      entities and `high`-stay properties are held fixed. The pinned result is used
+      when it satisfies every hard rule *and* meets every target; otherwise a relaxed
+      attempt (nothing pinned) runs, falling back to the pinned result if the relaxed
+      one fails. This gives lexicographic priority without extreme weights.
+    - locked entities (UI lock) and `solve: false` properties are constants.
