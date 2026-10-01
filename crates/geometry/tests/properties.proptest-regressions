@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 292a08625baa08c78e486b3a02a542178a620d7bd5eb1f70c9f6c1dbc77cc049 # shrinks to c = Cubic(CubicBez { p0: Point { x: 986.0100974430034, y: -812.0851344930785 }, p1: Point { x: 0.0, y: 0.0 }, p2: Point { x: 0.0, y: 0.0 }, p3: Point { x: 989.9467388997301, y: -807.4287296650475 } })
+cc acd67d7854550d77b1ba79e4a7a0084472cb2a861217aad5bbc4fc1e08e4a557 # shrinks to a = Cubic(CubicBez { p0: Point { x: 0.0, y: 267.8143863694841 }, p1: Point { x: 211.9064492781647, y: 9.22017384188006 }, p2: Point { x: 23.460420472675512, y: 0.0 }, p3: Point { x: 0.0, y: -853.6813408839087 } }), b = Cubic(CubicBez { p0: Point { x: 658.3401821545101, y: -986.823628590305 }, p1: Point { x: -174.48331605649432, y: 886.9404814505452 }, p2: Point { x: -713.8027205821563, y: 982.3125689539442 }, p3: Point { x: 870.4578948236642, y: -832.812488578555 } })
