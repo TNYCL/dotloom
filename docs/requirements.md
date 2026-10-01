@@ -43,14 +43,14 @@ that ran + documentation.
 
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
-| DL-DOC-1 | stable entity IDs, namespaced type IDs, type/schema versions, typed properties, transform, layers, groups, anchor refs, constraint IDs | planned | |
-| DL-DOC-2 | reordering does not change IDs | planned | |
-| DL-DOC-3 | clone/copy-paste remaps internal references; external reference policy documented | planned | |
-| DL-DOC-4 | group cycles, missing anchors, invalid references rejected before commit | planned | |
+| DL-DOC-1 | stable entity IDs, namespaced type IDs, type/schema versions, typed properties, transform, layers, groups, anchor refs, constraint IDs | local | `crates/document/src/{ids,model,value,constraint}.rs`; `json_roundtrip_is_semantically_equal` |
+| DL-DOC-2 | reordering does not change IDs | local | `Document::reorder`; `reorder_keeps_ids`, `ids_are_never_reused` |
+| DL-DOC-3 | clone/copy-paste remaps internal references; external reference policy documented | local (docs page pending) | `clipboard.rs` (policy in module docs); `copy_paste_remaps_internal_and_keeps_external_refs` |
+| DL-DOC-4 | group cycles, missing anchors, invalid references rejected before commit | local (structural); plugin anchors via engine pending | `validate.rs`; `invariant_violations_are_rejected` |
 | DL-DOC-5 | deleting entities: explicit effect on constraints, no orphans | planned | |
 | DL-DOC-6 | derived geometry/cache separate from canonical data | planned | |
-| DL-DOC-7 | unknown plugin payloads preserved opaquely | planned | |
-| DL-DOC-8 | normalized canonical hash/snapshot (order independent) | planned | |
+| DL-DOC-7 | unknown plugin payloads preserved opaquely | local | `Entity::data`, `extra` maps; `unknown_fields_and_plugin_payloads_survive` |
+| DL-DOC-8 | normalized canonical hash/snapshot (order independent) | local | `canonical.rs`; `hash_ignores_insertion_order_but_not_draw_order`, `negative_zero_is_normalized` |
 | DL-DOC-9 | geometry-only edits do not copy/re-render the whole document (measured) | planned | |
 
 ## DL-CMD — commands, previews, cancellation, history
