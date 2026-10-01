@@ -207,7 +207,8 @@ pub(crate) fn solve_linear(
     for (col, var) in cols.vars.iter().enumerate() {
         let (Some(kv), Some(s)) = (kvars.get(col), cols.scales.get(col)) else { continue };
         let reference = stay_ref.get(var.index()).copied().unwrap_or(0.0);
-        let w = STAY_BASE * (1.0 + 0.5 * col as f64 / n.max(1) as f64);
+        let mult = crate::problem::stay_factor(p.vars.get(var.index()).map_or(1.0, |v| v.stay));
+        let w = STAY_BASE * mult * (1.0 + 0.5 * col as f64 / n.max(1) as f64);
         let expr = Expression::new(vec![Term::new(*kv, 1.0)], -reference / s);
         let _ = solver.add_constraint(Constraint::new(expr, RelationalOperator::Equal, KStrength::new(w)));
     }

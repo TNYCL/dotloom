@@ -38,6 +38,7 @@ struct SoftRow {
 }
 
 pub(crate) struct NumericSolver {
+    stay_w: Vec<f64>,
     rules: Vec<usize>,
     comp_vars: Vec<VarId>,
     cols: Columns,
@@ -96,6 +97,7 @@ fn min_norm(rows: &[&EvalRow], b: &DVector<f64>, n: usize) -> Option<DVector<f64
 impl NumericSolver {
     pub fn new(p: &Problem, comp: &Component, stay_ref: &[f64]) -> Self {
         Self {
+            stay_w: Vec::new(),
             rules: comp.rules.clone(),
             comp_vars: comp.vars.clone(),
             cols: Columns::new(p, &comp.vars),
@@ -109,6 +111,15 @@ impl NumericSolver {
             stalled: false,
             active: BTreeSet::new(),
         }
+    }
+
+    fn refresh_stay(&mut self, p: &Problem) {
+        self.stay_w = self
+            .cols
+            .vars
+            .iter()
+            .map(|v| STAY_WEIGHT * crate::problem::stay_factor(p.vars.get(v.index()).map_or(1.0, |x| x.stay)))
+            .collect();
     }
 
     /// Eliminate unknowns fixed by hard equalities linear in a single unknown.
@@ -164,6 +175,7 @@ impl NumericSolver {
         }
         let remaining: Vec<VarId> = self.comp_vars.iter().copied().filter(|v| !fixed.contains(v)).collect();
         self.cols = Columns::new(p, &remaining);
+        self.refresh_stay(p);
     }
 
     fn soft_rows(&self, p: &Problem, rows: &[EvalRow], x: &[f64]) -> Vec<SoftRow> {
@@ -201,21 +213,27 @@ impl NumericSolver {
         )
     }
 
+    fn stay_w2(&self, c: usize) -> f64 {
+        let w = self.stay_w.get(c).copied().unwrap_or(STAY_WEIGHT);
+        w * w
+    }
+
     /// Preference objective (soft rows + stays).
     fn objective(&self, soft: &[SoftRow], x: &[f64]) -> f64 {
         let s: f64 = soft.iter().map(|s| s.w * s.w * s.r * s.r).sum();
-        s + STAY_WEIGHT * STAY_WEIGHT * self.stay_offsets(x).norm_squared()
+        s + self.stay_offsets(x).iter().enumerate().map(|(c, d)| self.stay_w2(c) * d * d).sum::<f64>()
     }
 
     /// Solve the KKT step for the given hard rows. Returns `(Δ, λ)`.
     fn kkt(&self, hard: &[&EvalRow], soft: &[SoftRow], x: &[f64]) -> Option<(DVector<f64>, DVector<f64>)> {
         let n = self.cols.n();
-        let ws2 = STAY_WEIGHT * STAY_WEIGHT;
+        let ws2: Vec<f64> = (0..n).map(|c| self.stay_w2(c)).collect();
         let d = self.stay_offsets(x);
-        let mut g = -(&d * ws2);
+        let mut g = DVector::from_iterator(n, d.iter().zip(&ws2).map(|(d, w)| -d * w));
         let diag_only = soft.iter().all(|s| s.grad.len() <= 1);
-        let mut hdiag = vec![ws2; n];
-        let mut hdense = if diag_only { None } else { Some(DMatrix::<f64>::identity(n, n) * ws2) };
+        let mut hdiag = ws2.clone();
+        let mut hdense =
+            if diag_only { None } else { Some(DMatrix::<f64>::from_diagonal(&DVector::from_vec(ws2.clone()))) };
         for s in soft {
             let w2 = s.w * s.w;
             for &(c, a) in &s.grad {

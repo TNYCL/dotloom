@@ -1,0 +1,24 @@
+[package]
+name = "dotloom-scene"
+description = "Dotloom scene contract: world-space display items, overlays and a compact binary delta encoding shared by the engine and renderers"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme = "README.md"
+
+[dependencies]
+dotloom-geometry.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

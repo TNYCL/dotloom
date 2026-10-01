@@ -85,6 +85,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "dotloom-engine"
+version = "0.1.0"
+dependencies = [
+ "dotloom-constraints",
+ "dotloom-document",
+ "dotloom-geometry",
+ "dotloom-scene",
+ "proptest",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "dotloom-geometry"
 version = "0.1.0"
 dependencies = [
@@ -93,6 +107,16 @@ dependencies = [
  "rstar",
  "serde",
  "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "dotloom-scene"
+version = "0.1.0"
+dependencies = [
+ "dotloom-geometry",
+ "proptest",
+ "serde",
  "thiserror",
 ]
 

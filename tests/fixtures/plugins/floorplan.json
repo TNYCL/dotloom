@@ -1,0 +1,58 @@
+[
+  {
+    "typeId": "floorplan.wall",
+    "version": 2,
+    "label": "Wall",
+    "props": {
+      "start": { "type": "point", "label": "Start" },
+      "end": { "type": "point", "default": [4000, 0], "label": "End" },
+      "thickness": { "type": "number", "dim": "length", "default": "20cm", "min": "5cm", "label": "Thickness" }
+    },
+    "derived": [
+      { "name": "dir", "expr": "norm(end - start)" },
+      { "name": "side", "expr": "perp(dir) * (thickness / 2)" }
+    ],
+    "anchors": [
+      { "name": "start", "expr": "start", "kind": "endpoint" },
+      { "name": "end", "expr": "end", "kind": "endpoint" },
+      { "name": "mid", "expr": "lerp(start, end, 0.5)", "kind": "midpoint" }
+    ],
+    "primitives": [
+      { "kind": "polygon", "points": ["start + side", "end + side", "end - side", "start - side"], "style": { "fill": "#9aa5b180" } }
+    ],
+    "constraints": [
+      { "lhs": "dist(start, end)", "op": ">=", "rhs": "thickness", "label": "wall longer than it is thick" }
+    ],
+    "migrations": [
+      { "from": 1, "rename": { "thick": "thickness" } }
+    ]
+  },
+  {
+    "typeId": "floorplan.door",
+    "version": 1,
+    "label": "Door",
+    "props": {
+      "host": { "type": "ref", "target": "floorplan.wall", "onDelete": "cascade", "required": true, "label": "Wall" },
+      "offset": { "type": "number", "dim": "length", "default": "50cm", "stay": "low", "label": "Offset from wall start" },
+      "width": { "type": "number", "dim": "length", "default": "90cm", "min": "60cm", "max": "200cm", "stay": "high", "label": "Width" }
+    },
+    "derived": [
+      { "name": "dir", "expr": "norm(host.end - host.start)" },
+      { "name": "hingePoint", "expr": "host.start + dir * offset" },
+      { "name": "latchPoint", "expr": "host.start + dir * (offset + width)" }
+    ],
+    "anchors": [
+      { "name": "hinge", "expr": "hingePoint", "kind": "endpoint" },
+      { "name": "latch", "expr": "latchPoint", "kind": "endpoint" },
+      { "name": "mid", "expr": "lerp(hingePoint, latchPoint, 0.5)", "kind": "midpoint" }
+    ],
+    "primitives": [
+      { "kind": "line", "from": "hingePoint", "to": "hingePoint + perp(dir) * width", "style": { "width": 2 } },
+      { "kind": "arc", "center": "hingePoint", "radius": "width", "start": "angle(dir)", "sweep": "90deg", "style": { "dash": [4, 3] } }
+    ],
+    "constraints": [
+      { "lhs": "offset", "op": ">=", "rhs": "0mm", "label": "door starts on the wall" },
+      { "lhs": "offset + width", "op": "<=", "rhs": "dist(host.start, host.end)", "label": "door fits in the wall" }
+    ]
+  }
+]

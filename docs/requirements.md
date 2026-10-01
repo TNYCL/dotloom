@@ -17,9 +17,9 @@ that ran + documentation.
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
 | DL-CORE-1 | geometry/document/constraints/engine/scene/io build without DOM/window/GPU/wgpu | planned | |
-| DL-CORE-2 | engine is usable headless from Rust (create, edit, solve, save) | planned | |
+| DL-CORE-2 | engine is usable headless from Rust (create, edit, solve, save) | local | `crates/engine` (no DOM/GPU deps); `crates/engine/tests/engine.rs` |
 | DL-CORE-3 | CI checks the dependency boundary (`cargo tree` deny-list) | planned | |
-| DL-CORE-4 | single authoritative document copy; views keyed by revision | planned | |
+| DL-CORE-4 | single authoritative document copy; views keyed by revision | local (engine); SDK/renderer side pending | `Engine` owns `Document` (read-only accessor); `SceneDelta.revision` |
 
 ## DL-GEO — geometry, precision, transforms, spatial queries
 
@@ -47,8 +47,8 @@ that ran + documentation.
 | DL-DOC-2 | reordering does not change IDs | local | `Document::reorder`; `reorder_keeps_ids`, `ids_are_never_reused` |
 | DL-DOC-3 | clone/copy-paste remaps internal references; external reference policy documented | local (docs page pending) | `clipboard.rs` (policy in module docs); `copy_paste_remaps_internal_and_keeps_external_refs` |
 | DL-DOC-4 | group cycles, missing anchors, invalid references rejected before commit | local (structural); plugin anchors via engine pending | `validate.rs`; `invariant_violations_are_rejected` |
-| DL-DOC-5 | deleting entities: explicit effect on constraints, no orphans | planned | |
-| DL-DOC-6 | derived geometry/cache separate from canonical data | planned | |
+| DL-DOC-5 | deleting entities: explicit effect on constraints, no orphans | local | `DeletePolicy` cascade/reject + `onDelete` per reference; `delete_cascades_constraints_or_rejects`, `deleting_a_wall_deletes_its_door_and_undo_restores_both` |
+| DL-DOC-6 | derived geometry/cache separate from canonical data | local | `eval.rs` (`EvalCache`, derived plugin geometry never stored except explicit `fallback`) |
 | DL-DOC-7 | unknown plugin payloads preserved opaquely | local | `Entity::data`, `extra` maps; `unknown_fields_and_plugin_payloads_survive` |
 | DL-DOC-8 | normalized canonical hash/snapshot (order independent) | local | `canonical.rs`; `hash_ignores_insertion_order_but_not_draw_order`, `negative_zero_is_normalized` |
 | DL-DOC-9 | geometry-only edits do not copy/re-render the whole document (measured) | planned | |
@@ -57,18 +57,18 @@ that ran + documentation.
 
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
-| DL-CMD-1 | pipeline validate → working state → solve → validate invariants → atomic commit → revision/event | planned | |
-| DL-CMD-2 | failed command leaves the document unchanged | planned | |
-| DL-CMD-3 | multi-change atomic transactions | planned | |
-| DL-CMD-4 | drag = transient previews; pointer-up = one history entry | planned | |
+| DL-CMD-1 | pipeline validate → working state → solve → validate invariants → atomic commit → revision/event | local | `engine.rs` (`begin_apply` → `Overlay` → `validate_overlay` → `solve::plan/finish` → `commit`) |
+| DL-CMD-2 | failed command leaves the document unchanged | local | `transaction_is_atomic`, `shelf_180_160_130_with_undo_redo_and_unlock` (hash unchanged) |
+| DL-CMD-3 | multi-change atomic transactions | local | `Transaction`; `transaction_is_atomic` |
+| DL-CMD-4 | drag = transient previews; pointer-up = one history entry | local (engine) | `drag.rs`; `drag_previews_then_commits_one_entry_or_cancels` |
 | DL-CMD-5 | Escape / pointer cancel / focus loss cancel policy | planned | |
-| DL-CMD-6 | undo/redo applies committed before/after without re-solving | planned | |
-| DL-CMD-7 | new change after undo clears redo branch | planned | |
-| DL-CMD-8 | constraints, properties, plugin payloads undone in the same transaction | planned | |
+| DL-CMD-6 | undo/redo applies committed before/after without re-solving | local | `history.rs` (`Change::apply`) |
+| DL-CMD-7 | new change after undo clears redo branch | local | shelf test (`can_redo` false after new edit) |
+| DL-CMD-8 | constraints, properties, plugin payloads undone in the same transaction | local | `Change` covers entities/constraints/groups/layers/settings; delete+undo test |
 | DL-CMD-9 | events after commit; reentrant callbacks cannot nest commits | planned | |
-| DL-CMD-10 | history memory limit + large-operation policy | planned | |
-| DL-CMD-11 | request ID + expected revision; stale results rejected | planned | |
-| DL-CMD-12 | public API exposes no mutable engine internals | planned | |
+| DL-CMD-10 | history memory limit + large-operation policy | local | `History` (entries + byte budget; oversize clears history, `undoAvailable: false`); `history_limit_drops_oldest` |
+| DL-CMD-11 | request ID + expected revision; stale results rejected | local (engine revision); request IDs in SDK pending | `ApplyOptions.expected_revision`; `stale_revision_is_rejected` |
+| DL-CMD-12 | public API exposes no mutable engine internals | local | `Engine::document()` is read-only; edits only via `Transaction` |
 
 ## DL-SOLVE — constraints
 
@@ -116,9 +116,9 @@ that ran + documentation.
 |---|---|---|---|
 | DL-PLUGIN-1 | extension points: entity type, geometry/anchor recipe, tool, command, snap provider, constraint template, inspector/panel, import/export, storage adapter | planned | |
 | DL-PLUGIN-2 | entity definition: namespaced typeId, schema version, typed props, anchors, primitive recipes, constraint templates, migrations | planned | |
-| DL-PLUGIN-3 | model definitions evaluated in Rust via typed expression AST; no eval; typed errors for unsupported functions | planned | |
+| DL-PLUGIN-3 | model definitions evaluated in Rust via typed expression AST; no eval; typed errors for unsupported functions | local | `lang.rs`, `registry.rs`; `dimension_errors`, `plugin_registration_errors_are_typed` |
 | DL-PLUGIN-4 | lifecycle register/enable/disable/dispose; type ID conflicts and version mismatches explicit; listener/GPU cleanup | planned | |
-| DL-PLUGIN-5 | documents never carry executable code or fetch remote code; missing plugins keep payloads + standard representation; non-editable explained | planned | |
+| DL-PLUGIN-5 | documents never carry executable code or fetch remote code; missing plugins keep payloads + standard representation; non-editable explained | local (engine) | `eval::ReadOnly`; `missing_plugin_entities_are_read_only_and_preserved` |
 | DL-PLUGIN-6 | external plugin works from published packages without private imports | planned | |
 
 ## DL-SDK — WASM protocol, Worker, TypeScript, React
@@ -172,7 +172,7 @@ that ran + documentation.
 
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
-| DL-EXAMPLE-1 | shelf configurator: 180→160 gives 60/50/50; 130 rejected with 140 bound; unlock; undo/redo | planned | |
+| DL-EXAMPLE-1 | shelf configurator: 180→160 gives 60/50/50; 130 rejected with 140 bound; unlock; undo/redo | local (engine with shared plugin JSON); UI example pending | `tests/fixtures/plugins/shelf.json`; `shelf_180_160_130_with_undo_redo_and_unlock` |
 | DL-EXAMPLE-2 | floor planner: wall/door entities, door on wall, dimensions, layers, snapping, wall change/delete integrity, save/load | planned | |
 | DL-EXAMPLE-3 | timeline: start/duration/end, order/equality/min gap, explicit time→view mapping, locked times respected | planned | |
 | DL-EXAMPLE-4 | vanilla integration without React | planned | |
