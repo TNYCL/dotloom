@@ -74,6 +74,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "dotloom-document"
+version = "0.1.0"
+dependencies = [
+ "dotloom-geometry",
+ "proptest",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "dotloom-geometry"
 version = "0.1.0"
 dependencies = [
