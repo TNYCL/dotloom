@@ -1,0 +1,31 @@
+[package]
+name = "dotloom-cli"
+description = "Dotloom command-line tool: inspect, validate and convert .dotl, SVG and DXF files"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories = ["command-line-utilities", "graphics"]
+readme = "README.md"
+
+[[bin]]
+name = "dotloom"
+path = "src/main.rs"
+
+[dependencies]
+dotloom-engine.workspace = true
+dotloom-io.workspace = true
+serde_json.workspace = true
+clap = { version = "4.6.7", features = ["derive"] }
+
+
+[dev-dependencies]
+dotloom-io.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

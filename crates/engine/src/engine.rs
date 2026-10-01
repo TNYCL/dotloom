@@ -750,6 +750,36 @@ impl Engine {
         }
     }
 
+    /// Check every enabled hard rule (document constraints and plugin templates)
+    /// against the stored values with the independent evaluator, without solving.
+    /// Returns violations as `(what, residual, tolerance)`.
+    #[must_use]
+    pub fn verify(&self) -> Vec<(String, f64, f64)> {
+        let ctx = self.ctx();
+        let ids: std::collections::BTreeSet<EntityId> = self.doc.order().iter().copied().collect();
+        let scales = solve::scales_for(ctx, &ids);
+        let mut checker = crate::check::Checker::new(ctx, scales);
+        let mut out = Vec::new();
+        for c in self.doc.constraints() {
+            if !c.enabled || c.strength != dotloom_document::StrengthSpec::Required {
+                continue;
+            }
+            match checker.constraint(c) {
+                Ok((r, t)) if r.is_nan() || r > t => out.push((c.id.to_string(), r, t)),
+                Ok(_) => {}
+                Err(m) => out.push((format!("{}: {m}", c.id), f64::INFINITY, 0.0)),
+            }
+        }
+        for id in &ids {
+            for (label, r, t) in checker.templates(*id) {
+                if r.is_nan() || r > t {
+                    out.push((format!("{id} {label}"), r, t));
+                }
+            }
+        }
+        out
+    }
+
     /// Parameter values of an entity `(name, value)`.
     #[must_use]
     pub fn params_of(&self, id: EntityId) -> BTreeMap<String, f64> {

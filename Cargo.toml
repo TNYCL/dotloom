@@ -6,6 +6,8 @@ members = [
     "crates/document",
     "crates/scene",
     "crates/engine",
+    "crates/io",
+    "crates/cli",
 ]
 
 [workspace.package]
@@ -27,6 +29,7 @@ dotloom-document = { path = "crates/document", version = "0.1.0" }
 dotloom-constraints = { path = "crates/constraints", version = "0.1.0" }
 dotloom-scene = { path = "crates/scene", version = "0.1.0" }
 dotloom-engine = { path = "crates/engine", version = "0.1.0" }
+dotloom-io = { path = "crates/io", version = "0.1.0" }
 
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
