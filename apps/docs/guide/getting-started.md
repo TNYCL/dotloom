@@ -14,8 +14,9 @@ units (cm, m, in, ft) only change how values are shown and typed.
 ## Install
 
 ::: warning Not on npm yet
-Dotloom `1.1.0` is attached to the [GitHub Release](https://github.com/TNYCL/dotloom/releases/tag/v1.1.0)
-and is not on the npm and crates.io registries yet. Install it from the release:
+The `@dotloomjs/*` packages of Dotloom `1.1.0` are attached to the
+[GitHub Release](https://github.com/TNYCL/dotloom/releases/tag/v1.1.0) and not on npm yet
+(the Rust crates are on crates.io). Install them from the release:
 
 ```sh
 npm install https://github.com/TNYCL/dotloom/releases/download/v1.1.0/dotloomjs-sdk-1.1.0.tgz https://github.com/TNYCL/dotloom/releases/download/v1.1.0/dotloomjs-react-1.1.0.tgz
