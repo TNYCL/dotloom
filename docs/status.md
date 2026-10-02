@@ -2,12 +2,13 @@
 
 Resume point for any contributor or agent. Keep it short; never store secrets here.
 
-- Branch: `docs/npm-published` (npm packages published)
+- Branch: `ci/safari-27` (Safari current and previous major)
 - Last updated: 2026-10-02
 - Overall: **1.1.0 released** (tag `v1.1.0` on `main@ef0f517`,
   https://github.com/TNYCL/dotloom/releases/tag/v1.1.0), on **npm** (`@dotloomjs/sdk`,
-  `@dotloomjs/react`) and **crates.io** (all eight `dotloom-*` crates). Open: Safari 27
-  is not verified (no Mac; issue #13), so the goal is not complete.
+  `@dotloomjs/react`) and **crates.io** (all eight `dotloom-*` crates). Safari 27 and 26 are
+  verified in CI (WebGL2). Open: Safari WebGPU (and Safari 27 PNG export) on Mac hardware
+  (no Mac; issue #13), so the goal is not complete.
 
 ## Merged (main)
 
@@ -32,6 +33,8 @@ Resume point for any contributor or agent. Keep it short; never store secrets he
 | #29 | registry publishing in the GitHub environment `release` |
 | #30 | npm scope `@dotloomjs`, version 1.1.0 |
 | #31, #32 | release publish mode: complete partial publishes (rate limits, real exit codes, local tarball paths) |
+| #33, #34 | registry state after 1.1.0 (crates.io, npm) |
+| #35 | Safari smoke on the current (27) and previous (26) major |
 
 ## Verified evidence (latest runs)
 
@@ -43,6 +46,7 @@ Resume point for any contributor or agent. Keep it short; never store secrets he
 | `release` publish mode for `v1.1.0` | 36997278172, 36998435514 | remaining crates published (all eight on crates.io); npm still `Scope not found` |
 | `release` publish mode for `v1.1.0` (npm) | 36999757823 | `@dotloomjs/sdk` and `@dotloomjs/react` 1.1.0 published with provenance after the owner created the npm organization `dotloomjs`; byte-identical to the release tarballs |
 | npm consumer | `examples/external-plugin` copied outside the repository, `npm install` from registry.npmjs.org | Node tests 3/3, build at the root and under `/dotloom/`, `tests/e2e/external` 2/2 in Chromium |
+| `compat` Safari jobs (PR #35) | 37002329318 | Safari 27.0 (macOS 27, `xcode-27`): WebGL2 drawing (4088 px via `readPixels`), playground; canvas readback unavailable in that VM, PNG export not verifiable; WebGPU no adapter. Safari 26.6.1 (macOS 15): WebGL2 with PNG export, playground |
 | crates.io consumer | fresh Cargo project with `dotloom-engine = "=1.1.0"`, `dotloom-io = "=1.1.0"` from crates.io | builds and runs (solve, save, reopen, SVG export) |
 | `release` for tag `v1.0.0` | 36982429946 | GitHub Release published with 3 CLI archives, 8 crates, 2 npm tarballs, `SHA256SUMS`, `release-manifest.json`; npm and crates.io recorded as not published (no credentials) |
 | Published release checked from its public URLs (Windows 11) | `node scripts/verify-release.mjs v1.0.0` | checksums match; npm tarballs installed by URL into a fresh project and used from Node (engine 1.0.0, solve, save, reopen); Windows CLI `dotloom 1.0.0` inspects a 0.1.0 fixture |
@@ -55,7 +59,8 @@ Resume point for any contributor or agent. Keep it short; never store secrets he
 | Released browsers in CI (WebDriver; `compat` on PR #21) | 36980003137 | Chrome 154.0.8037.92/153.0.8010.52, Edge 154.0.4258.53/153.0.4234.48, Firefox 157.0/156.0.1 (Linux), Safari 26.6.1 (macOS): WebGL2 and playground passed everywhere, WebGPU where offered (`docs/compat/2026-10-02/ci-run-36980003137/`) |
 | Released browsers on the reference device (WebGPU + WebGL2 + playground) | `docs/compat/2026-10-02/windows-gtx1060/` | Chrome 153.0.8010.52, Chrome 154.0.8037.58, Edge 154.0.4258.48 passed |
 
-Branch protection on `main` (read back from the API): 21 required checks (incl. the six released-browser jobs), strict
+Branch protection on `main` (read back from the API): 22 required checks (incl. the six released-browser jobs and
+both Safari jobs), strict
 (up to date), enforced for admins, linear history, no force pushes, no deletions,
 conversation resolution required.
 
@@ -68,19 +73,18 @@ conversation resolution required.
 - Installed browsers: Chrome 154.0.8037.58, Edge 154.0.4258.48. Playwright builds:
   Chromium 153, Firefox 155, WebKit 26.6.
 - Current majors on 2026-10-02: Chrome 154, Edge 154, Firefox 157, Safari 27
-  (previous: 153, 153, 156, 26). GitHub-hosted macOS runners ship Safari 26.6.x.
+  (previous: 153, 153, 156, 26). GitHub-hosted runners: `macos-15` has Safari 26.6.1,
+  `xcode-27` (macOS 27, preview) has Safari 27.0; both are VMs without a WebGPU adapter.
 
 ## External access blockers (concrete user actions)
 
 | Blocked | Why | What the owner needs to do |
 |---|---|---|
-| Safari 27 (current major) and Safari WebGPU on real Mac hardware (issue #13) | no Mac; hosted runners have Safari 26.6.x without WebGPU | on a Mac with Safari 27: `sudo safaridriver --enable`, serve the harness and playground, `node tests/e2e/webdriver/smoke.mjs --browser safari --webgpu required` |
+| Safari WebGPU and Safari 27 PNG export on Mac hardware (issue #13, DL-TEST-16) | no Mac; the hosted macOS runners are VMs without a WebGPU adapter, and the macOS 27 one cannot read back canvases | on a Mac with Safari 26 or 27: `sudo safaridriver --enable`, serve the harness and playground, `node tests/e2e/webdriver/smoke.mjs --browser safari --webgpu required` |
 
-Once the secrets exist, run the `release` workflow manually with `publish: v1.0.0`:
-it publishes the release's own npm tarballs and the crates (repackaged from the tag
-and compared byte-for-byte with the release's `.crate` files), skips versions that
-are already in a registry and records the result on the release. 1.0.0 was a GitHub-only
-release under `@dotloom/*`; from 1.1.0 the npm scope is `@dotloomjs`.
+1.0.0 was a GitHub-only release under `@dotloom/*`; from 1.1.0 the npm scope is
+`@dotloomjs`. The `release` workflow's `publish: vX.Y.Z` mode completes a partially
+published release from its own artifacts.
 
 ## Known issues / decisions to remember
 
@@ -100,9 +104,9 @@ release under `@dotloom/*`; from 1.1.0 the npm scope is `@dotloomjs`.
 
 ## Next
 
-1. Safari 27 smoke test on a Mac (issue #13): `node tests/e2e/webdriver/smoke.mjs` with
-   `safaridriver` (see `apps/docs/guide/platforms.md`).
-2. Further engine memory work (issue #14, optional).
+1. Safari WebGPU on a Mac (issue #13): `node tests/e2e/webdriver/smoke.mjs --browser safari
+   --webgpu required` with `safaridriver` (see `apps/docs/guide/platforms.md`).
+2. Engine memory below ~1.5 KB per object needs public type changes (issue #14, 2.0).
 
 ## Commands
 

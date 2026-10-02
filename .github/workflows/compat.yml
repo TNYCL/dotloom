@@ -136,10 +136,28 @@ jobs:
           retention-days: 7
 
   safari:
-    name: safari smoke (macos)
+    # Released Safari, current and previous major. The previous major ships with the
+    # macOS 15 image; the current one with the `xcode-27` image (macOS 27, a standard
+    # runner in public preview).
+    name: safari smoke (${{ matrix.channel }} major)
     needs: wasm
-    runs-on: macos-15
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # No canvas can be read back in the macOS 27 runner's Safari (a plain 2D
+          # canvas included): the smoke test checks the drawn pixels with WebGL
+          # readPixels there and records PNG export as not verifiable.
+          - channel: current
+            runner: xcode-27
+            major: 27
+            readback: optional
+          - channel: previous
+            runner: macos-15
+            major: 26
+            readback: required
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -153,6 +171,13 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - name: Check the Safari major
+        env:
+          MAJOR: ${{ matrix.major }}
+        run: |
+          version=$(defaults read /Applications/Safari.app/Contents/Info CFBundleShortVersionString)
+          echo "Safari $version on macOS $(sw_vers -productVersion)" | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "${version%%.*}" = "$MAJOR" ] || { echo "::error::expected Safari $MAJOR, the runner has $version"; exit 1; }
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Build the harness and the playground
@@ -169,11 +194,13 @@ jobs:
             for i in $(seq 1 60); do curl -sf "$url" > /dev/null && break; sleep 1; done
           done
       - name: Safari smoke test
-        run: node tests/e2e/webdriver/smoke.mjs --browser safari
+        env:
+          READBACK: ${{ matrix.readback }}
+        run: node tests/e2e/webdriver/smoke.mjs --browser safari --canvas-readback "$READBACK"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: safari-smoke
+          name: safari-smoke-${{ matrix.channel }}
           path: tests/e2e/results/webdriver-*.json
           retention-days: 30
 

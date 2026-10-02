@@ -11,10 +11,17 @@
 //
 // Options: --harness <url> (default http://localhost:5199/), --playground <url>
 // (default http://localhost:5198/), --driver <url> (default http://localhost:4444),
-// --arg <browser argument> (repeatable), --webgpu required|optional (default optional).
+// --arg <browser argument> (repeatable), --webgpu required|optional (default optional),
+// --canvas-readback required|optional (default required).
 //
 // WebGL2 must work. WebGPU is checked too; with `optional` a failure is recorded as
-// "not available" with the reason (never as passed). Writes
+// "not available" with the reason (never as passed).
+//
+// PNG export reads the canvas back. A control canvas (plain 2D, no Dotloom) shows
+// whether the browser environment can read back canvases at all; some virtual
+// machines cannot (Safari 27 on the macOS 27 runner). With `--canvas-readback
+// optional` and a failed control, the drawn pixels are read with WebGL `readPixels`
+// instead and PNG export is recorded as "not verifiable here" — never as passed. Writes
 // results/webdriver-<browser>-<major>.json and appends a Markdown summary to
 // $GITHUB_STEP_SUMMARY.
 
@@ -36,6 +43,7 @@ const driverUrl = arg('driver', `http://localhost:${port}`)
 const harness = arg('harness', 'http://localhost:5199/')
 const playground = arg('playground', 'http://localhost:5198/')
 const webgpuPolicy = arg('webgpu', 'optional')
+const readbackPolicy = arg('canvas-readback', 'required')
 const headless = argv.includes('--headless')
 const extraArgs = many('arg')
 
@@ -118,6 +126,32 @@ const results = {
 let failed = false
 try {
   await wd('POST', `/session/${id}/timeouts`, { script: 90_000, pageLoad: 60_000 })
+  await wd('POST', `/session/${id}/url`, { url: harness })
+  const control = await wd('POST', `/session/${id}/execute/async`, {
+    script: script(`async () => {
+      const c = document.createElement('canvas')
+      c.width = 16
+      c.height = 16
+      const g = c.getContext('2d')
+      g.fillStyle = '#ff0000'
+      g.fillRect(0, 0, 16, 16)
+      try {
+        const d = g.getImageData(8, 8, 1, 1).data
+        return d[0] === 255 && d[3] === 255 ? { ok: true } : { ok: false, error: 'pixel ' + Array.from(d).join(',') }
+      } catch (e) {
+        return { ok: false, error: e.name + ': ' + e.message }
+      }
+    }`),
+    args: [],
+  })
+  const readbackWorks = control.ok === true
+  const fallback = !readbackWorks && readbackPolicy === 'optional'
+  if (!readbackWorks && !fallback) failed = true
+  results.checks.push({
+    name: 'canvas readback (control, no Dotloom)',
+    status: readbackWorks ? 'passed' : fallback ? 'unavailable in this environment' : 'failed',
+    ...control,
+  })
   for (const backend of ['webgl2', 'webgpu']) {
     await wd('POST', `/session/${id}/url`, { url: `${harness}?backend=${backend}` })
     const r = await wd('POST', `/session/${id}/execute/async`, {
@@ -131,12 +165,52 @@ try {
           { op: 'createEntity', entity: { geometry: { type: 'text', position: [-50, 50], content: 'Ölçü İğ', height: 12 } } },
         ])
         const stats = await window.dl.nextFrame()
-        const png = await window.dl.editor.viewport.exportPng()
-        return { ok: true, backend: r.backend, items: stats.items, drawCalls: stats.drawCalls, png: png.size }
+        const base = { ok: true, backend: r.backend, items: stats.items, drawCalls: stats.drawCalls }
+        if (!${fallback}) return { ...base, png: (await window.dl.editor.viewport.exportPng()).size }
+        // The environment cannot read canvases back: count the pixels of the frame that
+        // exportPng renders (grid hidden) with WebGL readPixels, in the same task.
+        const vp = window.dl.editor.viewport
+        await vp.fit()
+        const canvas = vp.canvas
+        const gl = r.backend === 'webgl2' ? canvas.getContext('webgl2') : null
+        let ink = null
+        const toBlob = HTMLCanvasElement.prototype.toBlob
+        canvas.toBlob = function (cb, ...rest) {
+          if (gl) {
+            const prevRead = gl.getParameter(gl.READ_FRAMEBUFFER_BINDING)
+            const prevPack = gl.getParameter(gl.PIXEL_PACK_BUFFER_BINDING)
+            gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null)
+            gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null)
+            const w = gl.drawingBufferWidth
+            const h = gl.drawingBufferHeight
+            const px = new Uint8Array(w * h * 4)
+            gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px)
+            gl.bindFramebuffer(gl.READ_FRAMEBUFFER, prevRead)
+            gl.bindBuffer(gl.PIXEL_PACK_BUFFER, prevPack)
+            ink = 0
+            for (let i = 0; i < px.length; i += 4) {
+              if (Math.abs(px[i] - px[0]) + Math.abs(px[i + 1] - px[1]) + Math.abs(px[i + 2] - px[2]) > 60) ink++
+            }
+          }
+          return toBlob.call(this, cb, ...rest)
+        }
+        let pngError = null
+        try {
+          await vp.exportPng({ grid: false })
+        } catch (e) {
+          pngError = String(e && e.message || e)
+        } finally {
+          delete canvas.toBlob
+        }
+        const pngExport = pngError
+          ? 'not verifiable here: ' + pngError
+          : 'returned a file despite the failed control (not counted)'
+        return { ...base, readback: 'webgl readPixels', ink, pngExport }
       }`),
       args: [],
     })
-    const good = r.ok && r.items === 3 && r.png > 0 && r.backend === backend
+    const drawn = fallback ? r.ink > 200 : r.png > 0
+    const good = r.ok && r.items === 3 && drawn && r.backend === backend
     const status = good ? 'passed' : backend === 'webgpu' && webgpuPolicy === 'optional' ? 'not available' : 'failed'
     if (status === 'failed') failed = true
     results.checks.push({ name: `harness ${backend}`, status, ...r })
@@ -167,7 +241,12 @@ const majorVersion = version.split('.')[0]
 writeFileSync(resolve(out, `webdriver-${browser}-${majorVersion}.json`), `${JSON.stringify(results, null, 2)}\n`)
 console.log(JSON.stringify(results, null, 2))
 if (process.env.GITHUB_STEP_SUMMARY) {
-  const rows = results.checks.map((c) => `| ${c.name} | ${c.status} | ${c.error ?? c.backend ?? ''} |`).join('\n')
+  const detail = (c) =>
+    c.error ??
+    [c.backend, c.readback && `${c.readback}: ${c.ink} px`, c.pngExport && `PNG export ${c.pngExport}`]
+      .filter(Boolean)
+      .join('; ')
+  const rows = results.checks.map((c) => `| ${c.name} | ${c.status} | ${detail(c)} |`).join('\n')
   appendFileSync(
     process.env.GITHUB_STEP_SUMMARY,
     `### ${results.browser}${results.channel ? ` (${results.channel} major)` : ''} — ${results.platform}\n\n| check | result | detail |\n|---|---|---|\n${rows}\n`,

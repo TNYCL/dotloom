@@ -22,7 +22,7 @@ Firefox 157/156 and Safari 27/26. Two kinds of evidence are kept apart:
   servers by `tests/e2e/webdriver/smoke.mjs`: drawing with each backend selected
   explicitly (lines, a circle, Turkish text), PNG export and the React playground.
   Chrome, Edge and Firefox are downloaded from the vendors by
-  `tests/e2e/webdriver/install.mjs`; the six Linux jobs and the Safari job run in
+  `tests/e2e/webdriver/install.mjs`; the six Linux jobs and the two Safari jobs run in
   `compat.yml` on every pull request and on `main`.
 - **Engine families** (Playwright's Chromium, Firefox and WebKit builds) run the full
   browser suite: tools, files, recovery, accessibility, device loss and pixel tests.
@@ -42,8 +42,8 @@ never as passed.
 | Edge 153.0.4234.48 | Linux CI, SwiftShader | not available: the software device was lost, the viewport moved on | verified | `compat` real-browser job |
 | Firefox 157.0 and 156.0.1 | Linux CI, Mesa (Xvfb) | not exposed on Linux | verified | `compat` real-browser jobs |
 | Safari 26.6.1 (previous major) | macOS 15 CI runner | not exposed on the runner (`navigator.gpu` undefined) | verified | `compat` Safari job |
-| Safari 27 (current major) | — | not verified | not verified | no Mac with Safari 27 is available; hosted runners ship 26.6.x (issue #13) |
-| Firefox 157/156 on Windows or macOS, Edge 153 on Windows, Safari WebGPU on Mac hardware | — | not verified | not verified | no such device or install available here |
+| Safari 27.0 (current major) | macOS 27 CI runner (`xcode-27`, virtual machine) | not available on the runner: `navigator.gpu` exists, no adapter | verified; drawn pixels checked with WebGL `readPixels` — PNG export not verifiable there, since no canvas (not even a plain 2D one) can be read back in that VM | `compat` Safari job |
+| Firefox 157/156 on Windows or macOS, Edge 153 on Windows, Safari WebGPU and Safari 27 PNG export on Mac hardware | — | not verified | not verified | no such device or install available here (issue #13) |
 
 ### Engine families (full suite)
 
