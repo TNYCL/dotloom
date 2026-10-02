@@ -356,7 +356,9 @@ fn rules_on_the_wrong_geometry_class_or_missing_anchors_are_rejected_before_comm
     let c = create(
         &mut e,
         NewEntity {
-            geometry: Some(Shape::Circle(dotloom_engine::geometry::Circle::new(Point::new(50.0, 100.0), 20.0).unwrap())),
+            geometry: Some(Shape::Circle(
+                dotloom_engine::geometry::Circle::new(Point::new(50.0, 100.0), 20.0).unwrap(),
+            )),
             ..NewEntity::default()
         },
     );
@@ -480,7 +482,11 @@ fn shape_breaking_transforms_keep_rules_and_dimensions_meaningful() {
     .unwrap();
     assert_eq!(e.document().entity(c).unwrap().type_id.as_str(), "dotloom.path");
     assert_eq!(report.removed_constraints.len(), 1, "{report:?}");
-    assert!(report.notes.iter().any(|n| n.contains("changed shape kind") && n.contains(&c.to_string())), "{:?}", report.notes);
+    assert!(
+        report.notes.iter().any(|n| n.contains("changed shape kind") && n.contains(&c.to_string())),
+        "{:?}",
+        report.notes
+    );
     assert!(report.notes.iter().any(|n| n.contains(&format!("{radial} no longer resolves"))), "{:?}", report.notes);
     assert!(e.evaluate(radial).unwrap().error.is_some());
     // The path really is the stretched circle: 100 mm wide, 50 mm tall around (10, 0).

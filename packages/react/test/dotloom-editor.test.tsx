@@ -136,7 +136,9 @@ describe('editor states', () => {
       cmds.push(
         {
           op: 'addConstraint',
-          constraint: { rule: { kind: 'coincident', a: { entity: a, anchor: 'end' }, b: { entity: b, anchor: 'start' } } },
+          constraint: {
+            rule: { kind: 'coincident', a: { entity: a, anchor: 'end' }, b: { entity: b, anchor: 'start' } },
+          },
         },
         {
           op: 'addConstraint',
@@ -156,7 +158,9 @@ describe('editor states', () => {
     void h.core
       .apply({
         label: 'Move',
-        commands: [{ op: 'setParams', values: [{ entity: ids[30] as number, param: 'a.y', value: 250 }], mode: 'prefer' }],
+        commands: [
+          { op: 'setParams', values: [{ entity: ids[30] as number, param: 'a.y', value: 250 }], mode: 'prefer' },
+        ],
       })
       .then((r) => {
         result = r
@@ -205,7 +209,10 @@ describe('plugin contributions in the editor', () => {
     expect(screen.queryByRole('heading', { name: 'Shelf info' })).toBeNull()
     let id = 0
     await act(async () => {
-      const r = await h.core.apply({ label: 'Shelf', commands: [{ op: 'createEntity', entity: { type: 'shelf.unit' } }] })
+      const r = await h.core.apply({
+        label: 'Shelf',
+        commands: [{ op: 'createEntity', entity: { type: 'shelf.unit' } }],
+      })
       id = r?.created[0] as number
       await h.engine.setSelection([id])
     })

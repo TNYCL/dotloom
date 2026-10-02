@@ -166,7 +166,8 @@ test('empty drawing note, Ctrl+S / Ctrl+O, DXF and PNG export, visible keyboard 
   const background = img.at(0, 0)
   let ink = 0
   for (let y = 0; y < img.height; y += 2)
-    for (let x = 0; x < img.width; x += 2) if (img.at(x, y).some((c, i) => Math.abs(c - (background[i] ?? 0)) > 40)) ink++
+    for (let x = 0; x < img.width; x += 2)
+      if (img.at(x, y).some((c, i) => Math.abs(c - (background[i] ?? 0)) > 40)) ink++
   expect(ink, 'the exported PNG shows the line').toBeGreaterThan(10)
 
   // Ctrl+O opens a file (here the one saved above, after starting a new document).
