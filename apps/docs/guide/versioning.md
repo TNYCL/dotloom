@@ -18,7 +18,7 @@
 2. Update `@dotloom/sdk` and `@dotloom/react` together (they are released together).
 3. Files written by older versions open and are migrated in memory; saving writes
    the current schema. Keep a copy if older applications must still read them.
-4. Plugins declare the SDK range they support (`sdk: '^0.1.0'`); an incompatible
+4. Plugins declare the SDK range they support (`sdk: '^1.0.0'`); an incompatible
    range is reported when the plugin is registered.
 
 ## Deprecations

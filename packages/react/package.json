@@ -1,6 +1,6 @@
 {
   "name": "@dotloom/react",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Optional React editor for Dotloom: canvas, toolbar, layers, objects, inspector, constraints, command palette",
   "license": "MIT OR Apache-2.0",
   "author": "TNYCL",

@@ -205,7 +205,7 @@ class TimeMoveTool implements Tool {
 export const timelinePlugin: DotloomPlugin = {
   id: 'timeline.blocks',
   version: '1.0.0',
-  sdk: '^0.1.0',
+  sdk: '^1.0.0',
   types: [blockType],
   tools: [() => new BlockTool(), () => new TimeMoveTool()],
   constraintTemplates: [

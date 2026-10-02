@@ -22,16 +22,22 @@ a schedule whose blocks keep their order. It is
 [examples](https://tnycl.github.io/dotloom/guide/examples) ·
 [documentation](https://tnycl.github.io/dotloom/)
 
-> **Status:** pre-release (`0.1.0`, not yet published to npm or crates.io). The
-> engine, renderer, SDK, React editor, examples and documentation work and are
-> tested; see [`docs/status.md`](docs/status.md) for what is verified and what is
-> open, and [`docs/requirements.md`](docs/requirements.md) for the evidence behind
-> every requirement.
+> **Status:** `1.0.0`, the first stable release. The packages and the CLI are
+> attached to the [GitHub Release](https://github.com/TNYCL/dotloom/releases/tag/v1.0.0);
+> they are not on the npm and crates.io registries yet. See
+> [`docs/status.md`](docs/status.md) for what is verified and what is open, and
+> [`docs/requirements.md`](docs/requirements.md) for the evidence behind every
+> requirement.
 
 ## Use it
 
-Until the packages are on npm, install them from tarballs built from this
-repository (bash or PowerShell):
+Install the packages from the release (npm, pnpm and yarn accept tarball URLs):
+
+```sh
+npm install https://github.com/TNYCL/dotloom/releases/download/v1.0.0/dotloom-sdk-1.0.0.tgz https://github.com/TNYCL/dotloom/releases/download/v1.0.0/dotloom-react-1.0.0.tgz
+```
+
+Or build them from this repository (bash or PowerShell):
 
 ```sh
 git clone https://github.com/TNYCL/dotloom
@@ -42,7 +48,7 @@ pnpm run build
 pnpm --filter @dotloom/sdk pack --pack-destination "$PWD/dist-packages"
 pnpm --filter @dotloom/react pack --pack-destination "$PWD/dist-packages"
 # in your project: install both tarballs in one command
-npm install ../dotloom/dist-packages/dotloom-sdk-0.1.0.tgz ../dotloom/dist-packages/dotloom-react-0.1.0.tgz
+npm install ../dotloom/dist-packages/dotloom-sdk-1.0.0.tgz ../dotloom/dist-packages/dotloom-react-1.0.0.tgz
 ```
 
 A complete editor without a framework:
