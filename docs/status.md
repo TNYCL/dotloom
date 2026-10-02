@@ -85,7 +85,8 @@ npm scope cannot be obtained, the packages need another scope and a new version.
   (reproduced with plain WebGL) — that test is skipped there with the reason.
 - Text uses the default font's pair kerning (shared tables, checked against
   HarfBuzz); outlines come from `read-fonts` (no advisory exceptions in cargo-deny).
-- Engine memory ≈ 2 KB per simple object (issue #14).
+- Engine memory ≈ 1.5 KB per simple object after load (was ≈ 2 KB; issue #14 tracks
+  further reductions, e.g. not caching anchors of built-in shapes).
 - Dependabot ignores major TypeScript (7 breaks the toolchain) and `@types/node`
   (types follow the Node 24 runtime) updates.
 
