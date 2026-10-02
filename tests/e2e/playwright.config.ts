@@ -31,7 +31,8 @@ export default defineConfig({
   timeout: 60_000,
   fullyParallel: false,
   workers: 1,
-  retries: process.env.CI ? 1 : 0,
+  // No retries: a flaky test must fail and be fixed, not pass on a second try.
+  retries: 0,
   reporter: [['list'], ['json', { outputFile: 'results/e2e.json' }]],
   use: {
     baseURL: externalDir ? 'http://localhost:5201/' : siteMode ? siteUrl : 'http://localhost:5199/',

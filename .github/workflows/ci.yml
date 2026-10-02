@@ -58,6 +58,25 @@ jobs:
         env:
           WGPU_BACKEND: vulkan
 
+  dxf-readback:
+    name: dxf export read back with ezdxf
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install toolchain from rust-toolchain.toml
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: cli
+      - run: cargo build --release -p dotloom-cli --locked
+      - name: Install ezdxf (independent DXF implementation)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet ezdxf==1.4.2
+      - name: Import each ezdxf fixture, export it again, read the export with ezdxf
+        run: '"$RUNNER_TEMP/venv/bin/python" tests/fixtures/dxf/readback.py target/release/dotloom "$RUNNER_TEMP/dxf"'
+
   wasm:
     name: wasm build
     runs-on: ubuntu-24.04

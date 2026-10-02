@@ -425,3 +425,44 @@ fn loaded_file_round_trips_through_engine() {
     let a: Document = e.document().clone();
     assert!(e2.document().semantic_eq(&a));
 }
+
+#[test]
+fn dxf_export_reports_text_it_cannot_represent() {
+    // R12 TEXT has one line and \U+XXXX escapes cover the Basic Multilingual Plane
+    // only: both changes must appear in the report, nothing silently.
+    let mut e = Engine::default();
+    let text = |content: &str, y: f64| Command::CreateEntity {
+        id: None,
+        entity: NewEntity {
+            geometry: Some(Shape::Text(Text {
+                position: Point::new(0.0, y),
+                content: content.into(),
+                height: 5.0,
+                rotation: 0.0,
+                halign: HAlign::Left,
+                valign: VAlign::Baseline,
+            })),
+            ..NewEntity::default()
+        },
+    };
+    e.apply(
+        Transaction::new("t", vec![text("iki\nsatır", 0.0), text("emoji 😀 ve ğ", 20.0), text("düz", 40.0)]),
+        ApplyOptions::default(),
+    )
+    .unwrap();
+    let (dxf, report) = export_dxf(&mut e);
+    assert!(dxf.contains(r"iki sat\U+0131r"), "{dxf}");
+    assert!(dxf.contains(r"emoji ? ve \U+011F"), "{dxf}");
+    assert!(dxf.contains(r"d\U+00FCz"));
+    assert_eq!(report.count(LossKind::Text), 2, "{report:?}");
+    let back = import_dxf(dxf.as_bytes()).unwrap();
+    let contents: Vec<String> = back
+        .entities
+        .iter()
+        .filter_map(|(_, e)| match &e.geometry {
+            Some(Shape::Text(t)) => Some(t.content.clone()),
+            _ => None,
+        })
+        .collect();
+    assert!(contents.contains(&"iki satır".to_owned()) && contents.contains(&"düz".to_owned()), "{contents:?}");
+}
