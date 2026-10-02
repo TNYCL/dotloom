@@ -499,6 +499,102 @@ fn shape_breaking_transforms_keep_rules_and_dimensions_meaningful() {
 }
 
 // ---------------------------------------------------------------------------
+// Independent commit validation (DL-TEST-3, DL-SOLVE-10)
+
+#[test]
+fn the_independent_checker_rejects_what_a_loose_solver_accepts() {
+    // A solver configured with a uselessly loose tolerance (10 % of the drawing size)
+    // reports "solved" for a line 50 mm short of its length rule. The commit is still
+    // refused: every hard rule is re-measured on the final geometry with the
+    // checker's own tolerance, independently of the solver.
+    let opts = EngineOptions {
+        solve: dotloom_engine::constraints::SolveOptions {
+            tolerance: 0.1,
+            ..dotloom_engine::constraints::SolveOptions::default()
+        },
+        ..EngineOptions::default()
+    };
+    let mut e = Engine::new(opts);
+    let a = line(&mut e, (0.0, 0.0), (950.0, 0.0));
+    let rev = e.revision();
+    let err = add_constraint(&mut e, RuleSpec::Length { line: LineRef::of(a), value: 1000.0 }).unwrap_err();
+    let EngineError::Validation { residual, tolerance, .. } = err else { panic!("expected validation, got {err:?}") };
+    assert!((residual - 50.0).abs() < 1e-9, "residual {residual}");
+    assert!(tolerance < 1e-3, "checker tolerance {tolerance}");
+    assert_eq!(e.revision(), rev);
+    assert!(e.document().constraints().next().is_none());
+    // With the default tolerance the same rule is solved and passes the checker.
+    let mut ok = Engine::default();
+    let b = line(&mut ok, (0.0, 0.0), (950.0, 0.0));
+    add_constraint(&mut ok, RuleSpec::Length { line: LineRef::of(b), value: 1000.0 }).unwrap();
+    assert!(ok.verify().is_empty());
+    let end = ok.evaluate(b).unwrap().anchor("end").unwrap();
+    assert!((end.distance(ok.evaluate(b).unwrap().anchor("start").unwrap()) - 1000.0).abs() < 1e-6);
+}
+
+#[test]
+fn verify_measures_rules_of_an_opened_file_independently() {
+    // Files are opened without solving; `verify` reports each violated hard rule
+    // with its residual and tolerance.
+    let j = serde_json::json!({
+        "schema": 1, "layers": [{"id": 1, "name": "L"}], "nextId": 10,
+        "entities": [
+            {"id": 2, "type": "dotloom.line", "layer": 1, "geometry": {"type": "line", "a": [0, 0], "b": [300, 400]}},
+            {"id": 3, "type": "dotloom.line", "layer": 1, "geometry": {"type": "line", "a": [0, 0], "b": [100, 0]}}
+        ],
+        "constraints": [
+            {"id": 4, "rule": {"kind": "length", "line": {"from": {"entity": 2, "anchor": "start"}, "to": {"entity": 2, "anchor": "end"}}, "value": 500}},
+            {"id": 5, "rule": {"kind": "length", "line": {"from": {"entity": 3, "anchor": "start"}, "to": {"entity": 3, "anchor": "end"}}, "value": 120}}
+        ]
+    });
+    let (doc, _) = Document::from_json_value(j, &Default::default()).unwrap();
+    let mut e = Engine::default();
+    e.load(doc).unwrap();
+    let v = e.verify();
+    assert_eq!(v.len(), 1, "{v:?}");
+    assert!(v[0].0.contains('5') && (v[0].1 - 20.0).abs() < 1e-9, "{v:?}");
+}
+
+#[test]
+fn an_exhausted_iteration_budget_rejects_the_change_and_keeps_the_document() {
+    // Two iterations cannot bring a far nonlinear edit to tolerance: the result is
+    // `notConverged`, not a commit of a half-solved state.
+    let opts = EngineOptions {
+        solve: dotloom_engine::constraints::SolveOptions {
+            max_iterations: 2,
+            ..dotloom_engine::constraints::SolveOptions::default()
+        },
+        ..EngineOptions::default()
+    };
+    let mut e = Engine::new(opts);
+    let mut ids = Vec::new();
+    for i in 0..8 {
+        ids.push(line(&mut e, (f64::from(i) * 10.0, 0.0), (f64::from(i) * 10.0 + 10.0, 0.0)));
+    }
+    for w in ids.windows(2) {
+        add_constraint(
+            &mut e,
+            RuleSpec::Coincident { a: AnchorRef::new(w[0], "end"), b: AnchorRef::new(w[1], "start") },
+        )
+        .unwrap();
+    }
+    for id in &ids {
+        add_constraint(&mut e, RuleSpec::Length { line: LineRef::of(*id), value: 10.0 }).unwrap();
+    }
+    add_constraint(&mut e, RuleSpec::FixPoint { a: AnchorRef::new(ids[0], "start"), at: Point::ORIGIN }).unwrap();
+    let hash = e.document().content_hash().unwrap();
+    let rev = e.revision();
+    let last = *ids.last().unwrap();
+    let err = set(&mut e, last, "b.y", 55.0, EditMode::Exact).unwrap_err();
+    let EngineError::Solve { failure } = &err else { panic!("expected a solve failure, got {err:?}") };
+    assert!(matches!(failure.status, Status::NotConverged { .. }), "{:?}", failure.status);
+    assert!(!failure.diagnostics.is_empty());
+    assert_eq!(e.revision(), rev);
+    assert_eq!(e.document().content_hash().unwrap(), hash);
+    assert!(e.verify().is_empty());
+}
+
+// ---------------------------------------------------------------------------
 // Drag (DL-CMD-4/5)
 
 #[test]
