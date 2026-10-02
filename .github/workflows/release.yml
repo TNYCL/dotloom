@@ -236,6 +236,7 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
       - name: Publish (provenance)
+        id: publish
         if: env.HAS_TOKEN == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -243,11 +244,17 @@ jobs:
           npm publish artifacts/npm/dotloomjs-sdk-*.tgz --provenance --access public
           npm publish artifacts/npm/dotloomjs-react-*.tgz --provenance --access public
       - name: Record the result
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
+          OUTCOME: ${{ steps.publish.outcome }}
         run: |
-          state=$([ "$HAS_TOKEN" = true ] && echo published || echo "not published: no NPM_TOKEN secret")
+          case "$HAS_TOKEN/$OUTCOME" in
+            true/success) state=published ;;
+            true/*) state="failed (see this run; complete it with the release workflow's publish mode)" ;;
+            *) state="not published: no NPM_TOKEN secret" ;;
+          esac
           echo "npm: $state" >> "$GITHUB_STEP_SUMMARY"
           echo "npm: $state" > npm-status.txt
           gh release upload "$TAG" npm-status.txt --repo "$GITHUB_REPOSITORY" --clobber
@@ -282,16 +289,23 @@ jobs:
             cmp "$f" "target/package/$(basename "$f")" || { echo "::error::$(basename "$f") differs from the release asset"; exit 1; }
           done
       - name: Publish the workspace crates in dependency order
+        id: publish
         if: env.HAS_TOKEN == 'true'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: cargo publish --workspace --locked --exclude dotloom-wasm --exclude dotloom-render-web
       - name: Record the result
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
+          OUTCOME: ${{ steps.publish.outcome }}
         run: |
-          state=$([ "$HAS_TOKEN" = true ] && echo published || echo "not published: no CARGO_REGISTRY_TOKEN secret")
+          case "$HAS_TOKEN/$OUTCOME" in
+            true/success) state=published ;;
+            true/*) state="failed (see this run; complete it with the release workflow's publish mode)" ;;
+            *) state="not published: no CARGO_REGISTRY_TOKEN secret" ;;
+          esac
           echo "crates.io: $state" >> "$GITHUB_STEP_SUMMARY"
           echo "crates.io: $state" > crates-status.txt
           gh release upload "$TAG" crates-status.txt --repo "$GITHUB_REPOSITORY" --clobber
@@ -334,13 +348,20 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          # Every outcome is recorded; a failure does not stop crates.io (see the last step).
           state="not published: no NPM_TOKEN secret"
           if [ "$HAS_NPM" = true ]; then
+            state=published
             for f in assets/dotloomjs-sdk-*.tgz assets/dotloomjs-react-*.tgz; do
               name=$(tar -xzOf "$f" package/package.json | jq -r '.name + "@" + .version')
-              if npm view "$name" version > /dev/null 2>&1; then echo "$name is already on npm"; else npm publish "$f" --provenance --access public; fi
+              if npm view "$name" version > /dev/null 2>&1; then
+                echo "$name is already on npm"
+              elif ! npm publish "$f" --provenance --access public 2>&1 | tee npm.log; then
+                state="failed: $name: $(grep -m1 'npm error 4' npm.log || echo 'see the job log')"
+              elif grep -q 'npm error' npm.log; then
+                state="failed: $name: $(grep -m1 'npm error' npm.log)"
+              fi
             done
-            state=published
           fi
           echo "npm: $state" | tee -a "$GITHUB_STEP_SUMMARY" > npm-status.txt
       - name: Install toolchain from rust-toolchain.toml
@@ -357,17 +378,32 @@ jobs:
               cmp "$f" "target/package/$(basename "$f")" || { echo "::error::$(basename "$f") differs from the release asset"; exit 1; }
             done
             version=$(grep -m1 '^version = ' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+            state=published
             for c in dotloom-geometry dotloom-constraints dotloom-document dotloom-scene dotloom-engine dotloom-io dotloom-render dotloom-cli; do
               code=$(curl -s -o /dev/null -w '%{http_code}' -A "dotloom-release (github.com/TNYCL/dotloom)" "https://crates.io/api/v1/crates/$c/$version")
-              if [ "$code" = 200 ]; then echo "$c $version is already on crates.io"; else cargo publish --locked -p "$c"; fi
+              if [ "$code" = 200 ]; then echo "$c $version is already on crates.io"; continue; fi
+              # crates.io limits how fast new crates may be created (429): wait and retry.
+              done_c=false
+              for attempt in 1 2 3 4 5 6; do
+                if cargo publish --locked -p "$c" 2>&1 | tee cargo.log && ! grep -q 'error:' cargo.log; then done_c=true; break; fi
+                grep -q '429 Too Many Requests' cargo.log || break
+                echo "rate limited; waiting 11 minutes (attempt $attempt)"
+                sleep 660
+              done
+              if [ "$done_c" != true ]; then state="failed: $c: $(grep -m1 -A1 'Caused by' cargo.log | tail -1 | cut -c1-200)"; break; fi
             done
-            state=published
           fi
           echo "crates.io: $state" | tee -a "$GITHUB_STEP_SUMMARY" > crates-status.txt
       - name: Record the result on the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" npm-status.txt crates-status.txt --repo "$GITHUB_REPOSITORY" --clobber
+        run: |
+          gh release upload "$TAG" npm-status.txt crates-status.txt --repo "$GITHUB_REPOSITORY" --clobber
+          # The run fails unless every registry now has the release.
+          if grep -qv -e ': published$' npm-status.txt crates-status.txt; then
+            cat npm-status.txt crates-status.txt
+            exit 1
+          fi
 
   verify-release:
     # The published release, checked from its public URLs like a user would use it:
