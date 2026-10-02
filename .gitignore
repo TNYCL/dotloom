@@ -19,3 +19,5 @@ dist/
 .env.*
 *.log
 .DS_Store
+packages/*/src/wasm/
+packages/*/LICENSE-*

@@ -8,6 +8,7 @@ members = [
     "crates/engine",
     "crates/io",
     "crates/cli",
+    "crates/wasm",
 ]
 
 [workspace.package]
@@ -68,3 +69,5 @@ inherits = "release"
 opt-level = "s"
 lto = "fat"
 codegen-units = 1
+strip = true
+panic = "abort"
