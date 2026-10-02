@@ -2,13 +2,14 @@
 
 Resume point for any contributor or agent. Keep it short; never store secrets here.
 
-- Branch: `ci/safari-27` (Safari current and previous major)
+- Branch: `main` (complete; one accepted exception)
 - Last updated: 2026-10-02
 - Overall: **1.1.0 released** (tag `v1.1.0` on `main@ef0f517`,
   https://github.com/TNYCL/dotloom/releases/tag/v1.1.0), on **npm** (`@dotloomjs/sdk`,
   `@dotloomjs/react`) and **crates.io** (all eight `dotloom-*` crates). Safari 27 and 26 are
-  verified in CI (WebGL2). Open: Safari WebGPU (and Safari 27 PNG export) on Mac hardware
-  (no Mac; issue #13), so the goal is not complete.
+  verified in CI (WebGL2). **Complete**, with one exception the owner accepted on
+  2026-10-02: Safari WebGPU (and Safari 27 PNG export) on Mac hardware is not verified
+  (no Mac; DL-TEST-16, issue #13 stays open for anyone with a Mac).
 
 ## Merged (main)
 
@@ -104,7 +105,7 @@ published release from its own artifacts.
 
 ## Next
 
-1. Safari WebGPU on a Mac (issue #13): `node tests/e2e/webdriver/smoke.mjs --browser safari
+1. Optional — Safari WebGPU on a Mac (issue #13, accepted as not verified): `node tests/e2e/webdriver/smoke.mjs --browser safari
    --webgpu required` with `safaridriver` (see `apps/docs/guide/platforms.md`).
 2. Engine memory below ~1.5 KB per object needs public type changes (issue #14, 2.0).
 
