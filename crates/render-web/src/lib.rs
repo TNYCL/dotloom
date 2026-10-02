@@ -42,6 +42,18 @@ mod web {
         js_sys::Reflect::get(&nav, &JsValue::from_str("gpu")).is_ok_and(|g| !g.is_undefined() && !g.is_null())
     }
 
+    /// A built-in theme (`"light"` or `"dark"`) as JSON with `0xRRGGBBAA` numbers.
+    #[wasm_bindgen(js_name = themePreset)]
+    #[must_use]
+    pub fn theme_preset(name: &str) -> Option<String> {
+        let t = match name {
+            "light" => Theme::light(),
+            "dark" => Theme::dark(),
+            _ => return None,
+        };
+        serde_json::to_string(&t).ok()
+    }
+
     /// Binding protocol version.
     #[wasm_bindgen(js_name = renderProtocol)]
     #[must_use]
@@ -49,9 +61,28 @@ mod web {
         RENDER_PROTOCOL
     }
 
+    /// Options of [`WebRenderer::create`] (JSON).
+    #[derive(Debug, serde::Deserialize)]
+    #[serde(rename_all = "camelCase", default)]
+    struct CreateOptions {
+        /// Use 4× MSAA when the adapter supports it.
+        msaa: bool,
+    }
+
+    impl Default for CreateOptions {
+        fn default() -> Self {
+            Self { msaa: true }
+        }
+    }
+
     /// A renderer attached to one canvas.
     #[wasm_bindgen]
     pub struct WebRenderer {
+        // Kept alive for the renderer's lifetime: some browsers (Chromium with the
+        // SwiftShader adapter) lose devices once the adapter/instance objects are
+        // garbage-collected.
+        _instance: wgpu::Instance,
+        _adapter: wgpu::Adapter,
         surface: Option<wgpu::Surface<'static>>,
         config: wgpu::SurfaceConfiguration,
         renderer: Option<Renderer>,
@@ -68,9 +99,11 @@ mod web {
     }
 
     fn pick_format(formats: &[wgpu::TextureFormat]) -> Option<wgpu::TextureFormat> {
-        // Colors are authored in sRGB and blended like Canvas/SVG: use a non-sRGB target.
+        // Colors are authored in sRGB and blended like Canvas/SVG: use a non-sRGB
+        // target on both backends (an sRGB surface would make the WebGL present pass
+        // depend on browser sRGB sampling, which is not consistent across engines).
         let preferred = [wgpu::TextureFormat::Bgra8Unorm, wgpu::TextureFormat::Rgba8Unorm];
-        preferred.into_iter().find(|f| formats.contains(f)).or_else(|| formats.first().copied())
+        preferred.iter().copied().find(|f| formats.contains(f)).or_else(|| formats.first().copied())
     }
 
     #[wasm_bindgen]
@@ -82,8 +115,19 @@ mod web {
         /// # Errors
         /// A JSON string `{code, message}` with code `unsupported`, `adapter`,
         /// `device`, `surface` or `invalid`.
-        pub async fn create(canvas: JsValue, backend: String, width: u32, height: u32) -> Result<WebRenderer, JsValue> {
+        pub async fn create(
+            canvas: JsValue,
+            backend: String,
+            width: u32,
+            height: u32,
+            options: String,
+        ) -> Result<WebRenderer, JsValue> {
             console_error_panic_hook::set_once();
+            let opts: CreateOptions = if options.trim().is_empty() {
+                CreateOptions::default()
+            } else {
+                serde_json::from_str(&options).map_err(|e| js_err("invalid", e))?
+            };
             let backends = match backend.as_str() {
                 "webgpu" => {
                     if !webgpu_exposed() {
@@ -157,7 +201,7 @@ mod web {
             config.present_mode = wgpu::PresentMode::Fifo;
             config.view_formats = Vec::new();
             surface.configure(&device, &config);
-            let msaa = adapter.get_texture_format_features(format).flags.sample_count_supported(4);
+            let msaa = opts.msaa && adapter.get_texture_format_features(format).flags.sample_count_supported(4);
             let renderer =
                 Renderer::new(device, queue, format, RendererOptions { sample_count: if msaa { 4 } else { 1 } })
                     .map_err(|e| js_err("device", e))?;
@@ -176,7 +220,17 @@ mod web {
                 "maxTextureDimension2D": limits.max_texture_dimension_2d,
                 "protocol": RENDER_PROTOCOL,
             });
-            Ok(WebRenderer { surface: Some(surface), config, renderer: Some(renderer), backend, info, lost, errors })
+            Ok(WebRenderer {
+                _instance: instance,
+                _adapter: adapter,
+                surface: Some(surface),
+                config,
+                renderer: Some(renderer),
+                backend,
+                info,
+                lost,
+                errors,
+            })
         }
 
         /// Backend in use (`webgpu` or `webgl2`).

@@ -123,19 +123,30 @@ pub(crate) fn plan(
     prefer_all: bool,
     pin: bool,
 ) -> Option<(Problem, Plan)> {
-    plan_with(ov, deps, registry, notes, prefer_all, None, pin)
+    plan_with(ov, deps, registry, notes, prefer_all, Attempt { target: None, pin, hard_target: false })
 }
 
 /// [`plan`] with an optional anchor drag target `(entity, anchor, world point)`.
+/// How one solve attempt is set up.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Attempt<'a> {
+    /// Dragged anchor and its target.
+    pub target: Option<(EntityId, &'a str, dotloom_geometry::Point)>,
+    /// Hold the rest of edited entities and `high`-stay properties fixed.
+    pub pin: bool,
+    /// Make the drag target required instead of a strong preference.
+    pub hard_target: bool,
+}
+
 pub(crate) fn plan_with(
     ov: &Overlay<'_>,
     deps: &DepIndex,
     registry: &Registry,
     notes: &ApplyNotes,
     prefer_all: bool,
-    anchor_target: Option<(EntityId, &str, dotloom_geometry::Point)>,
-    pin: bool,
+    attempt: Attempt<'_>,
 ) -> Option<(Problem, Plan)> {
+    let Attempt { target: anchor_target, pin, hard_target } = attempt;
     let mut seeds: BTreeSet<EntityId> = notes.touched.iter().copied().filter(|id| ov.entity(*id).is_some()).collect();
     for cid in &notes.touched_constraints {
         if let Some(c) = ov.constraint(*cid) {
@@ -155,6 +166,7 @@ pub(crate) fn plan_with(
     b.edited = notes.edits.iter().map(|e| e.0).chain(anchor_target.map(|a| a.0)).collect();
     b.edited_params = notes.edits.iter().map(|e| (e.0, e.1.clone())).collect();
     b.pin = pin;
+    b.hard_targets = hard_target;
     for id in &cl.entities {
         b.add_entity_params(*id);
     }
@@ -169,7 +181,7 @@ pub(crate) fn plan_with(
     // Deduplicate edits (last wins) and add them after structural rules.
     let mut edits: BTreeMap<(EntityId, String), (f64, bool)> = BTreeMap::new();
     for (e, p, v, exact) in &notes.edits {
-        edits.insert((*e, p.clone()), (*v, *exact && !prefer_all));
+        edits.insert((*e, p.clone()), (*v, (*exact && !prefer_all) || hard_target));
     }
     let mut list = Vec::new();
     for ((e, p), (v, exact)) in edits {
@@ -284,7 +296,16 @@ pub(crate) fn finish(
             continue;
         }
         let Some(val) = sol.values.get(v.index()).copied() else { continue };
-        if val != var.value || plan.edits.iter().any(|x| x.0 == *e && x.1 == *p) {
+        let tiny = 1e-12 * var.scale.max(1.0);
+        let edit = plan.edits.iter().find(|x| x.0 == *e && x.1 == *p);
+        // Exact edits store the requested value itself (no round-off from the
+        // solver); untouched parameters keep their bits unless they really moved.
+        let val = match edit {
+            Some(&(_, _, requested, true)) if (val - requested).abs() <= 1e3 * tiny => requested,
+            _ if (val - var.value).abs() <= tiny => var.value,
+            _ => val,
+        };
+        if val != var.value || edit.is_some() {
             per_entity.entry(*e).or_default().push((p.as_str(), val));
         }
     }

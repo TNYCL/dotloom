@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dotloom E2E harness</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #ffffff;
+        font: 14px system-ui, sans-serif;
+      }
+      #stage {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 640px;
+        height: 400px;
+      }
+      #side {
+        position: absolute;
+        left: 660px;
+        top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <div id="side">
+      <label>Name <input id="field" type="text" value="" /></label>
+      <pre id="log"></pre>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

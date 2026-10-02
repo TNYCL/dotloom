@@ -21,3 +21,11 @@ dist/
 .DS_Store
 packages/*/src/wasm/
 packages/*/LICENSE-*
+tests/e2e/dist/
+tests/e2e/results/
+tests/e2e/test-results/
+tests/e2e/playwright-report/
+/site/
+apps/docs/public/api/
+apps/docs/.vitepress/dist/
+apps/docs/.vitepress/cache/

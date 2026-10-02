@@ -1,0 +1,12 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["../../packages/sdk/src/index.ts", "../../packages/react/src/index.ts"],
+  "tsconfig": "./tsconfig.typedoc.json",
+  "out": "public/api/ts",
+  "name": "Dotloom TypeScript API",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "readme": "none",
+  "githubPages": false,
+  "skipErrorChecking": true
+}

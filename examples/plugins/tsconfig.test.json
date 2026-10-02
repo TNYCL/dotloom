@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@dotloom/sdk": ["../../packages/sdk/src/index.ts"],
+      "@dotloom/sdk/node": ["../../packages/sdk/src/node.ts"]
+    }
+  },
+  "include": ["src", "test"]
+}

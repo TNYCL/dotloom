@@ -1,0 +1,19 @@
+{
+  "name": "@dotloom/example-vanilla",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Dotloom without React: plain DOM toolbar and the SDK editor",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@dotloom/sdk": "workspace:^"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vite": "8.3.2"
+  }
+}

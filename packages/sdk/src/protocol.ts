@@ -42,6 +42,7 @@ export type MethodName =
   | 'copy'
   | 'fullScene'
   | 'historyState'
+  | 'debugTrap'
 
 /** Machine-readable error codes. */
 export type ErrorCode =
@@ -66,6 +67,7 @@ export type ErrorCode =
   | 'disposed'
   | 'timeout'
   | 'init'
+  | 'render'
 
 export interface ErrorPayload {
   code: ErrorCode

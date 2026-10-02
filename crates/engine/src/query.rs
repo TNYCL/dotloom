@@ -54,6 +54,10 @@ pub enum SnapKind {
     Grid,
 }
 
+/// Margin (fraction of the snap radius) a same-kind candidate must win by to
+/// replace the previous snap.
+pub const HYSTERESIS: f64 = 0.3;
+
 /// Snap options.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -199,7 +203,11 @@ impl Engine {
         out
     }
 
-    /// Snap a point. The result is a proposal: committing it still goes through the
+    /// Snap a point. Hysteresis (`previous`) limits flicker between candidates: the
+    /// previous snap is kept within 1.5 × radius unless a better kind appears or a
+    /// same-kind candidate is closer by more than [`HYSTERESIS`] × radius.
+    ///
+    /// The result is a proposal: committing it still goes through the
     /// solver and independent checks, so a snap can never commit a hard-rule violation.
     pub fn snap(&mut self, q: &SnapQuery) -> Option<Snap> {
         if !q.point.is_finite() || (q.radius.is_nan() || q.radius <= 0.0) {
@@ -286,10 +294,15 @@ impl Engine {
         let best = cands
             .into_iter()
             .min_by(|a, b| a.kind.cmp(&b.kind).then(a.point.distance(q.point).total_cmp(&b.point.distance(q.point))));
-        // Hysteresis: keep the previous snap while it stays close and nothing better appears.
+        // Hysteresis: keep the previous snap while it stays close, unless a candidate
+        // of higher priority appears or one of the same priority is clearly closer.
+        let prev_d = q.previous.as_ref().map_or(f64::INFINITY, |p| p.point.distance(q.point));
         if let Some(prev) = &q.previous
-            && prev.point.distance(q.point) <= q.radius * 1.5
-            && best.as_ref().is_none_or(|b| b.kind >= prev.kind)
+            && prev_d <= q.radius * 1.5
+            && best.as_ref().is_none_or(|b| {
+                b.kind > prev.kind
+                    || (b.kind == prev.kind && b.point.distance(q.point) + q.radius * HYSTERESIS >= prev_d)
+            })
             && prev.entity.is_none_or(|e| self.doc.entity(e).is_some() && !exclude.contains(&e))
             && self.snap_still_valid(prev)
         {

@@ -30,5 +30,7 @@ if (existsSync(wasm)) {
   mkdirSync(join(dist, 'wasm'), { recursive: true })
   cpSync(wasm, join(dist, 'wasm'), { recursive: true, filter: (p) => !p.endsWith('.gitignore') })
 }
+const css = join(pkg, 'src', 'styles.css')
+if (existsSync(css)) cpSync(css, join(dist, 'styles.css'))
 for (const f of ['LICENSE-MIT', 'LICENSE-APACHE']) cpSync(join(root, f), join(pkg, f))
 console.log(`built packages/${name}`)

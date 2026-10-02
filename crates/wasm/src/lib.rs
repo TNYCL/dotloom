@@ -406,6 +406,13 @@ impl WasmEngine {
     pub fn history_state(&self) -> String {
         json!({ "canUndo": self.engine.can_undo(), "canRedo": self.engine.can_redo(), "bytes": self.engine.history_bytes() }).to_string()
     }
+
+    /// Test hook: trap the WebAssembly instance (simulates an engine crash so hosts
+    /// can verify crash reporting and recovery). Never called by the SDK itself.
+    #[allow(clippy::panic)]
+    pub fn debug_trap(&self) {
+        panic!("debug_trap: simulated engine crash");
+    }
 }
 
 impl Default for WasmEngine {

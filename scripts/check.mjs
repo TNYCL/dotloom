@@ -35,14 +35,22 @@ if (all || which.includes('ts')) {
   const biome = require.resolve('@biomejs/biome/bin/biome')
   run('biome check', process.execPath, [biome, 'check', '.'])
   const tsc = require.resolve('typescript/bin/tsc')
-  for (const dir of ['packages', 'apps', 'examples']) {
+  for (const dir of ['packages', 'apps', 'examples', 'tests']) {
     const base = join(root, dir)
     if (!existsSync(base)) continue
     for (const name of readdirSync(base)) {
-      for (const cfg of ['tsconfig.json', 'tsconfig.test.json']) {
-        const p = join(base, name, cfg)
-        if (existsSync(p)) run(`tsc ${dir}/${name}/${cfg}`, process.execPath, [tsc, '-p', p, '--noEmit'])
-      }
+      // The test config maps workspace packages to their sources, so the check
+      // does not depend on build order; build configs are exercised by `pnpm build`.
+      const test = join(base, name, 'tsconfig.test.json')
+      const main = join(base, name, 'tsconfig.json')
+      const cfg = existsSync(test) ? test : existsSync(main) ? main : null
+      if (cfg)
+        run(`tsc ${dir}/${name}/${cfg === test ? 'tsconfig.test.json' : 'tsconfig.json'}`, process.execPath, [
+          tsc,
+          '-p',
+          cfg,
+          '--noEmit',
+        ])
     }
   }
 }

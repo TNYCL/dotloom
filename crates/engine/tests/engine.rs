@@ -89,6 +89,34 @@ fn shelf() -> (Engine, EntityId, dotloom_engine::document::ConstraintId) {
 }
 
 #[test]
+fn creating_with_explicit_props_adapts_defaults_but_not_explicit_values() {
+    let mut e = Engine::default();
+    e.register_type(shelf_def(), "shelf").unwrap();
+    // Only the width is given: the default compartments adapt to it.
+    let mut props = std::collections::BTreeMap::new();
+    props.insert("width".to_string(), PropValue::Number(1200.0));
+    let s =
+        create(&mut e, NewEntity { type_id: Some(TypeId::new("shelf.unit").unwrap()), props, ..NewEntity::default() });
+    let (w1, w2, w3) = (p(&e, s, "w1"), p(&e, s, "w2"), p(&e, s, "w3"));
+    assert!(close(p(&e, s, "width"), 1200.0));
+    assert!(close(w1 + w2 + w3, 1200.0) && close(w2, w3) && w2 >= 400.0 - 1e-6, "{w1} {w2} {w3}");
+    // Explicit values that contradict the rules are still rejected.
+    let mut bad = std::collections::BTreeMap::new();
+    bad.insert("width".to_string(), PropValue::Number(1200.0));
+    bad.insert("w1".to_string(), PropValue::Number(600.0));
+    bad.insert("w2".to_string(), PropValue::Number(600.0));
+    let err = apply(
+        &mut e,
+        vec![Command::CreateEntity {
+            id: None,
+            entity: NewEntity { type_id: Some(TypeId::new("shelf.unit").unwrap()), props: bad, ..NewEntity::default() },
+        }],
+    )
+    .unwrap_err();
+    assert!(matches!(err, EngineError::Solve { .. }), "{err:?}");
+}
+
+#[test]
 fn shelf_180_160_130_with_undo_redo_and_unlock() {
     let (mut e, s, lock) = shelf();
     // 160 cm → 60/50/50.
@@ -629,6 +657,31 @@ fn hit_test_and_snapping() {
     let mut q2 = q(Point::new(96.0, 0.5));
     q2.previous = Some(prev.clone());
     assert_eq!(e.snap(&q2), Some(prev));
+    // Grid snaps: halfway between two grid points the previous one is kept, but at
+    // (or clearly nearer to) the next grid point the snap moves on.
+    let grid = |pt: Point, prev: Option<dotloom_engine::Snap>| SnapQuery {
+        point: pt,
+        radius: 10.0,
+        options: dotloom_engine::SnapOptions {
+            endpoint: false,
+            midpoint: false,
+            center: false,
+            quadrant: false,
+            intersection: false,
+            anchor: false,
+            nearest: false,
+            grid: true,
+            grid_spacing: Some(10.0),
+        },
+        exclude: vec![],
+        previous: prev,
+    };
+    let g1 = e.snap(&grid(Point::new(410.0, 410.0), None)).unwrap();
+    assert_eq!(g1.point, Point::new(410.0, 410.0));
+    let g2 = e.snap(&grid(Point::new(415.0, 415.0), Some(g1.clone()))).unwrap();
+    assert_eq!(g2.point, g1.point, "kept while ambiguous");
+    let g3 = e.snap(&grid(Point::new(420.0, 420.0), Some(g2))).unwrap();
+    assert_eq!(g3.point, Point::new(420.0, 420.0), "moves on when clearly closer");
     // Excluding an entity removes its snaps.
     let mut q3 = q(Point::new(51.0, 1.0));
     q3.exclude = vec![b];
@@ -665,4 +718,46 @@ fn constraint_on_unknown_anchor_is_rejected() {
     let r = add_constraint(&mut e, RuleSpec::FixPoint { a: AnchorRef::new(a, "center"), at: Point::ORIGIN });
     assert!(matches!(r, Err(EngineError::Command { .. })));
     let _ = Constraint::new(dotloom_engine::document::ConstraintId(1), RuleSpec::Radius { circle: a, value: 1.0 });
+}
+
+#[test]
+fn feasible_drag_targets_are_met_exactly() {
+    // Shortening a wall below its door's extent: the wall end lands exactly on the
+    // pointer and the door slides (low stay) instead of shrinking (high stay).
+    let mut e = Engine::default();
+    for d in floorplan_defs() {
+        e.register_type(d, "floorplan").unwrap();
+    }
+    let wall = create(
+        &mut e,
+        NewEntity {
+            type_id: Some(TypeId::new("floorplan.wall").unwrap()),
+            props: [
+                ("start".to_owned(), PropValue::Point(Point::ORIGIN)),
+                ("end".to_owned(), PropValue::Point(Point::new(4000.0, 0.0))),
+            ]
+            .into(),
+            ..NewEntity::default()
+        },
+    );
+    let door = create(
+        &mut e,
+        NewEntity {
+            type_id: Some(TypeId::new("floorplan.door").unwrap()),
+            props: [
+                ("host".to_owned(), PropValue::Ref(RefValue { entity: wall })),
+                ("offset".to_owned(), PropValue::Number(1000.0)),
+            ]
+            .into(),
+            ..NewEntity::default()
+        },
+    );
+    e.begin_drag(DragSpec::Anchor { entity: wall, anchor: "end".into() }).unwrap();
+    let (preview, _) = e.drag_to(Point::new(1500.0, 0.0)).unwrap();
+    assert!(preview.accepted);
+    e.end_drag(true).unwrap();
+    let end = e.evaluate(wall).unwrap().anchor("end").unwrap();
+    assert!(end.distance(Point::new(1500.0, 0.0)) < 1e-6, "{end:?}");
+    assert!(close(p(&e, door, "width"), 900.0), "{}", p(&e, door, "width"));
+    assert!(close(p(&e, door, "offset"), 600.0), "{}", p(&e, door, "offset"));
 }

@@ -844,6 +844,8 @@ impl Applier<'_, '_> {
             None => self.default_layer()?,
         };
         let mut props = ne.props;
+        // Properties the caller set explicitly (before defaults are filled in).
+        let given: BTreeSet<String> = props.keys().cloned().collect();
         self.check_props(&type_id, &mut props, true)?;
         let eid = EntityId(self.take_id(id.map(|e| e.0))?);
         let mut e = Entity::new(eid, type_id, layer);
@@ -862,8 +864,19 @@ impl Applier<'_, '_> {
             s.validate().map_err(|x| invalid("style", x.to_string()))?;
             e.style = s;
         }
-        // New entities are pinned where they were created.
-        let pins = self.all_params(&e);
+        // New entities are pinned where they were created: explicit values (and
+        // built-in geometry, which is always explicit) are exact; defaults of plugin
+        // properties are strong preferences, so rules may adapt them.
+        let builtin = is_builtin(&e.type_id);
+        let pins: Vec<_> = self
+            .all_params(&e)
+            .into_iter()
+            .map(|(id, n, v, _)| {
+                let root = n.split('.').next().unwrap_or(&n);
+                let exact = builtin || given.contains(root);
+                (id, n, v, exact)
+            })
+            .collect();
         self.ov.put_entity(e);
         self.notes.edits.extend(pins);
         self.notes.created.push(eid);
