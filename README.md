@@ -22,24 +22,30 @@ a schedule whose blocks keep their order. It is
 [examples](https://tnycl.github.io/dotloom/guide/examples) ·
 [documentation](https://tnycl.github.io/dotloom/)
 
-> **Status:** `1.1.0` (stable). The Rust crates are on
-> [crates.io](https://crates.io/crates/dotloom-engine) (`cargo add dotloom-engine dotloom-io`).
-> The npm packages are not on npm yet; install them from the
-> [GitHub Release](https://github.com/TNYCL/dotloom/releases/tag/v1.1.0), which also has
-> the CLI for Linux, Windows and macOS. See
+> **Status:** `1.1.0` (stable), on [npm](https://www.npmjs.com/package/@dotloomjs/sdk)
+> (`@dotloomjs/sdk`, `@dotloomjs/react`) and [crates.io](https://crates.io/crates/dotloom-engine)
+> (`dotloom-*`). The [GitHub Release](https://github.com/TNYCL/dotloom/releases/tag/v1.1.0)
+> has the same packages and the CLI for Linux, Windows and macOS. See
 > [`docs/status.md`](docs/status.md) for what is verified and what is open, and
 > [`docs/requirements.md`](docs/requirements.md) for the evidence behind every
 > requirement.
 
 ## Use it
 
-Install the packages from the release (npm, pnpm and yarn accept tarball URLs):
+Install the packages (React is optional):
 
 ```sh
-npm install https://github.com/TNYCL/dotloom/releases/download/v1.1.0/dotloomjs-sdk-1.1.0.tgz https://github.com/TNYCL/dotloom/releases/download/v1.1.0/dotloomjs-react-1.1.0.tgz
+npm install @dotloomjs/sdk
+npm install @dotloomjs/react react react-dom   # the ready-made React editor
 ```
 
-Or build them from this repository (bash or PowerShell):
+Rust (headless engine, `.dotl`, SVG/DXF):
+
+```sh
+cargo add dotloom-engine dotloom-io
+```
+
+Or build the npm packages from this repository (bash or PowerShell):
 
 ```sh
 git clone https://github.com/TNYCL/dotloom

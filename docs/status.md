@@ -2,12 +2,12 @@
 
 Resume point for any contributor or agent. Keep it short; never store secrets here.
 
-- Branch: `docs/after-1.1.0` (registry state after 1.1.0)
+- Branch: `docs/npm-published` (npm packages published)
 - Last updated: 2026-10-02
 - Overall: **1.1.0 released** (tag `v1.1.0` on `main@ef0f517`,
-  https://github.com/TNYCL/dotloom/releases/tag/v1.1.0) and **on crates.io** (all
-  eight `dotloom-*` crates). **Not on npm**: the scope `@dotloomjs` does not exist yet.
-  Safari 27 is not verified (no Mac). Not complete until both are done.
+  https://github.com/TNYCL/dotloom/releases/tag/v1.1.0), on **npm** (`@dotloomjs/sdk`,
+  `@dotloomjs/react`) and **crates.io** (all eight `dotloom-*` crates). Open: Safari 27
+  is not verified (no Mac; issue #13), so the goal is not complete.
 
 ## Merged (main)
 
@@ -41,6 +41,8 @@ Resume point for any contributor or agent. Keep it short; never store secrets he
 | `release` dry run on `main@36b5e63` (release candidate) | 36981855431 | green |
 | `release` for tag `v1.1.0` | 36995447580 | GitHub Release published and verified from its URLs; 5 crates published before crates.io's new-crate rate limit; npm `404 Scope not found` |
 | `release` publish mode for `v1.1.0` | 36997278172, 36998435514 | remaining crates published (all eight on crates.io); npm still `Scope not found` |
+| `release` publish mode for `v1.1.0` (npm) | 36999757823 | `@dotloomjs/sdk` and `@dotloomjs/react` 1.1.0 published with provenance after the owner created the npm organization `dotloomjs`; byte-identical to the release tarballs |
+| npm consumer | `examples/external-plugin` copied outside the repository, `npm install` from registry.npmjs.org | Node tests 3/3, build at the root and under `/dotloom/`, `tests/e2e/external` 2/2 in Chromium |
 | crates.io consumer | fresh Cargo project with `dotloom-engine = "=1.1.0"`, `dotloom-io = "=1.1.0"` from crates.io | builds and runs (solve, save, reopen, SVG export) |
 | `release` for tag `v1.0.0` | 36982429946 | GitHub Release published with 3 CLI archives, 8 crates, 2 npm tarballs, `SHA256SUMS`, `release-manifest.json`; npm and crates.io recorded as not published (no credentials) |
 | Published release checked from its public URLs (Windows 11) | `node scripts/verify-release.mjs v1.0.0` | checksums match; npm tarballs installed by URL into a fresh project and used from Node (engine 1.0.0, solve, save, reopen); Windows CLI `dotloom 1.0.0` inspects a 0.1.0 fixture |
@@ -72,8 +74,6 @@ conversation resolution required.
 
 | Blocked | Why | What the owner needs to do |
 |---|---|---|
-| npm `@dotloomjs/sdk`, `@dotloomjs/react` (issue #10) | `NPM_TOKEN` is in the `release` environment and works, but `npm publish` answers `404 Scope not found` for `@dotloomjs` (runs 36995447580, 36998435514) | make sure the npm organization `dotloomjs` exists (free for public packages), then either add an automation token as the secret `NPM_TOKEN` of the GitHub environment `release` or configure trusted publishing for `TNYCL/dotloom` / `release.yml` / environment `release` |
-| Namespace ownership (DL-OSS-4) | crates are owned since 1.1.0; the npm scope does not exist | create the npm organization `dotloomjs` |
 | Safari 27 (current major) and Safari WebGPU on real Mac hardware (issue #13) | no Mac; hosted runners have Safari 26.6.x without WebGPU | on a Mac with Safari 27: `sudo safaridriver --enable`, serve the harness and playground, `node tests/e2e/webdriver/smoke.mjs --browser safari --webgpu required` |
 
 Once the secrets exist, run the `release` workflow manually with `publish: v1.0.0`:
@@ -100,11 +100,9 @@ release under `@dotloom/*`; from 1.1.0 the npm scope is `@dotloomjs`.
 
 ## Next
 
-1. Owner: create the npm organization `dotloomjs` (free) with the account whose token is
-   `NPM_TOKEN`; then run the `release` workflow with `publish: v1.1.0` (publishes the
-   release's own tarballs) and verify `npm install @dotloomjs/sdk @dotloomjs/react`.
-2. Safari 27 smoke test on a Mac (issue #13).
-3. Further engine memory work (issue #14, optional).
+1. Safari 27 smoke test on a Mac (issue #13): `node tests/e2e/webdriver/smoke.mjs` with
+   `safaridriver` (see `apps/docs/guide/platforms.md`).
+2. Further engine memory work (issue #14, optional).
 
 ## Commands
 
