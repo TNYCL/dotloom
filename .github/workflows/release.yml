@@ -217,6 +217,8 @@ jobs:
     name: publish to npm
     needs: [verify, github-release]
     if: github.event_name == 'push'
+    # Registry credentials live in the 'release' environment (tags v*.*.* and main only).
+    environment: release
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -254,6 +256,8 @@ jobs:
     name: publish to crates.io
     needs: [verify, github-release]
     if: github.event_name == 'push'
+    # Registry credentials live in the 'release' environment (tags v*.*.* and main only).
+    environment: release
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -300,6 +304,7 @@ jobs:
     # registry are skipped, never overwritten.
     name: publish an existing release (${{ inputs.publish }})
     if: github.event_name == 'workflow_dispatch' && inputs.publish != ''
+    environment: release
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:

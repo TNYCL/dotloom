@@ -2,7 +2,7 @@
 
 Resume point for any contributor or agent. Keep it short; never store secrets here.
 
-- Branch: `main` (no open work branch)
+- Branch: `ci/release-environment` (publishing jobs use the `release` environment)
 - Last updated: 2026-10-02
 - Overall: **1.0.0 released on GitHub** (tag `v1.0.0` on `main@36b5e63`,
   https://github.com/TNYCL/dotloom/releases/tag/v1.0.0). Every row of
@@ -67,8 +67,8 @@ conversation resolution required.
 
 | Blocked | Why | What the owner needs to do |
 |---|---|---|
-| npm `@dotloom/sdk`, `@dotloom/react` (issue #10) | not logged in; the `@dotloom` org does not exist | create the npm org `dotloom` (free for public packages), then either add an automation token as the repository secret `NPM_TOKEN` or configure trusted publishing for `TNYCL/dotloom` / `release.yml` |
-| crates.io `dotloom-*` (issue #11) | no crates.io token | create a crates.io API token (scope `publish-new`, `publish-update`) and add it as the repository secret `CARGO_REGISTRY_TOKEN` |
+| npm `@dotloom/sdk`, `@dotloom/react` (issue #10) | not logged in; the `@dotloom` org does not exist | create the npm org `dotloom` (free for public packages), then either add an automation token as the secret `NPM_TOKEN` of the GitHub environment `release` or configure trusted publishing for `TNYCL/dotloom` / `release.yml` / environment `release` |
+| crates.io `dotloom-*` (issue #11) | no crates.io token | create a crates.io API token (scope `publish-new`, `publish-update`) and add it as the secret `CARGO_REGISTRY_TOKEN` of the GitHub environment `release` |
 | Namespace ownership (DL-OSS-4) | names were unclaimed on 2026-10-02 but are owned only after the first publish | covered by the two steps above |
 | Safari 27 (current major) and Safari WebGPU on real Mac hardware (issue #13) | no Mac; hosted runners have Safari 26.6.x without WebGPU | on a Mac with Safari 27: `sudo safaridriver --enable`, serve the harness and playground, `node tests/e2e/webdriver/smoke.mjs --browser safari --webgpu required` |
 
