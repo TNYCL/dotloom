@@ -17,7 +17,11 @@ type Handle = {
     apply(c: unknown[]): Promise<unknown>
     newDocument(): Promise<unknown>
   }
-  canvas: { exportPng(o: { grid: boolean }): Promise<Blob>; fit(): Promise<void> } | null
+  canvas: {
+    exportPng(o: { grid: boolean }): Promise<Blob>
+    fit(): Promise<void>
+    whenStable(): Promise<void>
+  } | null
 }
 
 /** Pixels of an exported PNG that differ from its corner (background) pixel. */
@@ -25,6 +29,9 @@ async function inkPixels(page: Page): Promise<number> {
   return page.evaluate(async () => {
     const h = (window as unknown as { dotloom: Handle }).dotloom
     if (!h.canvas) return -1
+    // A software WebGPU device can be lost right after start; the viewport then moves
+    // to WebGL2. Export only once rendering runs on a stable backend.
+    await h.canvas.whenStable()
     await h.canvas.fit()
     const bmp = await createImageBitmap(await h.canvas.exportPng({ grid: false }))
     const c = new OffscreenCanvas(bmp.width, bmp.height)
