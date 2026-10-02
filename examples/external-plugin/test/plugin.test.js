@@ -2,8 +2,8 @@
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { builtinTools, EditorCore, NullViewport, PluginHost } from '@dotloom/sdk'
-import { createNodeEngine } from '@dotloom/sdk/node'
+import { builtinTools, EditorCore, NullViewport, PluginHost } from '@dotloomjs/sdk'
+import { createNodeEngine } from '@dotloomjs/sdk/node'
 import { acmePlugin } from '../src/plugin.js'
 
 async function setup() {

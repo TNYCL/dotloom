@@ -187,13 +187,13 @@ importers:
 
   apps/playground:
     dependencies:
-      '@dotloom/example-plugins':
+      '@dotloomjs/example-plugins':
         specifier: workspace:^
         version: link:../../examples/plugins
-      '@dotloom/react':
+      '@dotloomjs/react':
         specifier: workspace:^
         version: link:../../packages/react
-      '@dotloom/sdk':
+      '@dotloomjs/sdk':
         specifier: workspace:^
         version: link:../../packages/sdk
       react:
@@ -221,13 +221,13 @@ importers:
 
   examples/floorplan:
     dependencies:
-      '@dotloom/example-plugins':
+      '@dotloomjs/example-plugins':
         specifier: workspace:^
         version: link:../plugins
-      '@dotloom/react':
+      '@dotloomjs/react':
         specifier: workspace:^
         version: link:../../packages/react
-      '@dotloom/sdk':
+      '@dotloomjs/sdk':
         specifier: workspace:^
         version: link:../../packages/sdk
       react:
@@ -255,7 +255,7 @@ importers:
 
   examples/plugins:
     dependencies:
-      '@dotloom/sdk':
+      '@dotloomjs/sdk':
         specifier: workspace:^
         version: link:../../packages/sdk
     devDependencies:
@@ -271,13 +271,13 @@ importers:
 
   examples/shelf-configurator:
     dependencies:
-      '@dotloom/example-plugins':
+      '@dotloomjs/example-plugins':
         specifier: workspace:^
         version: link:../plugins
-      '@dotloom/react':
+      '@dotloomjs/react':
         specifier: workspace:^
         version: link:../../packages/react
-      '@dotloom/sdk':
+      '@dotloomjs/sdk':
         specifier: workspace:^
         version: link:../../packages/sdk
       react:
@@ -305,13 +305,13 @@ importers:
 
   examples/timeline:
     dependencies:
-      '@dotloom/example-plugins':
+      '@dotloomjs/example-plugins':
         specifier: workspace:^
         version: link:../plugins
-      '@dotloom/react':
+      '@dotloomjs/react':
         specifier: workspace:^
         version: link:../../packages/react
-      '@dotloom/sdk':
+      '@dotloomjs/sdk':
         specifier: workspace:^
         version: link:../../packages/sdk
       react:
@@ -339,7 +339,7 @@ importers:
 
   examples/vanilla:
     dependencies:
-      '@dotloom/sdk':
+      '@dotloomjs/sdk':
         specifier: workspace:^
         version: link:../../packages/sdk
     devDependencies:
@@ -352,7 +352,7 @@ importers:
 
   packages/react:
     dependencies:
-      '@dotloom/sdk':
+      '@dotloomjs/sdk':
         specifier: workspace:^
         version: link:../sdk
     devDependencies:
@@ -401,7 +401,7 @@ importers:
 
   tests/e2e:
     dependencies:
-      '@dotloom/sdk':
+      '@dotloomjs/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
     devDependencies:

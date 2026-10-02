@@ -6,6 +6,6 @@ export default defineConfig({
   base: process.env.DOTLOOM_BASE ?? '/',
   plugins: [react()],
   worker: { format: 'es' },
-  optimizeDeps: { exclude: ['@dotloom/sdk', '@dotloom/react'] },
+  optimizeDeps: { exclude: ['@dotloomjs/sdk', '@dotloomjs/react'] },
   build: { target: 'es2022' },
 })

@@ -9,8 +9,8 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@dotloom/react": "1.0.0",
-    "@dotloom/sdk": "1.0.0",
+    "@dotloomjs/react": "1.1.0",
+    "@dotloomjs/sdk": "1.1.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

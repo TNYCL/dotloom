@@ -1,11 +1,11 @@
 # React editor
 
-`@dotloom/react` is optional. It renders a complete editor and exports every part
+`@dotloomjs/react` is optional. It renders a complete editor and exports every part
 so you can compose your own layout.
 
 ```tsx
-import { DotloomEditor } from '@dotloom/react'
-import '@dotloom/react/styles.css'
+import { DotloomEditor } from '@dotloomjs/react'
+import '@dotloomjs/react/styles.css'
 
 <DotloomEditor
   plugins={[shelves]}            // DotloomPlugin[]

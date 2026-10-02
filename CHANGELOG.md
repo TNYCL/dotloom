@@ -3,10 +3,12 @@
 All notable changes are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/) (breaking changes only in major versions).
-Engine crates, `@dotloom/sdk` and `@dotloom/react` are versioned in lockstep; file
+Engine crates, `@dotloomjs/sdk` and `@dotloomjs/react` are versioned in lockstep; file
 and protocol versions are listed in [`compatibility.json`](compatibility.json).
 
 ## [Unreleased]
+
+## [1.1.0] - 2026-10-02
 
 ### Added
 
@@ -16,6 +18,12 @@ and protocol versions are listed in [`compatibility.json`](compatibility.json).
 
 ### Changed
 
+- The npm packages are `@dotloomjs/sdk` and `@dotloomjs/react` (the owner's npm
+  organization); 1.0.0 was only a GitHub Release under `@dotloomjs/*`. Crate names are
+  unchanged. Update imports from `@dotloomjs/...` to `@dotloomjs/...`.
+- Engine memory per object is about a quarter lower: cached evaluations no longer
+  keep spare vector capacity.
+- Registry publishing runs in the GitHub environment `release`.
 - Glyph outlines are read with `read-fonts` and rasterized by Dotloom itself;
   `fontdue` (and its unmaintained `ttf-parser`) is no longer a dependency.
 
@@ -48,12 +56,12 @@ Versioning from here on; see `compatibility.json`.
 - wgpu renderer for WebGPU and WebGL2 with chunked incremental meshes, level of
   detail, SDF text (Turkish and other Latin, Greek, Cyrillic), grid, overlays,
   selection and hover, device-loss recovery.
-- `@dotloom/sdk`: engine in a Web Worker with a versioned protocol, viewport,
+- `@dotloomjs/sdk`: engine in a Web Worker with a versioned protocol, viewport,
   editor core with tools (select, pan, line, polyline, rect, circle, arc, path, text,
   dimension, move, rotate, scale, split, trim, extend), snapping, unit-aware input,
   keyboard shortcuts, clipboard, plugin host, storage adapters and autosave with
   recovery, Node entry point.
-- `@dotloom/react`: complete editor with toolbar, layers and objects lists,
+- `@dotloomjs/react`: complete editor with toolbar, layers and objects lists,
   inspector, rules panel, plugin panels, command palette, dialogs, status bar with
   autosave state and failures, light/dark/system themes, English and Turkish;
   checked with axe-core (WCAG 2.1 A/AA).

@@ -5,7 +5,7 @@
     "jsx": "react-jsx",
     "types": [],
     "paths": {
-      "@dotloom/sdk": ["../../packages/sdk/src/index.ts"]
+      "@dotloomjs/sdk": ["../../packages/sdk/src/index.ts"]
     }
   },
   "include": ["../../packages/sdk/src", "../../packages/react/src"]

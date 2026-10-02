@@ -10,10 +10,10 @@ import {
   loadTimelineExample,
   shelfPlugin,
   timelinePlugin,
-} from '@dotloom/example-plugins'
-import { DotloomEditor, type EditorHandle, useEditor, useT } from '@dotloom/react'
-import '@dotloom/react/styles.css'
-import type { DotloomEngine } from '@dotloom/sdk'
+} from '@dotloomjs/example-plugins'
+import { DotloomEditor, type EditorHandle, useEditor, useT } from '@dotloomjs/react'
+import '@dotloomjs/react/styles.css'
+import type { DotloomEngine } from '@dotloomjs/sdk'
 import { type ReactNode, StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 

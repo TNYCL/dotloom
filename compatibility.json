@@ -1,10 +1,10 @@
 {
   "$comment": "Compatibility manifest (DL-OSS). Engine, SDK and React are released in lockstep; the protocol, scene, renderer binding, .dotl container and document schema have independent versions. Checked against the code by crates/wasm/tests/compatibility.rs and packages/sdk/test/compatibility.test.ts.",
-  "release": "1.0.0",
+  "release": "1.1.0",
   "packages": {
-    "crates": "1.0.0",
-    "@dotloom/sdk": "1.0.0",
-    "@dotloom/react": "1.0.0"
+    "crates": "1.1.0",
+    "@dotloomjs/sdk": "1.1.0",
+    "@dotloomjs/react": "1.1.0"
   },
   "formats": {
     "workerProtocol": 1,

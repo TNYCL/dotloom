@@ -5,8 +5,8 @@
     "jsx": "react-jsx",
     "types": ["node"],
     "paths": {
-      "@dotloom/sdk": ["../sdk/src/index.ts"],
-      "@dotloom/sdk/node": ["../sdk/src/node.ts"]
+      "@dotloomjs/sdk": ["../sdk/src/index.ts"],
+      "@dotloomjs/sdk/node": ["../sdk/src/node.ts"]
     }
   },
   "include": ["src", "test"]

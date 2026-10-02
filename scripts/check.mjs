@@ -85,6 +85,36 @@ if (all || which.includes('rust')) {
 }
 
 if (all || which.includes('ts')) {
+  // Package names come from packages/names.json (ADR-0008): the manifests must match
+  // it, and no tracked file may still use another scope for them (published history
+  // in CHANGELOG.md and recorded measurements excepted).
+  console.log('\n▶ package names')
+  const names = JSON.parse(readFileSync(join(root, 'packages', 'names.json'), 'utf8'))
+  const scope = names.sdk.split('/')[0]
+  for (const [key, dir] of [
+    ['sdk', 'sdk'],
+    ['react', 'react'],
+  ]) {
+    const manifest = JSON.parse(readFileSync(join(root, 'packages', dir, 'package.json'), 'utf8'))
+    if (manifest.name !== names[key]) {
+      console.error(`✖ packages/${dir}/package.json is named ${manifest.name}, names.json says ${names[key]}`)
+      failed = true
+    }
+  }
+  const tracked = spawnSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' }).stdout.split('\n').filter(Boolean)
+  const historic = /^(CHANGELOG\.md|docs\/perf\/|docs\/compat\/|docs\/adr\/)/
+  for (const file of tracked) {
+    if (historic.test(file) || !/\.(json|ya?ml|md|[cm]?[jt]sx?)$/.test(file)) continue
+    const text = readFileSync(join(root, file), 'utf8')
+    // Any Dotloom-like scope other than the configured one, also as a path segment
+    // (`node_modules/@x/sdk`, `join(..., '@x', 'sdk')`).
+    for (const m of text.matchAll(/@(dotloom[a-z0-9-]*)(?:\/|['"`], ['"`])(sdk|react)\b/g)) {
+      if (`@${m[1]}` !== scope) {
+        console.error(`✖ ${file}: ${m[0]} (the scope is ${scope})`)
+        failed = true
+      }
+    }
+  }
   const biome = require.resolve('@biomejs/biome/bin/biome')
   run('biome check', process.execPath, [biome, 'check', '.'])
   const tsc = require.resolve('typescript/bin/tsc')

@@ -24,7 +24,7 @@ In scope:
 - parsing untrusted input: `.dotl` containers (ZIP, JSON, assets), document JSON,
   SVG and DXF import, scene buffers, plugin type definitions and their expression
   language, worker protocol messages;
-- the browser packages (`@dotloom/sdk`, `@dotloom/react`): anything that lets a
+- the browser packages (`@dotloomjs/sdk`, `@dotloomjs/react`): anything that lets a
   document or an imported file run script, inject markup or fetch from the network;
 - resource exhaustion that bypasses the documented limits (sizes, counts, nesting,
   solver budgets);

@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite'
 
-// The harness consumes the *built* @dotloom/sdk package (dist), like an app would.
+// The harness consumes the *built* @dotloomjs/sdk package (dist), like an app would.
 export default defineConfig({
   root: 'harness',
   base: './',
@@ -15,6 +15,6 @@ export default defineConfig({
     },
   },
   worker: { format: 'es' },
-  optimizeDeps: { exclude: ['@dotloom/sdk'] },
+  optimizeDeps: { exclude: ['@dotloomjs/sdk'] },
   preview: { port: 5199, strictPort: true },
 })

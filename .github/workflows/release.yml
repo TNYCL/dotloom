@@ -106,8 +106,8 @@ jobs:
       - name: npm tarballs
         run: |
           mkdir -p dist/npm
-          pnpm --filter @dotloom/sdk pack --pack-destination "$PWD/dist/npm"
-          pnpm --filter @dotloom/react pack --pack-destination "$PWD/dist/npm"
+          pnpm --filter @dotloomjs/sdk pack --pack-destination "$PWD/dist/npm"
+          pnpm --filter @dotloomjs/react pack --pack-destination "$PWD/dist/npm"
       - name: Install the tarballs outside the repository, test and build the external plugin
         run: node scripts/smoke-packages.mjs --work "$RUNNER_TEMP/smoke"
       - name: Crates (packaged, verified against each other and used by a consumer)
@@ -240,8 +240,8 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          npm publish artifacts/npm/dotloom-sdk-*.tgz --provenance --access public
-          npm publish artifacts/npm/dotloom-react-*.tgz --provenance --access public
+          npm publish artifacts/npm/dotloomjs-sdk-*.tgz --provenance --access public
+          npm publish artifacts/npm/dotloomjs-react-*.tgz --provenance --access public
       - name: Record the result
         env:
           GH_TOKEN: ${{ github.token }}
@@ -336,7 +336,7 @@ jobs:
         run: |
           state="not published: no NPM_TOKEN secret"
           if [ "$HAS_NPM" = true ]; then
-            for f in assets/dotloom-sdk-*.tgz assets/dotloom-react-*.tgz; do
+            for f in assets/dotloomjs-sdk-*.tgz assets/dotloomjs-react-*.tgz; do
               name=$(tar -xzOf "$f" package/package.json | jq -r '.name + "@" + .version')
               if npm view "$name" version > /dev/null 2>&1; then echo "$name is already on npm"; else npm publish "$f" --provenance --access public; fi
             done

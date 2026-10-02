@@ -69,7 +69,7 @@ const cli =
     : process.platform === 'darwin'
       ? `dotloom-${version}-aarch64-apple-darwin.tar.gz`
       : `dotloom-${version}-x86_64-unknown-linux-gnu.tar.gz`
-for (const name of [`dotloom-sdk-${version}.tgz`, `dotloom-react-${version}.tgz`, cli]) {
+for (const name of [`dotloomjs-sdk-${version}.tgz`, `dotloomjs-react-${version}.tgz`, cli]) {
   const bytes = await get(name)
   const h = createHash('sha256').update(bytes).digest('hex')
   if (sums[name] !== h) {
@@ -101,8 +101,8 @@ run(
     '--no-audit',
     '--no-fund',
     '--loglevel=error',
-    `${base}/dotloom-sdk-${version}.tgz`,
-    `${base}/dotloom-react-${version}.tgz`,
+    `${base}/dotloomjs-sdk-${version}.tgz`,
+    `${base}/dotloomjs-react-${version}.tgz`,
     'react@19',
     'react-dom@19',
   ],
@@ -110,9 +110,9 @@ run(
 )
 writeFileSync(
   join(app, 'check.mjs'),
-  `import { SDK_VERSION } from '@dotloom/sdk'
-import { createNodeEngine } from '@dotloom/sdk/node'
-import * as react from '@dotloom/react'
+  `import { SDK_VERSION } from '@dotloomjs/sdk'
+import { createNodeEngine } from '@dotloomjs/sdk/node'
+import * as react from '@dotloomjs/react'
 if (SDK_VERSION !== ${JSON.stringify(version)}) throw new Error('SDK_VERSION ' + SDK_VERSION)
 if (typeof react.DotloomEditor !== 'function') throw new Error('no DotloomEditor export')
 const e = await createNodeEngine()

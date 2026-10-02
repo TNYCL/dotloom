@@ -3,7 +3,7 @@
  * type definition and are evaluated by the engine (no ad hoc arithmetic here).
  */
 
-import type { DotloomEngine, DotloomPlugin, EntityTypeDef } from '@dotloom/sdk'
+import type { DotloomEngine, DotloomPlugin, EntityTypeDef } from '@dotloomjs/sdk'
 import { placeTool } from './common.js'
 
 export const shelfType: EntityTypeDef = {

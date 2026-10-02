@@ -1,5 +1,5 @@
 /**
- * `@dotloom/sdk` — framework-agnostic TypeScript SDK for Dotloom.
+ * `@dotloomjs/sdk` — framework-agnostic TypeScript SDK for Dotloom.
  *
  * Importing this module has no side effects and touches no browser globals, so it
  * is safe in SSR/build environments; browser APIs are used only when an engine,

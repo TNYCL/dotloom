@@ -1,4 +1,4 @@
-import { formatLength, LENGTH_UNITS, type LengthUnit } from '@dotloom/sdk'
+import { formatLength, LENGTH_UNITS, type LengthUnit } from '@dotloomjs/sdk'
 import { type ReactNode, useSyncExternalStore } from 'react'
 import { useAutosaveState, useEditor, useEditorState, usePointer } from '../context.js'
 import { useT } from '../i18n.js'

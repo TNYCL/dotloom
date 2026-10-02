@@ -5,10 +5,10 @@
  * the Move-in-time tool (J) drags blocks and later blocks follow.
  */
 
-import { loadTimelineExample, timelinePlugin } from '@dotloom/example-plugins'
-import { DotloomEditor, type EditorHandle, useEditorState, useEntityInfo } from '@dotloom/react'
-import '@dotloom/react/styles.css'
-import { formatDuration } from '@dotloom/sdk'
+import { loadTimelineExample, timelinePlugin } from '@dotloomjs/example-plugins'
+import { DotloomEditor, type EditorHandle, useEditorState, useEntityInfo } from '@dotloomjs/react'
+import '@dotloomjs/react/styles.css'
+import { formatDuration } from '@dotloomjs/sdk'
 import type { ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 

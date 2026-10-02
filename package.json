@@ -11,7 +11,7 @@
     "build:wasm": "node scripts/build-wasm.mjs",
     "build": "pnpm -r --filter \"./packages/**\" run build",
     "test": "pnpm -r --filter \"./packages/**\" --filter \"./examples/**\" run test",
-    "test:e2e": "pnpm --filter @dotloom/e2e exec playwright test",
+    "test:e2e": "pnpm --filter @dotloomjs/e2e exec playwright test",
     "smoke:packages": "node scripts/smoke-packages.mjs",
     "smoke:crates": "node scripts/smoke-crates.mjs",
     "verify:release": "node scripts/verify-release.mjs",

@@ -3,7 +3,7 @@
 ## Files in the browser
 
 ```ts
-import { pickFile, downloadBytes, DOTL_MIME } from '@dotloom/sdk'
+import { pickFile, downloadBytes, DOTL_MIME } from '@dotloomjs/sdk'
 
 const f = await pickFile('.dotl,.svg,.dxf')       // null when cancelled
 if (f?.kind === 'dotl') await engine.load(f.bytes)
@@ -17,7 +17,7 @@ transaction and return a loss report.
 ## Autosave and recovery
 
 ```ts
-import { Autosave, IndexedDbStorage } from '@dotloom/sdk'
+import { Autosave, IndexedDbStorage } from '@dotloomjs/sdk'
 
 const autosave = new Autosave(engine, new IndexedDbStorage(), { name: 'raf-tasarimi.dotl' })
 autosave.start()                       // saves shortly after each commit and when the tab hides

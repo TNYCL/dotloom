@@ -3,7 +3,7 @@
  * WASM module from the installed package. Use it for tests, CLIs and servers.
  *
  * ```ts
- * import { createNodeEngine } from '@dotloom/sdk/node'
+ * import { createNodeEngine } from '@dotloomjs/sdk/node'
  * const engine = await createNodeEngine()
  * ```
  */

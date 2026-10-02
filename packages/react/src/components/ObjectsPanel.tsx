@@ -1,4 +1,4 @@
-import type { Entity } from '@dotloom/sdk'
+import type { Entity } from '@dotloomjs/sdk'
 import { type KeyboardEvent, type ReactNode, useMemo, useRef, useState } from 'react'
 import { useDocument, useEditor, useEditorState, usePluginTypes } from '../context.js'
 import { useT } from '../i18n.js'

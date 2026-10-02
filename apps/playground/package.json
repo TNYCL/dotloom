@@ -1,6 +1,6 @@
 {
-  "name": "@dotloom/playground",
-  "version": "1.0.0",
+  "name": "@dotloomjs/playground",
+  "version": "1.1.0",
   "private": true,
   "license": "MIT OR Apache-2.0",
   "type": "module",
@@ -10,9 +10,9 @@
     "preview": "vite preview --port 5198 --strictPort"
   },
   "dependencies": {
-    "@dotloom/example-plugins": "workspace:^",
-    "@dotloom/react": "workspace:^",
-    "@dotloom/sdk": "workspace:^",
+    "@dotloomjs/example-plugins": "workspace:^",
+    "@dotloomjs/react": "workspace:^",
+    "@dotloomjs/sdk": "workspace:^",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

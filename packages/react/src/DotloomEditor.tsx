@@ -24,7 +24,7 @@ import {
   type StoredMeta,
   Viewport,
   type ViewportOptions,
-} from '@dotloom/sdk'
+} from '@dotloomjs/sdk'
 import {
   type CSSProperties,
   type ReactNode,

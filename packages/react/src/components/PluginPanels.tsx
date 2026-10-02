@@ -1,4 +1,4 @@
-import type { EntityId, PanelContribution } from '@dotloom/sdk'
+import type { EntityId, PanelContribution } from '@dotloomjs/sdk'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useEditor, useEditorState, useRevisionQuery } from '../context.js'
 

@@ -264,7 +264,7 @@ cargo run --release -p dotloom-engine --example solver_corpus -- bench/solver-co
 node scripts/bench/wasm-size.mjs --json bench/wasm-size.json
 cargo run --release -p dotloom-wasm --example memory_profile -- 100000
 cargo run --release -p dotloom-constraints --example drag_session -- 50 100 200
-pnpm --filter @dotloom/e2e run bench          # rendering, queries, files, stress, leak
+pnpm --filter @dotloomjs/e2e run bench          # rendering, queries, files, stress, leak
 ```
 
 `DOTLOOM_BENCH_PROJECTS=chrome-webgpu` limits the browser/backend projects;

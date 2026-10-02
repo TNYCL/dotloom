@@ -3,7 +3,7 @@
   "compilerOptions": {
     "noEmit": true,
     "types": ["node"],
-    "paths": { "@dotloom/sdk": ["../../packages/sdk/src/index.ts"] }
+    "paths": { "@dotloomjs/sdk": ["../../packages/sdk/src/index.ts"] }
   },
   "include": [
     "harness",

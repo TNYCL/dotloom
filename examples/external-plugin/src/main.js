@@ -1,5 +1,5 @@
-import { DotloomEditor } from '@dotloom/react'
-import '@dotloom/react/styles.css'
+import { DotloomEditor } from '@dotloomjs/react'
+import '@dotloomjs/react/styles.css'
 import { createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { acmePlugin } from './plugin.js'

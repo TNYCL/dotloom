@@ -30,7 +30,7 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 2
-  # The external plugin installs @dotloom/* from local tarballs in CI
+  # The external plugin installs @dotloomjs/* from local tarballs in CI
   # (scripts/smoke-packages.mjs); only its third-party dependencies are updated.
   - package-ecosystem: npm
     directory: /examples/external-plugin
@@ -38,4 +38,4 @@ updates:
       interval: weekly
     open-pull-requests-limit: 2
     ignore:
-      - dependency-name: "@dotloom/*"
+      - dependency-name: "@dotloomjs/*"

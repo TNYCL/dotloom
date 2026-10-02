@@ -1,6 +1,6 @@
 {
-  "name": "@dotloom/example-plugins",
-  "version": "1.0.0",
+  "name": "@dotloomjs/example-plugins",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Plugins used by the Dotloom examples and playground: shelf, floor plan, timeline",
@@ -13,7 +13,7 @@
     "typecheck": "tsc -p tsconfig.test.json"
   },
   "dependencies": {
-    "@dotloom/sdk": "workspace:^"
+    "@dotloomjs/sdk": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "24.19.0",

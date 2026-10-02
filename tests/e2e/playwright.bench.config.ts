@@ -4,7 +4,7 @@ import { defineConfig } from '@playwright/test'
  * Reference-device benchmarks (DL-PERF). Run locally on the recorded reference
  * device, never as a CI gate (hosted runners have no GPU):
  *
- *   pnpm --filter @dotloom/e2e run bench
+ *   pnpm --filter @dotloomjs/e2e run bench
  *
  * Projects drive the installed Google Chrome and Microsoft Edge (`channel`) and
  * Playwright's Firefox build, each with an explicit renderer backend.

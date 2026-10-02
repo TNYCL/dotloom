@@ -89,7 +89,7 @@ export interface DotloomPlugin {
   id: string
   /** Plugin version (semver). */
   version: string
-  /** Semver range of `@dotloom/sdk` the plugin supports, e.g. `^1.0.0`. */
+  /** Semver range of `@dotloomjs/sdk` the plugin supports, e.g. `^1.0.0`. */
   sdk?: string
   types?: EntityTypeDef[]
   /** Tool factories (fresh instances on every enable). */
@@ -171,7 +171,7 @@ export class PluginHost {
     if (plugin.sdk && !satisfies(SDK_VERSION, plugin.sdk)) {
       throw new DotloomError({
         code: 'plugin',
-        message: `plugin "${plugin.id}" requires @dotloom/sdk ${plugin.sdk}, this is ${SDK_VERSION}`,
+        message: `plugin "${plugin.id}" requires @dotloomjs/sdk ${plugin.sdk}, this is ${SDK_VERSION}`,
       })
     }
     for (const t of plugin.types ?? []) {

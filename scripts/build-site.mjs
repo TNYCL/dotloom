@@ -49,7 +49,7 @@ const publicApi = join(docs, 'public', 'api')
 rmSync(publicApi, { recursive: true, force: true })
 
 // TypeScript API.
-run(pnpm, ['--filter', '@dotloom/docs', 'exec', 'typedoc'])
+run(pnpm, ['--filter', '@dotloomjs/docs', 'exec', 'typedoc'])
 
 // Rust API (published crates only).
 if (!skipRustdoc) {
@@ -60,16 +60,16 @@ if (!skipRustdoc) {
 }
 
 // Docs.
-run(pnpm, ['--filter', '@dotloom/docs', 'run', 'build'], { env: { ...process.env, DOTLOOM_BASE: base } })
+run(pnpm, ['--filter', '@dotloomjs/docs', 'run', 'build'], { env: { ...process.env, DOTLOOM_BASE: base } })
 cpSync(join(docs, '.vitepress', 'dist'), site, { recursive: true })
 
 // Playground and examples.
 const apps = [
-  ['@dotloom/playground', 'playground'],
-  ['@dotloom/example-vanilla', 'examples/vanilla'],
-  ['@dotloom/example-shelf-configurator', 'examples/shelf-configurator'],
-  ['@dotloom/example-floorplan', 'examples/floorplan'],
-  ['@dotloom/example-timeline', 'examples/timeline'],
+  ['@dotloomjs/playground', 'playground'],
+  ['@dotloomjs/example-vanilla', 'examples/vanilla'],
+  ['@dotloomjs/example-shelf-configurator', 'examples/shelf-configurator'],
+  ['@dotloomjs/example-floorplan', 'examples/floorplan'],
+  ['@dotloomjs/example-timeline', 'examples/timeline'],
 ]
 for (const [pkg, path] of apps) {
   const out = join(site, ...path.split('/'))

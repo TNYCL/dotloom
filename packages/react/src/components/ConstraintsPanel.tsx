@@ -1,4 +1,4 @@
-import type { Constraint, DocumentJson, Entity, EntityId, LineRef, RuleSpec } from '@dotloom/sdk'
+import type { Constraint, DocumentJson, Entity, EntityId, LineRef, RuleSpec } from '@dotloomjs/sdk'
 import { type ReactNode, useMemo } from 'react'
 import { useAnalysis, useDocument, useEditor, useEditorState } from '../context.js'
 import { type Translate, useT } from '../i18n.js'

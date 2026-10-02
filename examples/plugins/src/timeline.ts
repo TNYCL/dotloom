@@ -14,7 +14,7 @@ import type {
   Tool,
   ToolContext,
   ToolPointer,
-} from '@dotloom/sdk'
+} from '@dotloomjs/sdk'
 
 export const blockType: EntityTypeDef = {
   typeId: 'timeline.block',

@@ -4,9 +4,9 @@
  * framework. Doors stay on their walls; deleting a wall deletes its doors.
  */
 
-import { floorplanPlugin, loadFloorplanExample } from '@dotloom/example-plugins'
-import { DotloomEditor, type EditorHandle } from '@dotloom/react'
-import '@dotloom/react/styles.css'
+import { floorplanPlugin, loadFloorplanExample } from '@dotloomjs/example-plugins'
+import { DotloomEditor, type EditorHandle } from '@dotloomjs/react'
+import '@dotloomjs/react/styles.css'
 import type { ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 

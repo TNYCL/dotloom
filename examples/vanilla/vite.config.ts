@@ -4,6 +4,6 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   base: process.env.DOTLOOM_BASE ?? '/',
   worker: { format: 'es' },
-  optimizeDeps: { exclude: ['@dotloom/sdk'] },
+  optimizeDeps: { exclude: ['@dotloomjs/sdk'] },
   build: { target: 'es2022' },
 })

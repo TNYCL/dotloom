@@ -4,7 +4,7 @@
  Host UI (vanilla, React, …)
    │  commands, queries            ▲ events, scene deltas (binary)
    ▼                               │
- @dotloom/sdk  ──── versioned messages ────►  Engine (Rust → WASM) in a Web Worker
+ @dotloomjs/sdk  ──── versioned messages ────►  Engine (Rust → WASM) in a Web Worker
    │                                            geometry · document · constraints
    │ scene deltas                               solver · history · .dotl/SVG/DXF
    ▼

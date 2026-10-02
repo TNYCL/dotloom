@@ -43,7 +43,7 @@ Every command works in Windows PowerShell, Linux and macOS shells.
 - `npx playwright install` downloads Chromium, Firefox and WebKit for Windows.
   Playwright's WebKit on Windows cannot composite resized WebGL2 canvases, so those
   tests skip with that reason; WebKit is fully covered on macOS in `compat.yml`.
-- Benchmarks (`pnpm --filter @dotloom/e2e run bench`) open headed browser windows;
+- Benchmarks (`pnpm --filter @dotloomjs/e2e run bench`) open headed browser windows;
   keep the machine otherwise idle while they run.
 
 ## Checks
