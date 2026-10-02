@@ -8,6 +8,22 @@ and protocol versions are listed in [`compatibility.json`](compatibility.json).
 
 ## [Unreleased]
 
+### Added
+
+- Pair kerning (the font's GPOS `kern` lookups) for the default font, shared by the
+  renderer and the engine's text boxes; `Text::line_pens`, `Text::em_size` and
+  `Text::FONT_UNITS_PER_EM` in `dotloom-geometry`.
+
+### Changed
+
+- Glyph outlines are read with `read-fonts` and rasterized by Dotloom itself;
+  `fontdue` (and its unmaintained `ttf-parser`) is no longer a dependency.
+
+### Fixed
+
+- Narrow and figure no-break spaces are measured with their own advance (as
+  drawn) instead of a regular space's.
+
 ## [1.0.0] - 2026-10-02
 
 First stable release. The public TypeScript and Rust APIs, the `.dotl` format

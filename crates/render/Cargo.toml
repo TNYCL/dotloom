@@ -20,7 +20,7 @@ dotloom-scene.workspace = true
 dotloom-geometry.workspace = true
 wgpu = { version = "30.0.1", default-features = false, features = ["wgsl", "std"] }
 lyon_tessellation = "1.0.22"
-fontdue = "0.9.4"
+read-fonts = { version = "0.44.0", default-features = false, features = ["std"] }
 bytemuck = { version = "1.25.2", features = ["derive"] }
 thiserror.workspace = true
 serde.workspace = true

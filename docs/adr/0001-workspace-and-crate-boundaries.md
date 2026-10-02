@@ -20,7 +20,7 @@ Rust crates (`crates/*`, published as `dotloom-*`):
 | `dotloom-scene` | geometry | GPU, DOM |
 | `dotloom-engine` | geometry, document, constraints, scene | GPU, DOM |
 | `dotloom-io` | engine | GPU, DOM |
-| `dotloom-render` | scene, wgpu, lyon, fontdue | document, engine |
+| `dotloom-render` | scene, geometry, wgpu, lyon, read-fonts | document, engine |
 | `dotloom-wasm` | engine, io (no `png`) | render |
 | `dotloom-render-web` | render (WebGPU + WebGL backends) | engine, document |
 | `dotloom-cli` | io (and `dotloom-render` behind its `png` feature) | DOM |
