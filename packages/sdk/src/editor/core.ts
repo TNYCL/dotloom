@@ -9,6 +9,7 @@
 
 import { pxToWorld as camPxToWorld, wheelZoomFactor } from '../camera.js'
 import type { DotloomEngine } from '../engine.js'
+import type { SnapProvider } from '../plugins.js'
 import { DotloomError } from '../protocol.js'
 import type { Clipboard, CommitReport, EntityId, Point, Snap, SnapOptions, Transaction } from '../types.js'
 import type { MarkerKind, OverlayState, ViewportLike } from '../viewport.js'
@@ -84,6 +85,7 @@ export class EditorCore {
   private disposed = false
   private readonly unsubscribe: (() => void)[] = []
   private buttonsDown = 0
+  private readonly snapProviders = new Set<SnapProvider>()
 
   constructor(engine: DotloomEngine, viewport: ViewportLike, options: EditorCoreOptions = {}) {
     this.engine = engine
@@ -303,6 +305,7 @@ export class EditorCore {
       } catch {
         s = null
       }
+      s = this.providerSnap(world, s)
     }
     this.lastSnap = s
     this.pointer.set({ world, snap: s })
@@ -317,6 +320,38 @@ export class EditorCore {
       mod: p.mod,
       alt: p.alt,
     }
+  }
+
+  /** Add a snap provider (plugins); returns a remover. */
+  addSnapProvider(p: SnapProvider): () => void {
+    this.snapProviders.add(p)
+    return () => {
+      this.snapProviders.delete(p)
+    }
+  }
+
+  /** Engine snaps win unless a provider candidate is strictly closer. */
+  private providerSnap(world: Point, engineSnap: Snap | null): Snap | null {
+    if (this.snapProviders.size === 0) return engineSnap
+    const radius = camPxToWorld(this.viewport.camera, this.snapRadiusPx)
+    let best = engineSnap
+    let bd = best ? Math.hypot(best.point[0] - world[0], best.point[1] - world[1]) : Number.POSITIVE_INFINITY
+    for (const p of this.snapProviders) {
+      let cands: ReturnType<SnapProvider['snap']> = []
+      try {
+        cands = p.snap(world, radius)
+      } catch (e) {
+        this.report(e)
+      }
+      for (const c of cands) {
+        const d = Math.hypot(c.point[0] - world[0], c.point[1] - world[1])
+        if (Number.isFinite(d) && d <= radius && d < bd) {
+          bd = d
+          best = { point: c.point, kind: c.kind ?? 'anchor', entity: c.entity ?? null, anchor: null, other: null }
+        }
+      }
+    }
+    return best
   }
 
   // --- input entry points --------------------------------------------------

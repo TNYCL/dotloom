@@ -189,3 +189,34 @@ test('stale revisions are rejected through the worker', async ({ page }) => {
   })
   expect(code).toBe('stale')
 })
+
+test('IndexedDB autosave survives a reload and is offered for recovery', async ({ page }) => {
+  await page.goto('./?autosave=1')
+  expect(((await page.evaluate(() => window.dl.ready)) as { ok: boolean }).ok).toBe(true)
+  await page.evaluate(async () => {
+    await window.dl.autosave?.discard()
+    await window.dl.apply([
+      { op: 'createEntity', entity: { geometry: { type: 'rect', origin: [0, 0], width: 300, height: 200 } } },
+      { op: 'createEntity', entity: { geometry: { type: 'circle', center: [100, 100], radius: 40 } } },
+    ])
+    window.dl.editor?.viewport.setCamera({ center: [50, 60], scale: 2 })
+    await window.dl.autosave?.flush()
+  })
+  await page.reload()
+  expect(((await page.evaluate(() => window.dl.ready)) as { ok: boolean }).ok).toBe(true)
+  const r = await page.evaluate(async () => {
+    const a = window.dl.autosave
+    if (!a) throw new Error('no autosave')
+    const meta = await a.recoverable()
+    const view = (await a.restore()) as { center: number[]; scale: number }
+    const n = (await window.dl.editor?.engine.documentJson())?.entities.length
+    await a.markSaved()
+    const after = await a.recoverable()
+    await a.discard()
+    return { name: meta?.name, n, view, after }
+  })
+  expect(r.name).toBe('ev-plani.dotl')
+  expect(r.n).toBe(2)
+  expect(r.view).toEqual({ center: [50, 60], scale: 2 })
+  expect(r.after).toBeNull()
+})

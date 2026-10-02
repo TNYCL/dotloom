@@ -76,7 +76,25 @@ async function rawWebglResizeComposites(page: Page): Promise<boolean> {
 }
 
 async function shot(page: Page): Promise<Rgba> {
-  return decodePng(await page.locator('#stage canvas').screenshot())
+  const buf = await page.locator('#stage canvas').screenshot()
+  // Keep the evidence: the composited screenshot and the canvas contents read in
+  // the same task as a fresh frame (helps tell compositor issues from rendering).
+  await test.info().attach('canvas-screenshot.png', { body: buf, contentType: 'image/png' })
+  const dataUrl = await page.evaluate(() => {
+    const v = window.dl.editor?.viewport
+    if (!v) return ''
+    v.requestRender()
+    ;(v as unknown as { dirty: boolean }).dirty = true
+    v.frame()
+    return v.canvas.toDataURL('image/png')
+  })
+  if (dataUrl.startsWith('data:image/png;base64,')) {
+    await test.info().attach('canvas-readback.png', {
+      body: Buffer.from(dataUrl.slice('data:image/png;base64,'.length), 'base64'),
+      contentType: 'image/png',
+    })
+  }
+  return decodePng(buf)
 }
 
 const isDark = (p: number[]): boolean => (p[0] ?? 255) < 90 && (p[1] ?? 255) < 90 && (p[2] ?? 255) < 90

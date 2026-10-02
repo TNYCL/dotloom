@@ -34,6 +34,19 @@ export {
 } from './engine.js'
 export { DEFAULT_STEP_BUDGET, type EngineFactory, EngineHost } from './host.js'
 export {
+  type ConstraintTemplate,
+  type DotloomPlugin,
+  type Exporter,
+  type Importer,
+  type PanelContribution,
+  type PluginApi,
+  type PluginCommand,
+  PluginHost,
+  type PluginInfo,
+  type SnapCandidate,
+  type SnapProvider,
+} from './plugins.js'
+export {
   type ClientMessage,
   DotloomError,
   type ErrorCode,
@@ -53,8 +66,26 @@ export {
   SceneStore,
   type Stroke,
 } from './scene.js'
+export {
+  Autosave,
+  type AutosaveOptions,
+  type AutosaveState,
+  DOTL_MIME,
+  downloadBytes,
+  type FileKind,
+  fileKind,
+  IndexedDbStorage,
+  MemoryStorage,
+  type OpenedFile,
+  pickFile,
+  readFile,
+  type StorageAdapter,
+  type StoredFile,
+  type StoredMeta,
+} from './storage.js'
 export { InlineTransport, type Transport, WorkerTransport } from './transport.js'
 export type * from './types.js'
+export { SDK_VERSION, satisfies } from './version.js'
 export {
   type Backend,
   type BackendAttempt,

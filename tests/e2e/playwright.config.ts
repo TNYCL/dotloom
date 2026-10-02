@@ -38,7 +38,14 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], channel: 'chromium', launchOptions: { args: chromiumArgs } },
     },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    {
+      name: 'firefox',
+      use: {
+        ...devices['Desktop Firefox'],
+        // Headless Linux runners have no GPU: allow Mesa's software WebGL.
+        launchOptions: { firefoxUserPrefs: { 'webgl.force-enabled': true, 'webgl.disabled': false } },
+      },
+    },
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
   ].filter((p) => wanted.includes(p.name)),
 })

@@ -7,12 +7,14 @@
  */
 
 import {
+  Autosave,
   type Backend,
   type Command,
   createEditor,
   type DotloomEditor,
   DotloomEngine,
   type FrameStats,
+  IndexedDbStorage,
 } from '@dotloom/sdk'
 
 interface Harness {
@@ -24,6 +26,8 @@ interface Harness {
   apply(commands: Command[]): Promise<unknown>
   /** SDK exports for tests that need a second engine. */
   sdk: { DotloomEngine: typeof DotloomEngine }
+  /** Present with `?autosave=1`. */
+  autosave: Autosave | null
 }
 
 declare global {
@@ -52,6 +56,7 @@ const h: Harness = {
     return h.editor.engine.apply(commands)
   },
   sdk: { DotloomEngine },
+  autosave: null,
 }
 window.dl = h
 
@@ -67,6 +72,15 @@ h.ready = (async () => {
       },
     })
     h.editor = editor
+    if (params.get('autosave') === '1') {
+      const a = new Autosave(editor.engine, new IndexedDbStorage('dotloom-e2e'), {
+        debounceMs: 50,
+        name: 'ev-plani.dotl',
+        view: () => editor.viewport.camera,
+      })
+      a.start()
+      h.autosave = a
+    }
     editor.viewport.on('frame', (s) => {
       h.frames += 1
       for (const w of waiters.splice(0)) w(s)

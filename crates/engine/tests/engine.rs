@@ -89,6 +89,36 @@ fn shelf() -> (Engine, EntityId, dotloom_engine::document::ConstraintId) {
 }
 
 #[test]
+fn creating_with_explicit_props_adapts_defaults_but_not_explicit_values() {
+    let mut e = Engine::default();
+    e.register_type(shelf_def(), "shelf").unwrap();
+    // Only the width is given: the default compartments adapt to it.
+    let mut props = std::collections::BTreeMap::new();
+    props.insert("width".to_string(), PropValue::Number(1200.0));
+    let s = create(
+        &mut e,
+        NewEntity { type_id: Some(TypeId::new("shelf.unit").unwrap()), props, ..NewEntity::default() },
+    );
+    let (w1, w2, w3) = (p(&e, s, "w1"), p(&e, s, "w2"), p(&e, s, "w3"));
+    assert!(close(p(&e, s, "width"), 1200.0));
+    assert!(close(w1 + w2 + w3, 1200.0) && close(w2, w3) && w2 >= 400.0 - 1e-6, "{w1} {w2} {w3}");
+    // Explicit values that contradict the rules are still rejected.
+    let mut bad = std::collections::BTreeMap::new();
+    bad.insert("width".to_string(), PropValue::Number(1200.0));
+    bad.insert("w1".to_string(), PropValue::Number(600.0));
+    bad.insert("w2".to_string(), PropValue::Number(600.0));
+    let err = apply(
+        &mut e,
+        vec![Command::CreateEntity {
+            id: None,
+            entity: NewEntity { type_id: Some(TypeId::new("shelf.unit").unwrap()), props: bad, ..NewEntity::default() },
+        }],
+    )
+    .unwrap_err();
+    assert!(matches!(err, EngineError::Solve { .. }), "{err:?}");
+}
+
+#[test]
 fn shelf_180_160_130_with_undo_redo_and_unlock() {
     let (mut e, s, lock) = shelf();
     // 160 cm → 60/50/50.

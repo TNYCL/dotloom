@@ -140,20 +140,20 @@ that ran + documentation.
 
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
-| DL-FILE-1 | ZIP container: `manifest.json`, `document.json`, `assets/`; ADR | planned | |
-| DL-FILE-2 | semantic round-trip | planned | |
-| DL-FILE-3 | tested migrations from older schema versions; clear error for future major | planned | |
-| DL-FILE-4 | unknown metadata/plugin fields preserved | planned | |
-| DL-FILE-5 | validation: duplicate IDs, broken refs, missing assets, size/count limits | planned | |
-| DL-FILE-6 | bounded ZIP parser: traversal, bomb, entry count, corrupt container | planned | |
+| DL-FILE-1 | ZIP container: `manifest.json`, `document.json`, `assets/`; ADR | local | ADR-0005; `crates/io/src/{zip,dotl}.rs`; `crates/io/tests/io.rs` `dotl_roundtrip_is_semantic_and_deterministic` |
+| DL-FILE-2 | semantic round-trip | local | `crates/io/tests/io.rs` `dotl_roundtrip_is_semantic_and_deterministic`, `loaded_file_round_trips_through_engine`; SDK `engine.test.ts` "round-trips .dotl" |
+| DL-FILE-3 | tested migrations from older schema versions; clear error for future major | local (framework); no older document schema exists yet | `document/src/migrate.rs` (schema 1 is the first public schema; future schema → `FutureSchema` error, tested in `document.rs`); plugin type migrations `engine.rs::old_wall_versions_are_migrated_on_load` |
+| DL-FILE-4 | unknown metadata/plugin fields preserved | local | unknown ZIP entries kept (`unknown_entries`), `document.rs::unknown_fields_and_plugin_payloads_survive` |
+| DL-FILE-5 | validation: duplicate IDs, broken refs, missing assets, size/count limits | local | `crates/io/tests/io.rs` `dotl_rejects_bad_containers`, `dotl_assets_are_verified`; `document.rs::invariant_violations_are_rejected` |
+| DL-FILE-6 | bounded ZIP parser: traversal, bomb, entry count, corrupt container | local | `crates/io/tests/io.rs` `dotl_path_traversal_and_bombs_are_rejected`, `dotl_rejects_bad_containers` (own bounded ZIP reader) |
 | DL-FILE-7 | browser open/download; IndexedDB autosave + recovery | planned | |
-| DL-FILE-8 | native atomic save (temp + replace); failed save keeps the old file | planned | |
+| DL-FILE-8 | native atomic save (temp + replace); failed save keeps the old file | local | `crates/io/tests/io.rs` `atomic_save_replaces_or_keeps_the_old_file` |
 | DL-FILE-9 | async storage adapter for host storage | planned | |
-| DL-FILE-10 | SVG import/export with support matrix; scripts/external refs never reach the DOM | planned | |
-| DL-FILE-11 | ASCII DXF LINE/LWPOLYLINE(bulge)/CIRCLE/ARC/TEXT/layers; versions + unit policy; loss report for unsupported entities | planned | |
-| DL-FILE-12 | PNG export with size/background/scale | planned | |
-| DL-FILE-13 | loss/warning reports visible to hosts | planned | |
-| DL-FILE-14 | CLI inspect/validate/convert, `--json`, exit codes; PNG capability boundary | planned | |
+| DL-FILE-10 | SVG import/export with support matrix; scripts/external refs never reach the DOM | local (support matrix doc pending) | `crates/io/tests/io.rs` `svg_export_import_roundtrip_and_report`, `svg_import_is_safe_and_reports_unsupported_content` (SVG parsed in Rust, never inserted into the DOM) |
+| DL-FILE-11 | ASCII DXF LINE/LWPOLYLINE(bulge)/CIRCLE/ARC/TEXT/layers; versions + unit policy; loss report for unsupported entities | local; CI validation of exports with ezdxf pending | `crates/io/tests/io.rs` `dxf_fixtures_from_an_independent_writer` (ezdxf-generated R12/R2000/R2018 fixtures), `dxf_export_roundtrip`, `dxf_rejects_binary_and_garbage` |
+| DL-FILE-12 | PNG export with size/background/scale | local (native CLI); browser export pending | `dotloom convert x.png --width --background` via `dotloom-render` headless; `cli.rs::png_export_renders_the_drawing` (CI on lavapipe) |
+| DL-FILE-13 | loss/warning reports visible to hosts | local | `ConversionReport` returned by CLI `--json` and SDK `exportSvg/exportDxf/importSvg/importDxf` |
+| DL-FILE-14 | CLI inspect/validate/convert, `--json`, exit codes; PNG capability boundary | local | `crates/cli/tests/cli.rs` (inspect/validate/convert, `--json`, exit codes 0–4, PNG capability error without the feature) |
 
 ## DL-UI — reference editor
 
