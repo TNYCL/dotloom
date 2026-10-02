@@ -42,6 +42,7 @@
     "src/*.ts",
     "LICENSE-MIT",
     "LICENSE-APACHE",
+    "THIRD-PARTY-NOTICES.md",
     "README.md"
   ],
   "scripts": {

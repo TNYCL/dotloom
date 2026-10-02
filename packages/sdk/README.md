@@ -33,4 +33,5 @@ const engine = await createNodeEngine()
 
 Documentation: <https://tnycl.github.io/dotloom/>
 
-Licensed under either of MIT or Apache-2.0 at your option.
+Licensed under either of MIT or Apache-2.0 at your option. The WebAssembly modules
+contain third-party crates and the Inter font (OFL-1.1); see `THIRD-PARTY-NOTICES.md`.

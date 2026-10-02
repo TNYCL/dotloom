@@ -80,11 +80,11 @@ Host / React UI  ->  TypeScript SDK  ->  versioned protocol  ->  Rust/WASM engin
 | Purpose | Command |
 |---|---|
 | Format + lint + typecheck | `pnpm run check` |
-| Rust tests | `cargo test --workspace` |
+| Rust tests | `cargo test --workspace --all-features` |
 | WASM build | `pnpm run build:wasm` |
 | SDK/React unit tests | `pnpm run test` |
 | Browser E2E | `pnpm run test:e2e` |
-| Docs build | `pnpm run build:docs` |
+| Docs site build | `pnpm run build:site` |
 | Package smoke | `pnpm run smoke:packages` |
 
 All scripts are Node or cargo based and run on Windows PowerShell, Linux and macOS.

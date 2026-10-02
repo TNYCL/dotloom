@@ -33,8 +33,12 @@ slides before its width (high).
 The engine builds a graph of variables and rules and solves only the connected
 component affected by a change:
 
-- purely linear components use an incremental Cassowary solver (`kasuari`) with
-  scaled rows and deterministic tie-breaking;
+- purely linear components use a Cassowary solver (`kasuari`) with scaled rows and
+  deterministic tie-breaking. While you drag, it is kept alive between pointer
+  moves: the drag target becomes a Cassowary edit variable and each move is an
+  incremental re-optimization (15–67× faster than a fresh solve on a 50–200 box
+  chain, same results). Nonlinear or structurally changing problems fall back to a
+  full solve automatically; `DragPreview.incremental` tells which path answered;
 - nonlinear components use a sequential quadratic programming (SQP) solver with
   exact gradients, constraint curvature, sparse linear algebra, presolve elimination
   and an active set for inequalities. A typed value or hard drag target far from the

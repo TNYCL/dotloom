@@ -21,6 +21,7 @@ dist/
 .DS_Store
 packages/*/src/wasm/
 packages/*/LICENSE-*
+packages/*/THIRD-PARTY-NOTICES.md
 tests/e2e/dist/
 tests/e2e/results/
 tests/e2e/test-results/

@@ -215,6 +215,27 @@ objects), the WASM binding moves the opened document into the engine instead of
 keeping a second copy (engine peak in the browser 265 → 200 MiB), and built-in anchor
 names are static strings.
 
+### Incremental linear drags (DL-SOLVE-4)
+
+During a drag, a problem whose components are all linear is re-solved by one
+`LinearSession` (Cassowary edit variables on the drag target) instead of from
+scratch. A chain of boxes (x₀ fixed, xᵢ₊₁ = xᵢ + wᵢ, 50 ≤ wᵢ ≤ 400, a weak width
+preference) with its end dragged through 200 pointer positions, native release
+build on the reference device
+(`cargo run --release -p dotloom-constraints --example drag_session -- 50 100 200`):
+
+| Boxes | Variables | Full solve p50 / p95 | Incremental p50 / p95 | Speed-up (p50) | Max difference |
+|---|---|---|---|---|---|
+| 50 | 101 | 1.71 / 2.17 ms | 0.11 / 0.19 ms | 15× | 1.1e-11 mm |
+| 100 | 201 | 6.99 / 9.60 ms | 0.20 / 0.49 ms | 36× | 3.3e-11 mm |
+| 200 | 401 | 37.7 / 50.7 ms | 0.56 / 1.71 ms | 67× | 1.2e-10 mm |
+
+Every position was also solved from scratch; the session never fell back and its
+values match the full solve to the last digits shown. Correctness is tested in
+`crates/constraints/tests/session.rs` (property test against full solves, hard and
+soft targets, infeasible positions, structural changes) and
+`crates/engine/tests/engine.rs::linear_drags_are_solved_incrementally_and_match_fresh_drags`.
+
 ## Not measured
 
 - Safari: no macOS device is available locally, so there are no Safari performance
@@ -236,6 +257,7 @@ node scripts/bench/solver.mjs --json bench/solver-wasm.json
 cargo run --release -p dotloom-engine --example solver_corpus -- bench/solver-corpus.json
 node scripts/bench/wasm-size.mjs --json bench/wasm-size.json
 cargo run --release -p dotloom-wasm --example memory_profile -- 100000
+cargo run --release -p dotloom-constraints --example drag_session -- 50 100 200
 pnpm --filter @dotloom/e2e run bench          # rendering, queries, files, stress, leak
 ```
 

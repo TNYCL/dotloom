@@ -2,7 +2,7 @@
 // One entry point for formatting, linting and type checking — used locally and in CI.
 //
 //   pnpm run check            # everything
-//   pnpm run check -- rust    # only Rust (fmt + clippy)
+//   pnpm run check -- rust    # only Rust (fmt, dependency boundaries, clippy, wasm32)
 //   pnpm run check -- ts      # only TypeScript (biome + tsc)
 
 import { spawnSync } from 'node:child_process'
@@ -15,6 +15,14 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const which = process.argv.slice(2).filter((a) => a !== '--')
 const all = which.length === 0
 const require = createRequire(join(root, 'package.json'))
+const CORE_CRATES = [
+  'dotloom-geometry',
+  'dotloom-constraints',
+  'dotloom-document',
+  'dotloom-scene',
+  'dotloom-engine',
+  'dotloom-io',
+]
 
 let failed = false
 function run(label, cmd, args, cwd = root) {
@@ -28,6 +36,8 @@ function run(label, cmd, args, cwd = root) {
 
 if (all || which.includes('rust')) {
   run('cargo fmt --check', 'cargo', ['fmt', '--all', '--', '--check'])
+  run('dependency boundaries', process.execPath, [join(root, 'scripts', 'check-boundaries.mjs')])
+  run('third-party notices', process.execPath, [join(root, 'scripts', 'third-party-notices.mjs'), '--check'])
   run('cargo clippy', 'cargo', [
     'clippy',
     '--workspace',
@@ -37,6 +47,27 @@ if (all || which.includes('rust')) {
     '--',
     '-D',
     'warnings',
+  ])
+  run('cargo clippy (wasm32 bindings)', 'cargo', [
+    'clippy',
+    '-p',
+    'dotloom-wasm',
+    '-p',
+    'dotloom-render-web',
+    '--target',
+    'wasm32-unknown-unknown',
+    '--locked',
+    '--',
+    '-D',
+    'warnings',
+  ])
+  // The core crates also build for a target without OS, window or GPU (DL-CORE-1).
+  run('cargo check (core crates, wasm32 without bindings)', 'cargo', [
+    'check',
+    ...CORE_CRATES.flatMap((c) => ['-p', c]),
+    '--target',
+    'wasm32-unknown-unknown',
+    '--locked',
   ])
 }
 

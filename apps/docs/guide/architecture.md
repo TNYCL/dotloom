@@ -22,10 +22,15 @@
 | `dotloom-engine` | commands, transactions, plugin type compiler and evaluator, solving pipeline, independent checker, history, queries, drags | the above |
 | `dotloom-io` | `.dotl` container, SVG and DXF import/export with loss reports | engine |
 | `dotloom-render` | wgpu renderer (also headless PNG) | scene |
-| `dotloom-cli` | `dotloom` command-line tool | engine, io, (render) |
+| `dotloom-cli` | `dotloom` command-line tool | engine, io, (render with `--features png`) |
+| `dotloom-wasm` | engine binding for the Worker (wasm-bindgen) | engine, io |
+| `dotloom-render-web` | renderer binding for the page (WebGPU, WebGL2) | render |
 
-`geometry`, `document`, `constraints`, `scene` and `engine` never depend on a DOM,
-a window or a GPU; CI checks this boundary.
+`geometry`, `document`, `constraints`, `scene`, `engine` and `io` never depend on a
+DOM, a window or a GPU. `scripts/check-boundaries.mjs` checks their dependency trees
+for every target with all features (and proves itself on the renderer, which must be
+flagged), and the same crates are built for `wasm32-unknown-unknown` without any
+binding crate. Both run in `pnpm run check` and in CI.
 
 ## One authoritative document
 

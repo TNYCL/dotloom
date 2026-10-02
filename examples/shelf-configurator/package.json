@@ -2,6 +2,7 @@
   "name": "@dotloom/example-shelf-configurator",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT OR Apache-2.0",
   "type": "module",
   "description": "Shelf configurator with a custom host UI on the Dotloom engine",
   "scripts": {

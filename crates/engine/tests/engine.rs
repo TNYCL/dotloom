@@ -383,6 +383,97 @@ fn drag_previews_then_commits_one_entry_or_cancels() {
     assert!(delta.upserts.iter().any(|i| i.id == a.0 && i.flags & dotloom_engine::scene::flags::PREVIEW == 0));
 }
 
+/// Three timeline blocks with 30-minute gaps; a's start is locked. Returns the
+/// engine and the blocks.
+fn timeline_chain() -> (Engine, [EntityId; 3]) {
+    let mut e = Engine::default();
+    e.register_type(timeline_def(), "timeline").unwrap();
+    apply(
+        &mut e,
+        vec![Command::SetSettings {
+            patch: dotloom_engine::SettingsPatch {
+                time_axis: Some(TimeAxis::new(0.0, 0.1).unwrap()),
+                ..Default::default()
+            },
+        }],
+    )
+    .unwrap();
+    let mut blocks = Vec::new();
+    for (start_h, dur_h) in [(0.0, 2.0), (3.0, 1.0), (5.0, 1.0)] {
+        blocks.push(create(
+            &mut e,
+            NewEntity {
+                type_id: Some(TypeId::new("timeline.block").unwrap()),
+                props: [
+                    ("start".to_owned(), PropValue::Number(start_h * 3600.0)),
+                    ("duration".to_owned(), PropValue::Number(dur_h * 3600.0)),
+                ]
+                .into_iter()
+                .collect(),
+                ..NewEntity::default()
+            },
+        ));
+    }
+    for w in blocks.windows(2) {
+        add_constraint(
+            &mut e,
+            RuleSpec::Linear {
+                terms: vec![
+                    Term { coef: 1.0, param: ParamRef::prop(w[1], "start") },
+                    Term { coef: -1.0, param: ParamRef::prop(w[0], "start") },
+                    Term { coef: -1.0, param: ParamRef::prop(w[0], "duration") },
+                ],
+                op: Cmp::Ge,
+                rhs: 1800.0,
+            },
+        )
+        .unwrap();
+    }
+    add_constraint(&mut e, RuleSpec::Fix { param: ParamRef::prop(blocks[0], "start"), value: 0.0 }).unwrap();
+    (e, [blocks[0], blocks[1], blocks[2]])
+}
+
+#[test]
+fn linear_drags_are_solved_incrementally_and_match_fresh_drags() {
+    // Drag the end of the first block (0.1 mm per second: 1 h = 360 mm). The pushes
+    // through the gap rules are linear, so every move after the first one is
+    // answered by the incremental session (DL-SOLVE-4).
+    let path = [800.0, 1000.0, 1300.0, 1100.0, 500.0, 1700.0, 60.0];
+    let params = |e: &Engine, b: &[EntityId; 3]| {
+        b.iter().flat_map(|id| [p(e, *id, "start"), p(e, *id, "duration")]).collect::<Vec<f64>>()
+    };
+    for k in 1..=path.len() {
+        let (mut inc, blocks) = timeline_chain();
+        inc.begin_drag(DragSpec::Anchor { entity: blocks[0], anchor: "finish".into() }).unwrap();
+        for (i, x) in path[..k].iter().enumerate() {
+            let (pre, delta) = inc.drag_to(Point::new(*x, 0.0)).unwrap();
+            assert!(pre.accepted, "{x}: {pre:?}");
+            assert_eq!(pre.incremental, i > 0, "move {i} to {x}");
+            assert!(!delta.upserts.is_empty());
+        }
+        inc.end_drag(true).unwrap().unwrap();
+
+        let (mut fresh, blocks2) = timeline_chain();
+        fresh.begin_drag(DragSpec::Anchor { entity: blocks2[0], anchor: "finish".into() }).unwrap();
+        let (pre, _) = fresh.drag_to(Point::new(path[k - 1], 0.0)).unwrap();
+        assert!(pre.accepted && !pre.incremental);
+        fresh.end_drag(true).unwrap().unwrap();
+
+        let (a, b) = (params(&inc, &blocks), params(&fresh, &blocks2));
+        for (x, y) in a.iter().zip(&b) {
+            assert!((x - y).abs() < 1e-6, "after {k} moves: incremental {a:?} vs fresh {b:?}");
+        }
+        // Independent check of the committed result: a ends at the pointer (5 min
+        // minimum duration), the gaps hold.
+        let a_end = p(&inc, blocks[0], "start") + p(&inc, blocks[0], "duration");
+        assert!(close(a_end, (path[k - 1] / 0.1).max(300.0)), "{a_end}");
+        for w in blocks.windows(2) {
+            let gap = p(&inc, w[1], "start") - p(&inc, w[0], "start") - p(&inc, w[0], "duration");
+            assert!(gap >= 1800.0 - 1e-6, "gap {gap}");
+        }
+    }
+}
+
 #[test]
 fn rejected_drag_positions_keep_the_last_valid_preview() {
     let mut e = Engine::default();

@@ -373,6 +373,8 @@ export interface DragPreview {
   accepted: boolean
   status: SolveStatus
   diagnostics: DiagnosticReport[]
+  /** The preview was re-solved incrementally (linear session) instead of from scratch. */
+  incremental: boolean
 }
 
 export type AnchorKind =
