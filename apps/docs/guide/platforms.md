@@ -14,25 +14,47 @@ keeps the panels (properties, objects, files) working without a canvas.
 
 ## Tested configurations
 
-Browser tests (Playwright) run every renderer test once per backend. A backend a
-browser does not offer is reported as **skipped with the reason**, never as passed.
-Tests also probe the environment with plain WebGL/WebGPU code (no Dotloom); when a
-problem reproduces there, the affected test is skipped with that evidence.
+The product targets the **current and previous major versions** of desktop Chrome,
+Edge, Firefox and Safari. On 2026-10-02 these are Chrome 154/153, Edge 154/153,
+Firefox 157/156 and Safari 27/26. Two kinds of evidence are kept apart:
 
-The product targets the current and previous major versions of desktop Chrome,
-Edge, Firefox and Safari. This table lists what has actually been verified, with
-which build and how; older majors are not verified yet.
+- **Released browsers** (the builds users run), driven through their own WebDriver
+  servers by `tests/e2e/webdriver/smoke.mjs`: drawing with each backend selected
+  explicitly (lines, a circle, Turkish text), PNG export and the React playground.
+  Chrome, Edge and Firefox are downloaded from the vendors by
+  `tests/e2e/webdriver/install.mjs`; the six Linux jobs and the Safari job run in
+  `compat.yml` on every pull request and on `main`.
+- **Engine families** (Playwright's Chromium, Firefox and WebKit builds) run the full
+  browser suite: tools, files, recovery, accessibility, device loss and pixel tests.
 
-| Browser (build) | WebGPU | WebGL2 | Evidence |
+A backend a browser does not offer is reported as **not available with the reason**,
+never as passed.
+
+### Released browsers
+
+| Browser | OS, GPU | WebGPU | WebGL2 | Evidence |
+|---|---|---|---|---|
+| Chrome 154.0.8037.58 (installed) | Windows 11, GTX 1060 | verified | verified | WebDriver smoke ([results](https://github.com/TNYCL/dotloom/tree/main/docs/compat/2026-10-02/windows-gtx1060)); reference benchmarks ([performance](./performance.md)) |
+| Chrome 153.0.8010.52 (Chrome for Testing) | Windows 11, GTX 1060 | verified | verified | WebDriver smoke |
+| Edge 154.0.4258.48 (installed) | Windows 11, GTX 1060 | verified | verified | WebDriver smoke; reference benchmarks |
+| Chrome 154.0.8037.92 and 153.0.8010.52 | Linux CI, SwiftShader | verified | verified | `compat` real-browser jobs ([results](https://github.com/TNYCL/dotloom/tree/main/docs/compat/2026-10-02/ci-run-36980003137)) |
+| Edge 154.0.4258.53 | Linux CI, SwiftShader | verified | verified | `compat` real-browser job |
+| Edge 153.0.4234.48 | Linux CI, SwiftShader | not available: the software device was lost, the viewport moved on | verified | `compat` real-browser job |
+| Firefox 157.0 and 156.0.1 | Linux CI, Mesa (Xvfb) | not exposed on Linux | verified | `compat` real-browser jobs |
+| Safari 26.6.1 (previous major) | macOS 15 CI runner | not exposed on the runner (`navigator.gpu` undefined) | verified | `compat` Safari job |
+| Safari 27 (current major) | — | not verified | not verified | no Mac with Safari 27 is available; hosted runners ship 26.6.x (issue #13) |
+| Firefox 157/156 on Windows or macOS, Edge 153 on Windows, Safari WebGPU on Mac hardware | — | not verified | not verified | no such device or install available here |
+
+### Engine families (full suite)
+
+| Build | WebGPU | WebGL2 | Evidence |
 |---|---|---|---|
-| Chrome 154, Windows 11, GeForce GTX 1060 | verified | verified | browser suite (Playwright Chromium) locally; reference benchmarks with the installed Chrome ([performance](./performance.md)) |
-| Edge 154, Windows 11, GeForce GTX 1060 | verified | verified | reference benchmarks with the installed Edge (rendering, files, leak and stress runs) |
-| Chromium (Playwright), Linux CI, SwiftShader | not available: a plain WebGPU device is destroyed right after creation; the viewport falls back to WebGL2 | verified | `ci` browser suite |
+| Chromium 153 (Playwright), Windows, GTX 1060 | verified | verified | local suite |
+| Chromium 153 (Playwright), Linux CI, SwiftShader | not available: a plain WebGPU device is destroyed right after creation in this build | verified | `ci` browser suite |
 | Firefox 155 (Playwright build), Windows | verified in a window (benchmarks); headless builds return no WebGPU canvas context | verified | local suite and benchmarks |
 | Firefox 155 (Playwright build), Linux CI | not exposed | verified (software WebGL, window under Xvfb) | `ci` browser suite |
-| WebKit (Playwright build), Linux and macOS CI | not available | verified | `ci` and `compat` browser suites |
-| WebKit (Playwright build), Windows | not available | verified, except resized canvases, which this build does not display (reproduced with plain WebGL) | local suite |
-| **Safari 26.6.1**, macOS 15 (CI runner) | not exposed on the runner (`navigator.gpu` undefined) | verified: drawing, PNG export and the React playground through `safaridriver` | `compat` Safari smoke test |
+| WebKit 26.6 (Playwright build), Linux and macOS CI | not available | verified | `ci` and `compat` browser suites |
+| WebKit 26.6 (Playwright build), Windows | not available | verified, except resized canvases, which this build does not display (reproduced with plain WebGL) | local suite |
 
 Native rendering (PNG export, GPU pixel tests) is verified on Vulkan (NVIDIA locally,
 Mesa lavapipe on Linux CI), Direct3D 12 (WARP on Windows CI) and Metal (macOS CI).

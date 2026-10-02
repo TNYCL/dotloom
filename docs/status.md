@@ -2,7 +2,7 @@
 
 Resume point for any contributor or agent. Keep it short; never store secrets here.
 
-- Branch: `feat/browser-versions` (PR #21: real-browser matrix, requirement evidence)
+- Branch: `feat/ui-polish` (load-error title, technical details disclosure, unmount test, platform table)
 - Last updated: 2026-10-02
 - Overall: **feature-complete and verified in CI; not released.** Every row of
   `docs/requirements.md` has code, a test that runs and documentation, except the
@@ -22,6 +22,7 @@ Resume point for any contributor or agent. Keep it short; never store secrets he
 | #9 | performance (DL-PERF), determinism/parity, compatibility matrix, fuzzing, visual tests, release workflow |
 | #17 | single-edit measurement (DL-DOC-9), platform table, nightly fixes |
 | #18 | incremental linear drags, rule class checks, plugin panels/storage in the editor, UI state tests, accessibility scan, file fixtures, crate consumer, third-party notices, CI hygiene |
+| #21 | released-browser matrix (Chrome, Edge, Firefox current and previous major; Safari) through WebDriver; requirement evidence for every row |
 
 ## Verified evidence (latest runs)
 
@@ -33,7 +34,8 @@ Resume point for any contributor or agent. Keep it short; never store secrets he
 | `nightly` on `main@9bf37b2` (7 fuzz targets × 60 s with recorded seeds, cargo-deny, solver benchmark) | 36973303755 | green, no crash |
 | `release` dry run on `main@b9ed771` (packages, crates, CLI archives for Linux/Windows/macOS, notes) | 36972188938 | green, nothing published |
 | Reference-device performance (Windows 11, Ryzen 9 5900X, GTX 1060) | `docs/performance.md`, `docs/perf/2026-10-02/` | DL-PERF-1…8 met |
-| Real browsers on the reference device (WebDriver: WebGPU + WebGL2 + playground) | `docs/compat/2026-10-02/` | Chrome 153.0.8010.52, Chrome 154.0.8037.58, Edge 154.0.4258.48 passed |
+| Released browsers in CI (WebDriver; `compat` on PR #21) | 36980003137 | Chrome 154.0.8037.92/153.0.8010.52, Edge 154.0.4258.53/153.0.4234.48, Firefox 157.0/156.0.1 (Linux), Safari 26.6.1 (macOS): WebGL2 and playground passed everywhere, WebGPU where offered (`docs/compat/2026-10-02/ci-run-36980003137/`) |
+| Released browsers on the reference device (WebGPU + WebGL2 + playground) | `docs/compat/2026-10-02/windows-gtx1060/` | Chrome 153.0.8010.52, Chrome 154.0.8037.58, Edge 154.0.4258.48 passed |
 
 Branch protection on `main` (read back from the API): 15 required checks, strict
 (up to date), enforced for admins, linear history, no force pushes, no deletions,
@@ -57,7 +59,7 @@ conversation resolution required.
 | npm `@dotloom/sdk`, `@dotloom/react` (issue #10) | not logged in; the `@dotloom` org does not exist | create the npm org `dotloom` (free for public packages), then either add an automation token as the repository secret `NPM_TOKEN` or configure trusted publishing for `TNYCL/dotloom` / `release.yml` |
 | crates.io `dotloom-*` (issue #11) | no crates.io token | create a crates.io API token (scope `publish-new`, `publish-update`) and add it as the repository secret `CARGO_REGISTRY_TOKEN` |
 | Namespace ownership (DL-OSS-4) | names were unclaimed on 2026-10-02 but are owned only after the first publish | covered by the two steps above |
-| Safari 27 (current major) and Safari WebGPU on real Mac hardware (issues #12, #13) | no Mac; hosted runners have Safari 26.6.x without WebGPU | run `node tests/e2e/webdriver/smoke.mjs --browser safari` on a Mac with Safari 27 (`safaridriver --enable` once) |
+| Safari 27 (current major) and Safari WebGPU on real Mac hardware (issue #13) | no Mac; hosted runners have Safari 26.6.x without WebGPU | on a Mac with Safari 27: `sudo safaridriver --enable`, serve the harness and playground, `node tests/e2e/webdriver/smoke.mjs --browser safari --webgpu required` |
 
 A stable GitHub Release is deliberately held back until the npm scope is secured, so
 that the release artifacts, the npm tarballs and the crates carry the same names and
@@ -80,8 +82,8 @@ checksums (`release.yml` publishes all of them from one verified tag).
 
 ## Next
 
-1. Merge PR #21 after CI; add the six real-browser jobs to the required checks once
-   they are green on `main`.
+1. Merge the UI polish PR after CI; add the six real-browser jobs to the required
+   checks (they are green on PR #21 and `main`).
 2. With npm/crates.io access: bump the lockstep version to `1.0.0` (first stable
    SemVer release; 0.x versions are previews), add the CHANGELOG section, tag `v1.0.0`,
    run `release.yml`, verify the published packages from a clean consumer, update
