@@ -288,3 +288,72 @@ describe('panels', () => {
     expect(matchScore('Export SVG', 'es')).toBeGreaterThan(0)
   })
 })
+
+describe('constraints panel', () => {
+  it('explains a non-converged file, toggles and removes rules, applies plugin templates', async () => {
+    const h = await handle()
+    // Three points whose distances break the triangle inequality, as a file could
+    // contain them (opening never solves).
+    const r = await h.engine.apply([
+      { op: 'createEntity', entity: { geometry: { type: 'point', at: [0, 0] } } },
+      { op: 'createEntity', entity: { geometry: { type: 'point', at: [100, 0] } } },
+      { op: 'createEntity', entity: { geometry: { type: 'point', at: [50, 10] } } },
+    ])
+    const [a, b, c] = r.created as [number, number, number]
+    const doc = await h.engine.documentJson()
+    const dist = (id: number, p: number, q: number, value: number) => ({
+      id,
+      label: `d${id}`,
+      rule: {
+        kind: 'distance' as const,
+        a: { entity: p, anchor: 'point' },
+        b: { entity: q, anchor: 'point' },
+        value,
+      },
+    })
+    doc.constraints = [dist(100, a, b, 100), dist(101, b, c, 10), dist(102, a, c, 500)]
+    doc.nextId = Math.max(doc.nextId, 200)
+    await h.engine.loadJson(doc)
+    await h.engine.setSelection([a, b, c])
+    ui(h, <ConstraintsPanel />)
+    await waitFor(() => expect(screen.getAllByText('The solver did not converge.').length).toBeGreaterThan(0))
+    expect(screen.getAllByRole('checkbox')).toHaveLength(3)
+
+    // Disabling the impossible rule makes the rest solvable (one transaction).
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Enabled: d102' }))
+    await waitFor(async () => {
+      const d = await h.engine.documentJson()
+      expect(d.constraints.find((x) => x.id === 102)?.enabled).toBe(false)
+    })
+    await waitFor(() => expect(screen.queryByText('The solver did not converge.')).toBeNull())
+    expect((screen.getByRole('checkbox', { name: 'Enabled: d102' }) as HTMLInputElement).checked).toBe(false)
+
+    // Removing a rule.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove rule: d102' }))
+    await waitFor(() => expect(screen.getAllByRole('checkbox')).toHaveLength(2))
+    expect((await h.engine.documentJson()).constraints.map((x) => x.id)).toEqual([100, 101])
+
+    // Plugin constraint templates appear for a matching selection size and add rules.
+    await h.plugins.register({
+      id: 'acme.rules',
+      version: '1.0.0',
+      constraintTemplates: [
+        {
+          id: 'pin',
+          label: 'Pin point',
+          arity: 1,
+          build: ([id]) => [{ rule: { kind: 'fixPoint', a: { entity: id as number, anchor: 'point' }, at: [0, 0] } }],
+        },
+      ],
+    })
+    await act(async () => {
+      await h.engine.setSelection([a])
+    })
+    fireEvent.click(await screen.findByRole('button', { name: '+ Pin point' }))
+    await waitFor(async () => {
+      const d = await h.engine.documentJson()
+      expect(d.constraints.some((x) => x.rule.kind === 'fixPoint')).toBe(true)
+    })
+  })
+})
+

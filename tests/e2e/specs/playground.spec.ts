@@ -128,6 +128,69 @@ test('command palette exports SVG; save and reopen a .dotl file', async ({ page 
   await expect.poll(() => entityCount(page)).toBe(4)
 })
 
+test('empty drawing note, Ctrl+S / Ctrl+O, DXF and PNG export, visible keyboard focus', async ({ page }) => {
+  await page.goto('./')
+  await ready(page)
+  await expect(page.getByText('Empty drawing')).toBeVisible()
+  await page.evaluate(async () => {
+    const h = (window as unknown as { dotloom: { core: { apply(tx: unknown): Promise<unknown> } } }).dotloom
+    await h.core.apply({
+      label: 'Line',
+      commands: [{ op: 'createEntity', entity: { geometry: { type: 'line', a: [0, 0], b: [1000, 500] } } }],
+    })
+  })
+  await expect(page.getByText('Empty drawing')).toBeHidden()
+
+  // Ctrl+S downloads the document and the status bar reports it as saved.
+  await page.locator('.dl-canvas canvas').click({ position: { x: 5, y: 5 } })
+  const [saved] = await Promise.all([page.waitForEvent('download'), page.keyboard.press('ControlOrMeta+s')])
+  expect(saved.suggestedFilename()).toMatch(/\.dotl$/)
+  await expect(page.locator('.dl-statusbar')).toContainText('Saved')
+  const dotl = readFileSync(await saved.path())
+
+  // DXF and PNG through the command palette.
+  const exportVia = async (query: string) => {
+    await page.keyboard.press('ControlOrMeta+k')
+    const input = page.getByPlaceholder('Type a command…')
+    await input.fill(query)
+    const [d] = await Promise.all([page.waitForEvent('download'), input.press('Enter')])
+    return { name: d.suggestedFilename(), bytes: readFileSync(await d.path()) }
+  }
+  const dxf = await exportVia('dxf')
+  expect(dxf.name).toMatch(/\.dxf$/)
+  expect(dxf.bytes.toString('latin1')).toMatch(/SECTION[\s\S]*ENTITIES[\s\S]*LINE/)
+  const png = await exportVia('png')
+  expect(png.name).toMatch(/\.png$/)
+  const img = decodePng(png.bytes)
+  expect(img.width).toBeGreaterThan(0)
+  const background = img.at(0, 0)
+  let ink = 0
+  for (let y = 0; y < img.height; y += 2)
+    for (let x = 0; x < img.width; x += 2) if (img.at(x, y).some((c, i) => Math.abs(c - (background[i] ?? 0)) > 40)) ink++
+  expect(ink, 'the exported PNG shows the line').toBeGreaterThan(10)
+
+  // Ctrl+O opens a file (here the one saved above, after starting a new document).
+  await page.getByRole('menuitem', { name: 'New' }).click()
+  await expect.poll(() => entityCount(page)).toBe(0)
+  await page.locator('.dl-canvas canvas').click({ position: { x: 5, y: 5 } })
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.keyboard.press('ControlOrMeta+o')])
+  await chooser.setFiles({ name: 'line.dotl', mimeType: 'application/vnd.dotloom+zip', buffer: dotl })
+  await expect.poll(() => entityCount(page)).toBe(1)
+
+  // Keyboard focus is visible on editor controls.
+  await page.getByRole('menuitem', { name: 'New' }).focus()
+  await page.keyboard.press('Tab')
+  const outline = await page.evaluate(() => {
+    const el = document.activeElement as HTMLElement | null
+    if (!el || el === document.body) return null
+    const cs = getComputedStyle(el)
+    return { style: cs.outlineStyle, width: Number.parseFloat(cs.outlineWidth) }
+  })
+  expect(outline).not.toBeNull()
+  expect(outline?.style).not.toBe('none')
+  expect(outline?.width).toBeGreaterThanOrEqual(2)
+})
+
 test('unsaved work is offered for recovery after a reload', async ({ page }) => {
   await page.goto('./?example=floorplan')
   await ready(page)

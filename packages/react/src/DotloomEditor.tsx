@@ -43,6 +43,7 @@ import { Inspector } from './components/Inspector.js'
 import { Icon } from './components/icons.js'
 import { LayersPanel } from './components/LayersPanel.js'
 import { ObjectsPanel } from './components/ObjectsPanel.js'
+import { PluginPanels } from './components/PluginPanels.js'
 import { StatusBar } from './components/StatusBar.js'
 import { Toolbar } from './components/Toolbar.js'
 import { type EditorHandle, EditorProvider, useDocument, useEditor, useEditorState } from './context.js'
@@ -55,7 +56,11 @@ export interface DotloomEditorProps {
   locale?: string
   messages?: Partial<Record<string, string>>
   theme?: ThemeMode
-  /** Autosave to IndexedDB (default) or a custom adapter; `false` disables it. */
+  /**
+   * Autosave target: a custom adapter, else the first storage adapter contributed by
+   * an enabled plugin, else IndexedDB (memory where IndexedDB is unavailable).
+   * `false` disables autosave.
+   */
   autosave?: boolean | { key?: string; storage?: StorageAdapter }
   /** Initial `.dotl` bytes. */
   document?: Uint8Array
@@ -254,6 +259,7 @@ function Shell(props: {
         <ConstraintsPanel />
         <LayersPanel />
         <ObjectsPanel />
+        <PluginPanels />
         {props.children}
       </aside>
       <StatusBar unit={unit} />
@@ -341,7 +347,10 @@ export function DotloomEditor(props: DotloomEditorProps): ReactNode {
       let autosave: Autosave | null = null
       if (p.autosave !== false) {
         const opt = typeof p.autosave === 'object' ? p.autosave : {}
-        const storage = opt.storage ?? (typeof indexedDB === 'undefined' ? new MemoryStorage() : new IndexedDbStorage())
+        const storage =
+          opt.storage ??
+          plugins.storageAdapters()[0] ??
+          (typeof indexedDB === 'undefined' ? new MemoryStorage() : new IndexedDbStorage())
         const a = new Autosave(engine, storage, {
           ...(opt.key ? { key: opt.key } : {}),
           name: p.name ?? 'untitled.dotl',

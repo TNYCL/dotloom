@@ -118,6 +118,8 @@ interface Entry {
   plugin: DotloomPlugin
   enabled: boolean
   cleanups: (() => void)[]
+  /** IDs of the tools registered while enabled. */
+  tools: string[]
 }
 
 const ID_RE = /^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+$/
@@ -180,7 +182,7 @@ export class PluginHost {
         })
       }
     }
-    const entry: Entry = { plugin, enabled: false, cleanups: [] }
+    const entry: Entry = { plugin, enabled: false, cleanups: [], tools: [] }
     if (plugin.types?.length) {
       // The engine validates definitions and reports conflicts as typed errors.
       await this.engine.registerTypes(plugin.types, plugin.id)
@@ -205,7 +207,9 @@ export class PluginHost {
     if (this.editor) {
       for (const make of p.tools ?? []) {
         try {
-          entry.cleanups.push(this.editor.registerTool(make()))
+          const tool = make()
+          entry.cleanups.push(this.editor.registerTool(tool))
+          entry.tools.push(tool.id)
         } catch (e) {
           this.runCleanups(entry)
           throw e
@@ -219,6 +223,7 @@ export class PluginHost {
   }
 
   private runCleanups(entry: Entry): void {
+    entry.tools = []
     for (const f of entry.cleanups.splice(0).reverse()) {
       try {
         f()
@@ -267,7 +272,7 @@ export class PluginHost {
       version: e.plugin.version,
       enabled: e.enabled,
       types: (e.plugin.types ?? []).map((t) => t.typeId),
-      tools: [],
+      tools: [...e.tools],
       commands: Object.keys(e.plugin.commands ?? {}),
     }))
   }
@@ -330,21 +335,35 @@ export class PluginHost {
       .flatMap((e) => (e.plugin.constraintTemplates ?? []).map((template) => ({ plugin: e.plugin.id, template })))
   }
 
+  /** Storage adapters contributed by enabled plugins, in registration order. */
   storageAdapters(): StorageAdapter[] {
     return [...this.entries.values()].filter((e) => e.enabled).flatMap((e) => e.plugin.storage ?? [])
   }
 
-  /** Mount a plugin panel with an API that tracks the selection. */
+  /**
+   * Mount a plugin panel with an API that tracks the selection. The returned
+   * unmount function is idempotent; disabling or unregistering the plugin also
+   * unmounts it.
+   */
   mountPanel(plugin: string, panelId: string, el: HTMLElement): () => void {
     const e = this.get(plugin)
+    if (!e.enabled) throw new DotloomError({ code: 'plugin', message: `plugin "${plugin}" is disabled` })
     const panel = e.plugin.panels?.find((p) => p.id === panelId)
     if (!panel) throw new DotloomError({ code: 'notFound', message: `unknown panel ${plugin}:${panelId}` })
     const unmount = panel.mount(el, {
       ...this.api(e),
       selection: () => this.editor?.state.getSnapshot().selection ?? [],
     })
-    e.cleanups.push(unmount)
-    return unmount
+    let done = false
+    const off = (): void => {
+      if (done) return
+      done = true
+      const i = e.cleanups.indexOf(off)
+      if (i >= 0) e.cleanups.splice(i, 1)
+      unmount()
+    }
+    e.cleanups.push(off)
+    return off
   }
 
   /** Unregister everything. */

@@ -32,7 +32,7 @@ Host / React UI  ->  TypeScript SDK  ->  versioned protocol  ->  Rust/WASM engin
 ```
 
 - `dotloom-geometry`, `dotloom-document`, `dotloom-constraints`, `dotloom-engine`,
-  `dotloom-scene` and `dotloom-io` (without the `png` feature) must build without DOM,
+  `dotloom-scene` and `dotloom-io` must build without DOM,
   window, GPU or wgpu. CI checks this with `cargo tree`.
 - The Rust engine owns the only editable copy of a document. TypeScript, React and the
   renderer hold derived views keyed by revision.

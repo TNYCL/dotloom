@@ -343,6 +343,156 @@ fn pending_solve_can_be_cancelled_without_changes() {
 }
 
 // ---------------------------------------------------------------------------
+// Rule classes and anchors (DL-SOLVE-2, DL-SOLVE-3, DL-DOC-4)
+
+#[test]
+fn rules_on_the_wrong_geometry_class_or_missing_anchors_are_rejected_before_commit() {
+    let mut e = Engine::default();
+    for d in floorplan_defs() {
+        e.register_type(d, "floorplan").unwrap();
+    }
+    let a = line(&mut e, (0.0, 0.0), (100.0, 0.0));
+    let b = line(&mut e, (0.0, 50.0), (100.0, 50.0));
+    let c = create(
+        &mut e,
+        NewEntity {
+            geometry: Some(Shape::Circle(dotloom_engine::geometry::Circle::new(Point::new(50.0, 100.0), 20.0).unwrap())),
+            ..NewEntity::default()
+        },
+    );
+    let wall = create(
+        &mut e,
+        NewEntity {
+            type_id: Some(TypeId::new("floorplan.wall").unwrap()),
+            props: [
+                ("start".to_owned(), PropValue::Point(Point::ORIGIN)),
+                ("end".to_owned(), PropValue::Point(Point::new(4000.0, 0.0))),
+            ]
+            .into(),
+            ..NewEntity::default()
+        },
+    );
+    let rev = e.revision();
+    let hash = e.document().content_hash().unwrap();
+    let rejected = |e: &mut Engine, rule: RuleSpec, why: &str| {
+        let err = add_constraint(e, rule.clone()).expect_err(why);
+        let EngineError::Solve { failure } = &err else { panic!("{why}: expected a solve failure, got {err:?}") };
+        assert_eq!(failure.status, Status::Unsupported, "{why}: {failure:?}");
+        let d = failure.diagnostics.iter().find(|d| d.kind == DiagnosticKind::Unsupported).expect(why);
+        assert!(d.message.contains(why), "{why}: {}", d.message);
+    };
+    // A line is not a circle: tangency, concentricity and radius need circles or arcs.
+    rejected(
+        &mut e,
+        RuleSpec::TangentLineCircle { line: LineRef::of(a), circle: b, side: 1.0 },
+        "is not a circle or arc",
+    );
+    rejected(&mut e, RuleSpec::Concentric { a: c, b: a }, "is not a circle or arc");
+    rejected(&mut e, RuleSpec::Radius { circle: wall, value: 10.0 }, "has no circle interpretation");
+    // Anchors that the entity does not have (built-in and plugin) are rejected while
+    // the command is validated, before anything is solved.
+    for (id, anchor) in [(a, "center"), (wall, "hinge")] {
+        let err = add_constraint(&mut e, RuleSpec::FixPoint { a: AnchorRef::new(id, anchor), at: Point::ORIGIN })
+            .expect_err(anchor);
+        let EngineError::Command { error: dotloom_engine::CommandError::Invalid { reason, .. } } = &err else {
+            panic!("{anchor}: expected an invalid command, got {err:?}")
+        };
+        assert!(reason.contains(&format!("has no anchor `{anchor}`")), "{reason}");
+    }
+    // Nothing was committed.
+    assert_eq!(e.revision(), rev);
+    assert_eq!(e.document().content_hash().unwrap(), hash);
+    // The same rules on the right classes and anchors are accepted.
+    add_constraint(&mut e, RuleSpec::TangentLineCircle { line: LineRef::of(b), circle: c, side: 1.0 }).unwrap();
+    add_constraint(&mut e, RuleSpec::FixPoint { a: AnchorRef::new(wall, "start"), at: Point::ORIGIN }).unwrap();
+    let center = e.evaluate(c).unwrap().anchor("center").unwrap();
+    let (p0, p1) = (e.evaluate(b).unwrap().anchor("start").unwrap(), e.evaluate(b).unwrap().anchor("end").unwrap());
+    let dist = ((p1 - p0).cross(center - p0) / p0.distance(p1)).abs();
+    assert!(close(dist, p(&e, c, "r")), "tangent: distance {dist} vs radius {}", p(&e, c, "r"));
+}
+
+#[test]
+fn shape_breaking_transforms_keep_rules_and_dimensions_meaningful() {
+    // DL-GEO-13: a circle cannot take a non-uniform scale and stay a circle. Strict
+    // transforms fail with a capability error; `Convert` turns it into a path
+    // explicitly and reports what that breaks. Similarities keep everything.
+    let mut e = Engine::default();
+    let c = create(
+        &mut e,
+        NewEntity {
+            geometry: Some(Shape::Circle(dotloom_engine::geometry::Circle::new(Point::new(0.0, 0.0), 50.0).unwrap())),
+            ..NewEntity::default()
+        },
+    );
+    let l = line(&mut e, (100.0, 0.0), (300.0, 0.0));
+    add_constraint(&mut e, RuleSpec::Radius { circle: c, value: 50.0 }).unwrap();
+    let dim = |e: &mut Engine, props: Vec<(&str, PropValue)>| {
+        create(
+            e,
+            NewEntity {
+                type_id: Some(TypeId::new("dotloom.dimension").unwrap()),
+                props: props.into_iter().map(|(k, v)| (k.to_owned(), v)).collect(),
+                ..NewEntity::default()
+            },
+        )
+    };
+    let radial = dim(
+        &mut e,
+        vec![("kind", PropValue::Text("radial".into())), ("circle", PropValue::Ref(RefValue { entity: c }))],
+    );
+    let linear = dim(
+        &mut e,
+        vec![
+            ("kind", PropValue::Text("linear".into())),
+            ("a", PropValue::Anchor(AnchorRef::new(l, "start"))),
+            ("b", PropValue::Anchor(AnchorRef::new(l, "end"))),
+        ],
+    );
+    let measure = |e: &mut Engine, id| e.evaluate(id).unwrap().measured.expect("dimension value");
+    assert!(close(measure(&mut e, radial), 50.0));
+    assert!(close(measure(&mut e, linear), 200.0));
+    let transform = |ids: Vec<EntityId>, t: Affine, policy| Command::Transform { ids, transform: t, policy };
+
+    // 1. Strict non-uniform scale of the circle: capability error, nothing changes.
+    let rev = e.revision();
+    let err = apply(&mut e, vec![transform(vec![c], Affine::scale(2.0, 1.0), Default::default())]).unwrap_err();
+    assert!(format!("{err:?}").contains("unsupported transform for circle"), "{err:?}");
+    assert_eq!(e.revision(), rev);
+
+    // 2. A uniform scale is a similarity: the radius rule and the dimension follow
+    //    (the radius rule is then re-solved: the scaled circle must keep r = 50).
+    let r = apply(&mut e, vec![transform(vec![c], Affine::scale(2.0, 2.0), Default::default())]);
+    assert!(r.is_err(), "the hard radius rule forbids growing the circle: {r:?}");
+    let r = apply(&mut e, vec![transform(vec![c], Affine::translate(Vector::new(10.0, 0.0)), Default::default())]);
+    assert!(r.is_ok());
+    assert!(close(measure(&mut e, radial), 50.0));
+
+    // 3. Non-uniform scale of a line is exact: the linear dimension measures the new length.
+    apply(&mut e, vec![transform(vec![l], Affine::scale(1.5, 3.0), Default::default())]).unwrap();
+    assert!(close(measure(&mut e, linear), 300.0), "{}", measure(&mut e, linear));
+
+    // 4. Explicit conversion: the circle becomes a path, its radius rule is removed and
+    //    the radial dimension is reported as no longer resolving. Undo restores all.
+    let report = apply(
+        &mut e,
+        vec![transform(vec![c], Affine::scale(2.0, 1.0), dotloom_engine::geometry::TransformPolicy::Convert)],
+    )
+    .unwrap();
+    assert_eq!(e.document().entity(c).unwrap().type_id.as_str(), "dotloom.path");
+    assert_eq!(report.removed_constraints.len(), 1, "{report:?}");
+    assert!(report.notes.iter().any(|n| n.contains("changed shape kind") && n.contains(&c.to_string())), "{:?}", report.notes);
+    assert!(report.notes.iter().any(|n| n.contains(&format!("{radial} no longer resolves"))), "{:?}", report.notes);
+    assert!(e.evaluate(radial).unwrap().error.is_some());
+    // The path really is the stretched circle: 100 mm wide, 50 mm tall around (10, 0).
+    let bb = e.evaluate(c).unwrap().bbox;
+    assert!((bb.size().x - 200.0).abs() < 0.2 && (bb.size().y - 100.0).abs() < 0.2, "{bb:?}");
+    e.undo(ApplyOptions::default()).unwrap();
+    assert_eq!(e.document().entity(c).unwrap().type_id.as_str(), "dotloom.circle");
+    assert_eq!(e.document().constraints().count(), 1);
+    assert!(close(measure(&mut e, radial), 50.0));
+}
+
+// ---------------------------------------------------------------------------
 // Drag (DL-CMD-4/5)
 
 #[test]
@@ -596,6 +746,35 @@ fn old_wall_versions_are_migrated_on_load() {
     assert_eq!(w.type_version, 2);
     assert_eq!(w.props.get("thickness"), Some(&PropValue::Number(150.0)));
     assert!(!w.props.contains_key("thick"));
+}
+
+#[test]
+fn entities_from_a_newer_plugin_version_open_read_only() {
+    // DL-PLUGIN-2/4: a document written by wall v3 opened with wall v2 registered.
+    let mut e = Engine::default();
+    for d in floorplan_defs() {
+        e.register_type(d, "floorplan").unwrap();
+    }
+    let j = serde_json::json!({
+        "schema": 1, "layers": [{"id": 1, "name": "L"}], "nextId": 3,
+        "entities": [{"id": 2, "type": "floorplan.wall", "typeVersion": 3, "layer": 1,
+            "props": {"start": [0, 0], "end": [1000, 0], "thickness": 150.0, "finish": "oak"}}]
+    });
+    let (doc, _) = Document::from_json_value(j, &Default::default()).unwrap();
+    e.load(doc).unwrap();
+    let wall = EntityId(2);
+    let ev = e.evaluate(wall).unwrap();
+    assert!(
+        matches!(&ev.read_only, Some(dotloom_engine::eval::ReadOnly::NewerVersion { found: 3, supported: 2, .. })),
+        "{:?}",
+        ev.read_only
+    );
+    let err = set(&mut e, wall, "thickness", 300.0, EditMode::Exact).unwrap_err();
+    assert!(format!("{err:?}").contains("ReadOnly"), "{err:?}");
+    // Nothing is migrated down or dropped: the newer payload survives a save.
+    let w = e.document().entity(wall).unwrap();
+    assert_eq!(w.type_version, 3);
+    assert_eq!(w.props.get("finish"), Some(&PropValue::Text("oak".into())));
 }
 
 // ---------------------------------------------------------------------------

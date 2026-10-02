@@ -139,7 +139,12 @@ impl SolveJob {
             let Some(comp) = self.comps.get(self.next).cloned() else { break };
             match comp.backend {
                 Backend::Trivial => {
-                    self.solve_trivial(&comp);
+                    // An unsupported rule has no rows, so it always lands here.
+                    if let Some(unsupported) = self.unsupported(&comp) {
+                        self.push_unsupported(&comp, unsupported);
+                    } else {
+                        self.solve_trivial(&comp);
+                    }
                     self.next += 1;
                 }
                 Backend::Linear => {
