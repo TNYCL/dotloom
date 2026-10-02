@@ -1,0 +1,32 @@
+{
+  "browser": "Chrome 153.0.8010.52",
+  "channel": "previous",
+  "platform": "linux",
+  "checks": [
+    {
+      "name": "harness webgl2",
+      "status": "passed",
+      "backend": "webgl2",
+      "drawCalls": 2,
+      "items": 3,
+      "ok": true,
+      "png": 11416
+    },
+    {
+      "name": "harness webgpu",
+      "status": "passed",
+      "backend": "webgpu",
+      "drawCalls": 2,
+      "items": 3,
+      "ok": true,
+      "png": 5268
+    },
+    {
+      "name": "playground",
+      "status": "passed",
+      "backend": "webgl2",
+      "entities": 1,
+      "ok": true
+    }
+  ]
+}

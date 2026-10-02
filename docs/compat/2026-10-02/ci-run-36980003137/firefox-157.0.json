@@ -1,0 +1,29 @@
+{
+  "browser": "Firefox 157.0",
+  "channel": "current",
+  "platform": "linux",
+  "checks": [
+    {
+      "name": "harness webgl2",
+      "status": "passed",
+      "backend": "webgl2",
+      "drawCalls": 2,
+      "items": 3,
+      "ok": true,
+      "png": 6501
+    },
+    {
+      "name": "harness webgpu",
+      "status": "not available",
+      "error": "no renderer backend available (webgpu: WebGPU is not available in this browser (navigator.gpu))",
+      "ok": false
+    },
+    {
+      "name": "playground",
+      "status": "passed",
+      "backend": "webgl2",
+      "entities": 1,
+      "ok": true
+    }
+  ]
+}
