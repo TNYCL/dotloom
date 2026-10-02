@@ -84,6 +84,7 @@ export const en = {
   'error.conflict': 'It would break these rules:',
   'error.load': 'The file could not be opened',
   'error.gpu.title': 'Graphics could not start',
+  'error.details': 'Technical details',
   'error.gpu.body':
     'Drawing on the canvas is unavailable in this browser. You can still edit objects in the panels, open and save files.',
   'missing.title': 'Missing plugins',
@@ -195,6 +196,7 @@ export const tr: Messages = {
   'error.conflict': 'Şu kuralları bozacaktı:',
   'error.load': 'Dosya açılamadı',
   'error.gpu.title': 'Grafik başlatılamadı',
+  'error.details': 'Teknik ayrıntılar',
   'error.gpu.body':
     'Bu tarayıcıda tuval çizimi kullanılamıyor. Nesneleri panellerden düzenleyebilir, dosya açıp kaydedebilirsiniz.',
   'missing.title': 'Eksik eklentiler',

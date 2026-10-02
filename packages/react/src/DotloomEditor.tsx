@@ -92,6 +92,8 @@ interface Started {
   handle: EditorHandle
   gpuError: string | null
   attempts: { backend: string; error?: string }[]
+  /** The initial `document` could not be opened. */
+  loadError: string | null
 }
 
 function Shell(props: {
@@ -116,7 +118,9 @@ function Shell(props: {
   const canUndo = useEditorState((s) => s.canUndo)
   const canRedo = useEditorState((s) => s.canRedo)
   const [palette, setPalette] = useState(false)
-  const [uiError, setUiError] = useState<UiError | null>(null)
+  const [uiError, setUiError] = useState<UiError | null>(() =>
+    props.started.loadError ? { title: t('error.load'), message: props.started.loadError } : null,
+  )
   const nameRef = useRef(props.name)
   nameRef.current = props.name
   useEffect(() => {
@@ -241,13 +245,16 @@ function Shell(props: {
           <div className="dl-canvas-message dl-error" role="alert">
             <strong>{t('error.gpu.title')}</strong>
             <p>{t('error.gpu.body')}</p>
-            <ul>
-              {props.started.attempts.map((a) => (
-                <li key={a.backend}>
-                  {a.backend}: {a.error}
-                </li>
-              ))}
-            </ul>
+            <details>
+              <summary>{t('error.details')}</summary>
+              <ul>
+                {props.started.attempts.map((a) => (
+                  <li key={a.backend}>
+                    {a.backend}: {a.error}
+                  </li>
+                ))}
+              </ul>
+            </details>
           </div>
         )}
         {empty && tool === 'select' && !props.started.gpuError && (
@@ -362,13 +369,14 @@ export function DotloomEditor(props: DotloomEditorProps): ReactNode {
         own(() => a.dispose())
         autosave = a
       }
+      let loadError: string | null = null
       if (p.document) {
         try {
           const r = await engine.load(p.document)
           setMissing(r.missingPlugins)
           await viewport.fit()
         } catch (e) {
-          core.report(e)
+          loadError = e instanceof Error ? e.message : String(e)
         }
       } else if (autosave) {
         const rec = await autosave.recoverable().catch(() => null)
@@ -377,7 +385,7 @@ export function DotloomEditor(props: DotloomEditorProps): ReactNode {
       if (cancelled) return
       autosave?.start()
       const handle: EditorHandle = { engine, core, viewport, canvas, plugins, autosave }
-      setStarted({ handle, gpuError, attempts })
+      setStarted({ handle, gpuError, attempts, loadError })
       p.onReady?.(handle)
     })().catch((e) => {
       if (!cancelled) setFatal(e instanceof Error ? e.message : String(e))

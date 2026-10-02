@@ -1,0 +1,29 @@
+{
+  "browser": "Safari 26.6.1",
+  "channel": null,
+  "platform": "macOS",
+  "checks": [
+    {
+      "name": "harness webgl2",
+      "status": "passed",
+      "drawCalls": 2,
+      "backend": "webgl2",
+      "ok": true,
+      "items": 3,
+      "png": 10310
+    },
+    {
+      "name": "harness webgpu",
+      "status": "not available",
+      "error": "no renderer backend available (webgpu: WebGPU is not available in this browser (navigator.gpu))",
+      "ok": false
+    },
+    {
+      "name": "playground",
+      "status": "passed",
+      "backend": "webgl2",
+      "entities": 1,
+      "ok": true
+    }
+  ]
+}
