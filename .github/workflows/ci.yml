@@ -123,7 +123,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @dotloom/sdk run build
+      - run: pnpm build
       - name: Install ${{ matrix.browser }}
         working-directory: tests/e2e
         run: npx playwright install --with-deps ${{ matrix.browser }}

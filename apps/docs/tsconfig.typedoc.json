@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "types": [],
+    "paths": {
+      "@dotloom/sdk": ["../../packages/sdk/src/index.ts"]
+    }
+  },
+  "include": ["../../packages/sdk/src", "../../packages/react/src"]
+}

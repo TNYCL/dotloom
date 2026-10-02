@@ -6,3 +6,5 @@ packages:
   - "!examples/external-plugin"
 minimumReleaseAgeExclude:
   - vite@8.3.2
+allowBuilds:
+  esbuild: false
