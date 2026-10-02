@@ -11,6 +11,8 @@ homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
 readme = "README.md"
+# The tests read repository fixtures (tests/fixtures, fuzz/); they run in the repository.
+exclude = ["tests/"]
 
 [dependencies]
 dotloom-geometry.workspace = true

@@ -11,6 +11,8 @@ homepage.workspace = true
 keywords.workspace = true
 categories = ["command-line-utilities", "graphics"]
 readme = "README.md"
+# The tests read repository fixtures (tests/fixtures, fuzz/); they run in the repository.
+exclude = ["tests/"]
 
 [[bin]]
 name = "dotloom"
