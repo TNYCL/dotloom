@@ -7,6 +7,24 @@
  */
 
 export {
+  type Camera,
+  DEFAULT_CAMERA,
+  fitBounds,
+  isValidCamera,
+  MAX_SCALE,
+  MIN_SCALE,
+  panBy,
+  pxToWorld,
+  screenToWorld,
+  type ViewSize,
+  visibleBounds,
+  wheelZoomFactor,
+  worldToScreen,
+  zoomAt,
+} from './camera.js'
+export { formatColor, parseColor, type ThemeColors, type ThemeInput, type ThemeName } from './color.js'
+export * from './editor/index.js'
+export {
   type CallOptions,
   DotloomEngine,
   defaultEngineWasmUrl,
@@ -37,3 +55,18 @@ export {
 } from './scene.js'
 export { InlineTransport, type Transport, WorkerTransport } from './transport.js'
 export type * from './types.js'
+export {
+  type Backend,
+  type BackendAttempt,
+  DEFAULT_GRID,
+  type FrameStats,
+  type GridSettings,
+  loadRenderer,
+  type MarkerKind,
+  type OverlayState,
+  RENDER_PROTOCOL,
+  type RendererInfo,
+  Viewport,
+  type ViewportLike,
+  type ViewportOptions,
+} from './viewport.js'

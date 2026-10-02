@@ -35,7 +35,7 @@ if (all || which.includes('ts')) {
   const biome = require.resolve('@biomejs/biome/bin/biome')
   run('biome check', process.execPath, [biome, 'check', '.'])
   const tsc = require.resolve('typescript/bin/tsc')
-  for (const dir of ['packages', 'apps', 'examples']) {
+  for (const dir of ['packages', 'apps', 'examples', 'tests']) {
     const base = join(root, dir)
     if (!existsSync(base)) continue
     for (const name of readdirSync(base)) {

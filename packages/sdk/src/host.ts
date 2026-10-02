@@ -363,6 +363,9 @@ export class EngineHost {
         case 'historyState':
           value = JSON.parse(e.history_state())
           break
+        case 'debugTrap':
+          e.debug_trap()
+          break
       }
       if (MUTATING.has(c.method)) this.flush()
       this.reply(c.id, value, transfer)

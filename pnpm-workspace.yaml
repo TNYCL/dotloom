@@ -2,4 +2,7 @@ packages:
   - packages/*
   - apps/*
   - examples/*
+  - tests/e2e
   - "!examples/external-plugin"
+minimumReleaseAgeExclude:
+  - vite@8.3.2

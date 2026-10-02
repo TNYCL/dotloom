@@ -427,6 +427,14 @@ export class DotloomEngine {
     return this.call('fullScene')
   }
 
+  /**
+   * Test hook: crash the engine instance on purpose (verifies crash handling).
+   * Afterwards every call rejects with `crashed`; create a new engine.
+   */
+  debugCrashForTesting(): Promise<void> {
+    return this.call('debugTrap')
+  }
+
   /** Stop the engine and release its resources. Pending requests reject. */
   dispose(): void {
     if (this.disposed) return

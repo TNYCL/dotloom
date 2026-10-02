@@ -629,6 +629,31 @@ fn hit_test_and_snapping() {
     let mut q2 = q(Point::new(96.0, 0.5));
     q2.previous = Some(prev.clone());
     assert_eq!(e.snap(&q2), Some(prev));
+    // Grid snaps: halfway between two grid points the previous one is kept, but at
+    // (or clearly nearer to) the next grid point the snap moves on.
+    let grid = |pt: Point, prev: Option<dotloom_engine::Snap>| SnapQuery {
+        point: pt,
+        radius: 10.0,
+        options: dotloom_engine::SnapOptions {
+            endpoint: false,
+            midpoint: false,
+            center: false,
+            quadrant: false,
+            intersection: false,
+            anchor: false,
+            nearest: false,
+            grid: true,
+            grid_spacing: Some(10.0),
+        },
+        exclude: vec![],
+        previous: prev,
+    };
+    let g1 = e.snap(&grid(Point::new(410.0, 410.0), None)).unwrap();
+    assert_eq!(g1.point, Point::new(410.0, 410.0));
+    let g2 = e.snap(&grid(Point::new(415.0, 415.0), Some(g1.clone()))).unwrap();
+    assert_eq!(g2.point, g1.point, "kept while ambiguous");
+    let g3 = e.snap(&grid(Point::new(420.0, 420.0), Some(g2))).unwrap();
+    assert_eq!(g3.point, Point::new(420.0, 420.0), "moves on when clearly closer");
     // Excluding an entity removes its snaps.
     let mut q3 = q(Point::new(51.0, 1.0));
     q3.exclude = vec![b];

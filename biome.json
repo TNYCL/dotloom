@@ -11,6 +11,7 @@
       "!**/src/wasm",
       "!**/target",
       "!**/test-results",
+      "!**/results",
       "!**/playwright-report",
       "!**/.vitepress/cache",
       "!**/.vitepress/dist",
