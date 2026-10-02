@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+    "paths": {
+      "@dotloom/sdk": ["../../packages/sdk/src/index.ts"],
+      "@dotloom/react": ["../../packages/react/src/index.ts"],
+      "@dotloom/example-plugins": ["../../examples/plugins/src/index.ts"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

@@ -68,7 +68,7 @@ export function StatusBar(props: { unit: LengthUnit }): ReactNode {
       <Zoom />
       {save && (
         <span>
-          {save.saving
+          {save.saving || save.pending
             ? t('status.saving')
             : save.dirty
               ? save.lastSavedAt

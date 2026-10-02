@@ -61,36 +61,6 @@ mod web {
         RENDER_PROTOCOL
     }
 
-    /// Create the canvas' WebGL2 context before wgpu does, with attributes that
-    /// every engine composites. (wgpu requests `antialias: false`; some WebKit
-    /// builds never display such contexts.) Later `getContext` calls — including
-    /// wgpu's — return this context. The default framebuffer is only the target of
-    /// wgpu's sRGB present pass, so its multisampling costs one resolve.
-    fn prepare_webgl2_context(canvas: &JsValue) -> Result<(), JsValue> {
-        let opts = js_sys::Object::new();
-        for (k, v) in [
-            ("antialias", true),
-            ("alpha", true),
-            ("premultipliedAlpha", true),
-            ("depth", false),
-            ("stencil", false),
-            ("preserveDrawingBuffer", false),
-        ] {
-            js_sys::Reflect::set(&opts, &JsValue::from_str(k), &JsValue::from_bool(v))?;
-        }
-        let ctx = if let Some(c) = canvas.dyn_ref::<web_sys::HtmlCanvasElement>() {
-            c.get_context_with_context_options("webgl2", &opts)?
-        } else if let Some(c) = canvas.dyn_ref::<web_sys::OffscreenCanvas>() {
-            c.get_context_with_context_options("webgl2", &opts)?
-        } else {
-            None
-        };
-        if ctx.is_none() {
-            return Err(js_err("unsupported", "WebGL2 is not available (or the canvas already has another context)"));
-        }
-        Ok(())
-    }
-
     /// Options of [`WebRenderer::create`] (JSON).
     #[derive(Debug, serde::Deserialize)]
     #[serde(rename_all = "camelCase", default)]
@@ -128,17 +98,11 @@ mod web {
         }
     }
 
-    fn pick_format(formats: &[wgpu::TextureFormat], webgl: bool) -> Option<wgpu::TextureFormat> {
-        // Colors are authored in sRGB and blended like Canvas/SVG, so WebGPU uses a
-        // non-sRGB target. On WebGL2, wgpu presents non-sRGB surfaces with
-        // blitFramebuffer, which some WebKit builds never composite; sRGB surfaces are
-        // presented with a draw call instead. Encoding on write and decoding on present
-        // cancel out, so the canvas receives the same values (±1 LSB).
-        let preferred: &[wgpu::TextureFormat] = if webgl {
-            &[wgpu::TextureFormat::Rgba8UnormSrgb, wgpu::TextureFormat::Rgba8Unorm]
-        } else {
-            &[wgpu::TextureFormat::Bgra8Unorm, wgpu::TextureFormat::Rgba8Unorm]
-        };
+    fn pick_format(formats: &[wgpu::TextureFormat]) -> Option<wgpu::TextureFormat> {
+        // Colors are authored in sRGB and blended like Canvas/SVG: use a non-sRGB
+        // target on both backends (an sRGB surface would make the WebGL present pass
+        // depend on browser sRGB sampling, which is not consistent across engines).
+        let preferred = [wgpu::TextureFormat::Bgra8Unorm, wgpu::TextureFormat::Rgba8Unorm];
         preferred.iter().copied().find(|f| formats.contains(f)).or_else(|| formats.first().copied())
     }
 
@@ -181,9 +145,6 @@ mod web {
             } else {
                 return Err(js_err("invalid", "expected an HTMLCanvasElement or OffscreenCanvas"));
             };
-            if backend == "webgl2" {
-                prepare_webgl2_context(&canvas)?;
-            }
             let mut desc = wgpu::InstanceDescriptor::new_without_display_handle();
             desc.backends = backends;
             let instance = wgpu::Instance::new(desc);
@@ -226,8 +187,7 @@ mod web {
                 }
             }));
             let caps = surface.get_capabilities(&adapter);
-            let format = pick_format(&caps.formats, backend == "webgl2")
-                .ok_or_else(|| js_err("surface", "surface supports no formats"))?;
+            let format = pick_format(&caps.formats).ok_or_else(|| js_err("surface", "surface supports no formats"))?;
             let alpha_mode = if caps.alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
                 wgpu::CompositeAlphaMode::PreMultiplied
             } else {

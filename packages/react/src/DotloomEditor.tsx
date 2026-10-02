@@ -297,16 +297,26 @@ export function DotloomEditor(props: DotloomEditorProps): ReactNode {
     if (!el) return
     let cancelled = false
     const cleanup: (() => void)[] = []
+    // Register a disposer; if the effect was already cleaned up (StrictMode,
+    // fast unmount) dispose right away so nothing created late leaks.
+    const own = (dispose: () => void): boolean => {
+      if (cancelled) {
+        dispose()
+        return false
+      }
+      cleanup.push(dispose)
+      return true
+    }
     void (async () => {
       const engine = await DotloomEngine.create(p.engine ?? {})
-      cleanup.push(() => engine.dispose())
-      if (cancelled) return
+      if (!own(() => engine.dispose())) return
       let canvas: Viewport | null = null
       let gpuError: string | null = null
       let attempts: Started['attempts'] = []
       try {
-        canvas = await Viewport.create(el, engine, { ...p.viewport, theme: { preset: initial.current.theme } })
-        cleanup.push(() => canvas?.dispose())
+        const v = await Viewport.create(el, engine, { ...p.viewport, theme: { preset: initial.current.theme } })
+        if (!own(() => v.dispose())) return
+        canvas = v
       } catch (e) {
         gpuError = e instanceof Error ? e.message : String(e)
         attempts = ((e as { details?: { attempts?: Started['attempts'] } }).details?.attempts ??
@@ -317,10 +327,10 @@ export function DotloomEditor(props: DotloomEditorProps): ReactNode {
       const core = new EditorCore(engine, viewport, p.core)
       for (const tool of builtinTools()) core.registerTool(tool)
       core.start()
-      cleanup.push(() => core.dispose())
-      if (canvas) cleanup.push(bindDom(core, canvas, { label: 'Drawing canvas' }))
+      own(() => core.dispose())
+      if (canvas) own(bindDom(core, canvas, { label: 'Drawing canvas' }))
       const plugins = new PluginHost(engine, core)
-      cleanup.push(() => void plugins.dispose())
+      own(() => void plugins.dispose())
       for (const pl of p.plugins ?? []) {
         try {
           await plugins.register(pl)
@@ -332,12 +342,13 @@ export function DotloomEditor(props: DotloomEditorProps): ReactNode {
       if (p.autosave !== false) {
         const opt = typeof p.autosave === 'object' ? p.autosave : {}
         const storage = opt.storage ?? (typeof indexedDB === 'undefined' ? new MemoryStorage() : new IndexedDbStorage())
-        autosave = new Autosave(engine, storage, {
+        const a = new Autosave(engine, storage, {
           ...(opt.key ? { key: opt.key } : {}),
           name: p.name ?? 'untitled.dotl',
           view: () => ({ camera: viewport.camera }),
         })
-        cleanup.push(() => autosave?.dispose())
+        own(() => a.dispose())
+        autosave = a
       }
       if (p.document) {
         try {
@@ -349,10 +360,10 @@ export function DotloomEditor(props: DotloomEditorProps): ReactNode {
         }
       } else if (autosave) {
         const rec = await autosave.recoverable().catch(() => null)
-        if (rec) setRecovery(rec)
+        if (rec && !cancelled) setRecovery(rec)
       }
-      autosave?.start()
       if (cancelled) return
+      autosave?.start()
       const handle: EditorHandle = { engine, core, viewport, canvas, plugins, autosave }
       setStarted({ handle, gpuError, attempts })
       p.onReady?.(handle)

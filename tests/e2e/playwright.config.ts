@@ -32,12 +32,21 @@ export default defineConfig({
     // CI runs Firefox headed under Xvfb so it gets Mesa's software WebGL.
     headless: process.env.DOTLOOM_E2E_HEADED !== '1',
   },
-  webServer: {
-    command: 'pnpm run build && pnpm run preview',
-    url: 'http://localhost:5199/',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command: 'pnpm run build && pnpm run preview',
+      url: 'http://localhost:5199/',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      // The reference React editor (apps/playground).
+      command: 'pnpm --filter @dotloom/playground run build && pnpm --filter @dotloom/playground run preview',
+      url: 'http://localhost:5198/',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+  ],
   projects: [
     {
       name: 'chromium',

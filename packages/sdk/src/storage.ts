@@ -222,6 +222,8 @@ export interface AutosaveOptions {
 }
 
 export interface AutosaveState {
+  /** A save is scheduled or running (the stored copy is behind). */
+  pending: boolean
   saving: boolean
   lastSavedAt: number | null
   /** Unsaved-to-file changes exist (autosave holds them). */
@@ -234,7 +236,13 @@ export interface AutosaveState {
  * and offers recovery after a crash or a closed tab.
  */
 export class Autosave {
-  readonly state = new Store<AutosaveState>({ saving: false, lastSavedAt: null, dirty: false, error: null })
+  readonly state = new Store<AutosaveState>({
+    pending: false,
+    saving: false,
+    lastSavedAt: null,
+    dirty: false,
+    error: null,
+  })
   private timer: ReturnType<typeof setTimeout> | null = null
   private readonly key: string
   private readonly debounceMs: number
@@ -263,11 +271,19 @@ export class Autosave {
       }),
     )
     if (typeof document !== 'undefined') {
+      // Best effort when the tab is hidden or closed (IndexedDB writes are async).
       const hide = (): void => {
-        if (document.visibilityState === 'hidden' && this.state.getSnapshot().dirty) void this.flush()
+        if (this.state.getSnapshot().pending) void this.flush()
       }
-      document.addEventListener('visibilitychange', hide)
-      this.off.push(() => document.removeEventListener('visibilitychange', hide))
+      const onVisibility = (): void => {
+        if (document.visibilityState === 'hidden') hide()
+      }
+      document.addEventListener('visibilitychange', onVisibility)
+      window.addEventListener('pagehide', hide)
+      this.off.push(() => {
+        document.removeEventListener('visibilitychange', onVisibility)
+        window.removeEventListener('pagehide', hide)
+      })
     }
   }
 
@@ -276,6 +292,7 @@ export class Autosave {
   }
 
   private schedule(): void {
+    this.state.set({ pending: true })
     if (this.timer) clearTimeout(this.timer)
     this.timer = setTimeout(() => {
       this.timer = null
@@ -292,6 +309,7 @@ export class Autosave {
     this.chain = this.chain.then(async () => {
       if (this.disposed) return
       this.state.set({ saving: true })
+      const revision = this.engine.revision
       try {
         const bytes = await this.engine.save(this.options.view?.())
         await this.storage.write(this.key, bytes, {
@@ -301,7 +319,13 @@ export class Autosave {
           size: bytes.byteLength,
           clean: !this.state.getSnapshot().dirty,
         })
-        this.state.set({ saving: false, lastSavedAt: Date.now(), error: null })
+        // Still pending if another commit arrived while saving.
+        this.state.set({
+          saving: false,
+          pending: this.timer !== null || this.engine.revision !== revision,
+          lastSavedAt: Date.now(),
+          error: null,
+        })
       } catch (e) {
         this.state.set({ saving: false, error: e instanceof Error ? e.message : String(e) })
       }
