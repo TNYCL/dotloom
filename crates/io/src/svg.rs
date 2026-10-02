@@ -659,9 +659,7 @@ fn parse_path(d: &str, rec: &mut Recorder) -> Option<Path> {
             if i >= b.len() {
                 break;
             }
-            if cmd.eq_ignore_ascii_case(&b'A')
-                && (vals.len() == 3 || vals.len() == 4)
-                && (b[i] == b'0' || b[i] == b'1')
+            if cmd.eq_ignore_ascii_case(&b'A') && (vals.len() == 3 || vals.len() == 4) && (b[i] == b'0' || b[i] == b'1')
             {
                 vals.push(f64::from(b[i] - b'0'));
                 i += 1;
