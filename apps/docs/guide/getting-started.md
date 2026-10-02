@@ -13,16 +13,16 @@ units (cm, m, in, ft) only change how values are shown and typed.
 
 ## Install
 
-::: warning Not on npm yet
-The `@dotloomjs/*` packages of Dotloom `1.1.0` are attached to the
-[GitHub Release](https://github.com/TNYCL/dotloom/releases/tag/v1.1.0) and not on npm yet
-(the Rust crates are on crates.io). Install them from the release:
-
 ```sh
-npm install https://github.com/TNYCL/dotloom/releases/download/v1.1.0/dotloomjs-sdk-1.1.0.tgz https://github.com/TNYCL/dotloom/releases/download/v1.1.0/dotloomjs-react-1.1.0.tgz
+npm install @dotloomjs/sdk
+npm install @dotloomjs/react react react-dom   # only for the React editor
 ```
 
-Or build the packages from the repository and install the tarballs:
+The same packages are attached to the
+[GitHub Release](https://github.com/TNYCL/dotloom/releases/tag/v1.1.0). The Rust crates
+(`dotloom-engine`, `dotloom-io`, …) are on [crates.io](https://crates.io/crates/dotloom-engine).
+
+::: details Build the packages from the repository
 
 ```sh
 git clone https://github.com/TNYCL/dotloom
@@ -42,8 +42,7 @@ npm install react react-dom   # only for @dotloomjs/react
 ```
 :::
 
-Once published, the packages will be `@dotloomjs/sdk` and `@dotloomjs/react`
-(names are defined in one place, `packages/names.json`).
+Package names are defined in one place, `packages/names.json`.
 
 ## A complete editor without React
 
