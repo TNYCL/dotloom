@@ -1,5 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "noEmit": true, "types": ["node"] },
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "paths": { "@dotloom/sdk": ["../../packages/sdk/src/index.ts"] }
+  },
   "include": ["harness", "specs", "playwright.config.ts", "vite.config.ts"]
 }
