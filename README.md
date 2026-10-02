@@ -22,9 +22,11 @@ a schedule whose blocks keep their order. It is
 [examples](https://tnycl.github.io/dotloom/guide/examples) ·
 [documentation](https://tnycl.github.io/dotloom/)
 
-> **Status:** `1.1.0` (stable). The packages and the CLI are
-> attached to the [GitHub Release](https://github.com/TNYCL/dotloom/releases/tag/v1.1.0);
-> they are not on the npm and crates.io registries yet. See
+> **Status:** `1.1.0` (stable). The Rust crates are on
+> [crates.io](https://crates.io/crates/dotloom-engine) (`cargo add dotloom-engine dotloom-io`).
+> The npm packages are not on npm yet; install them from the
+> [GitHub Release](https://github.com/TNYCL/dotloom/releases/tag/v1.1.0), which also has
+> the CLI for Linux, Windows and macOS. See
 > [`docs/status.md`](docs/status.md) for what is verified and what is open, and
 > [`docs/requirements.md`](docs/requirements.md) for the evidence behind every
 > requirement.

@@ -2,13 +2,12 @@
 
 Resume point for any contributor or agent. Keep it short; never store secrets here.
 
-- Branch: `feat/npm-scope-dotloomjs` (npm scope `@dotloomjs`, version 1.1.0)
+- Branch: `docs/after-1.1.0` (registry state after 1.1.0)
 - Last updated: 2026-10-02
-- Overall: **1.0.0 released on GitHub** (tag `v1.0.0` on `main@36b5e63`,
-  https://github.com/TNYCL/dotloom/releases/tag/v1.0.0). Every row of
-  `docs/requirements.md` has code, a test that runs and documentation, except the
-  rows marked `ext`: publishing to npm and crates.io (no registry access) and
-  Safari 27. **Not complete** until those are done (see below).
+- Overall: **1.1.0 released** (tag `v1.1.0` on `main@ef0f517`,
+  https://github.com/TNYCL/dotloom/releases/tag/v1.1.0) and **on crates.io** (all
+  eight `dotloom-*` crates). **Not on npm**: the scope `@dotloomjs` does not exist yet.
+  Safari 27 is not verified (no Mac). Not complete until both are done.
 
 ## Merged (main)
 
@@ -30,6 +29,9 @@ Resume point for any contributor or agent. Keep it short; never store secrets he
 | #26 | pair kerning shared by renderer and engine (checked against HarfBuzz); outlines via `read-fonts` and an own rasterizer; fontdue/ttf-parser removed (closed #15, #16) |
 | #27 | engine memory −26 % per object (cached evaluations drop spare capacity; part of #14) |
 | #23 | `@types/node` 24.9.2 → 24.19.0 (Dependabot) |
+| #29 | registry publishing in the GitHub environment `release` |
+| #30 | npm scope `@dotloomjs`, version 1.1.0 |
+| #31, #32 | release publish mode: complete partial publishes (rate limits, real exit codes, local tarball paths) |
 
 ## Verified evidence (latest runs)
 
@@ -37,6 +39,9 @@ Resume point for any contributor or agent. Keep it short; never store secrets he
 |---|---|---|
 | `ci` / `compat` / `pages` on the released commit `main@36b5e63` | 36981837890 / 36981837919 / 36981837985 | all green (21 required checks incl. six released-browser jobs) |
 | `release` dry run on `main@36b5e63` (release candidate) | 36981855431 | green |
+| `release` for tag `v1.1.0` | 36995447580 | GitHub Release published and verified from its URLs; 5 crates published before crates.io's new-crate rate limit; npm `404 Scope not found` |
+| `release` publish mode for `v1.1.0` | 36997278172, 36998435514 | remaining crates published (all eight on crates.io); npm still `Scope not found` |
+| crates.io consumer | fresh Cargo project with `dotloom-engine = "=1.1.0"`, `dotloom-io = "=1.1.0"` from crates.io | builds and runs (solve, save, reopen, SVG export) |
 | `release` for tag `v1.0.0` | 36982429946 | GitHub Release published with 3 CLI archives, 8 crates, 2 npm tarballs, `SHA256SUMS`, `release-manifest.json`; npm and crates.io recorded as not published (no credentials) |
 | Published release checked from its public URLs (Windows 11) | `node scripts/verify-release.mjs v1.0.0` | checksums match; npm tarballs installed by URL into a fresh project and used from Node (engine 1.0.0, solve, save, reopen); Windows CLI `dotloom 1.0.0` inspects a 0.1.0 fixture |
 | `ci` on `main@480ad97` (lint incl. boundaries/notices/licenses, Rust tests + visual regression on Linux/lavapipe, ezdxf readback, WASM, TS, browser E2E Chromium/Firefox/WebKit, site checks incl. examples, package + crate consumers) | 36979044165 | all green |
@@ -67,9 +72,8 @@ conversation resolution required.
 
 | Blocked | Why | What the owner needs to do |
 |---|---|---|
-| npm `@dotloomjs/sdk`, `@dotloomjs/react` (issue #10) | the owner added `NPM_TOKEN` to the `release` environment (2026-10-02); the registry did not list the scope `dotloomjs` yet | make sure the npm organization `dotloomjs` exists (free for public packages), then either add an automation token as the secret `NPM_TOKEN` of the GitHub environment `release` or configure trusted publishing for `TNYCL/dotloom` / `release.yml` / environment `release` |
-| crates.io `dotloom-*` (issue #11) | the owner added the `release` environment secrets (2026-10-02) | create a crates.io API token (scope `publish-new`, `publish-update`) and add it as the secret `CARGO_REGISTRY_TOKEN` of the GitHub environment `release` |
-| Namespace ownership (DL-OSS-4) | names were unclaimed on 2026-10-02 but are owned only after the first publish | covered by the two steps above |
+| npm `@dotloomjs/sdk`, `@dotloomjs/react` (issue #10) | `NPM_TOKEN` is in the `release` environment and works, but `npm publish` answers `404 Scope not found` for `@dotloomjs` (runs 36995447580, 36998435514) | make sure the npm organization `dotloomjs` exists (free for public packages), then either add an automation token as the secret `NPM_TOKEN` of the GitHub environment `release` or configure trusted publishing for `TNYCL/dotloom` / `release.yml` / environment `release` |
+| Namespace ownership (DL-OSS-4) | crates are owned since 1.1.0; the npm scope does not exist | create the npm organization `dotloomjs` |
 | Safari 27 (current major) and Safari WebGPU on real Mac hardware (issue #13) | no Mac; hosted runners have Safari 26.6.x without WebGPU | on a Mac with Safari 27: `sudo safaridriver --enable`, serve the harness and playground, `node tests/e2e/webdriver/smoke.mjs --browser safari --webgpu required` |
 
 Once the secrets exist, run the `release` workflow manually with `publish: v1.0.0`:
@@ -96,10 +100,11 @@ release under `@dotloom/*`; from 1.1.0 the npm scope is `@dotloomjs`.
 
 ## Next
 
-1. Owner: npm org + `NPM_TOKEN` (or trusted publishing) and `CARGO_REGISTRY_TOKEN`;
-   then `release` workflow with `publish: v1.0.0`; update DL-OSS-4/7.
+1. Owner: create the npm organization `dotloomjs` (free) with the account whose token is
+   `NPM_TOKEN`; then run the `release` workflow with `publish: v1.1.0` (publishes the
+   release's own tarballs) and verify `npm install @dotloomjs/sdk @dotloomjs/react`.
 2. Safari 27 smoke test on a Mac (issue #13).
-3. Known limitation tracked as an issue: memory per object (#14).
+3. Further engine memory work (issue #14, optional).
 
 ## Commands
 
