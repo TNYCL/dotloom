@@ -70,6 +70,8 @@ describe('editor states', () => {
     const h = await editor()
     expect(h.canvas).toBeNull()
     const alert = screen.getByText('Graphics could not start').closest('[role="alert"]') as HTMLElement
+    // Backend errors are developer details, behind a disclosure.
+    expect(within(alert).getByText('Technical details').tagName).toBe('SUMMARY')
     const attempts = within(alert)
       .getAllByRole('listitem')
       .map((li) => li.textContent ?? '')
@@ -99,11 +101,11 @@ describe('editor states', () => {
 
   it('reports a corrupt file without crashing and keeps an empty, working document', async () => {
     const h = await editor({ document: new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]) })
-    const alert = await screen.findByText('The change was not applied')
+    const alert = await screen.findByText('The file could not be opened')
     expect(alert.closest('[role="alert"]')?.textContent).toMatch(/zip|dotl|corrupt|invalid|archive/i)
     expect((await h.engine.documentJson()).entities).toHaveLength(0)
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
-    await waitFor(() => expect(screen.queryByText('The change was not applied')).toBeNull())
+    await waitFor(() => expect(screen.queryByText('The file could not be opened')).toBeNull())
   })
 
   it('names missing plugin types of an opened file and keeps their objects read-only', async () => {
@@ -174,6 +176,47 @@ describe('editor states', () => {
     expect(screen.getByText(/Solving was cancelled|cancel/i)).toBeTruthy()
     expect((await h.engine.documentJson()).entities).toEqual(before)
     expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull()
+  })
+})
+
+describe('lifecycle', () => {
+  it('unmounting releases the engine, plugins, autosave and listeners', async () => {
+    const released: string[] = []
+    const plugin: DotloomPlugin = {
+      id: 'acme.probe',
+      version: '1.0.0',
+      activate(api) {
+        api.onDispose(() => released.push('plugin'))
+        return undefined
+      },
+    }
+    let ready: EditorHandle | null = null
+    const view = render(
+      <DotloomEditor
+        engine={inlineEngine()}
+        viewport={{ renderWasmUrl: renderWasm }}
+        plugins={[plugin]}
+        autosave={{ key: 'probe', storage: new MemoryStorage() }}
+        onReady={(h) => {
+          ready = h
+        }}
+      />,
+    )
+    await waitFor(() => expect(ready).not.toBeNull(), { timeout: 20_000 })
+    const h = ready as unknown as EditorHandle
+    let autosaveDisposed = false
+    const dispose = h.autosave?.dispose.bind(h.autosave)
+    if (h.autosave && dispose) {
+      h.autosave.dispose = () => {
+        autosaveDisposed = true
+        dispose()
+      }
+    }
+    view.unmount()
+    await waitFor(() => expect(released).toEqual(['plugin']))
+    expect(autosaveDisposed).toBe(true)
+    expect(h.plugins.list()).toEqual([])
+    await expect(h.engine.documentJson()).rejects.toMatchObject({ code: 'disposed' })
   })
 })
 
