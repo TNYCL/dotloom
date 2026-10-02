@@ -71,7 +71,7 @@ function shelfPlugin(log: string[]): DotloomPlugin {
   return {
     id: 'shelf.configurator',
     version: '1.0.0',
-    sdk: '^0.1.0',
+    sdk: '^1.0.0',
     types: [shelf],
     tools: [tool],
     commands: {

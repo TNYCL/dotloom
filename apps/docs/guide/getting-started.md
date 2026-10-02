@@ -14,8 +14,14 @@ units (cm, m, in, ft) only change how values are shown and typed.
 ## Install
 
 ::: warning Not on npm yet
-Dotloom `0.1.0` is a pre-release and is not published to npm or crates.io yet.
-Build the packages from the repository and install the tarballs:
+Dotloom `1.0.0` is attached to the [GitHub Release](https://github.com/TNYCL/dotloom/releases/tag/v1.0.0)
+and is not on the npm and crates.io registries yet. Install it from the release:
+
+```sh
+npm install https://github.com/TNYCL/dotloom/releases/download/v1.0.0/dotloom-sdk-1.0.0.tgz https://github.com/TNYCL/dotloom/releases/download/v1.0.0/dotloom-react-1.0.0.tgz
+```
+
+Or build the packages from the repository and install the tarballs:
 
 ```sh
 git clone https://github.com/TNYCL/dotloom
@@ -30,7 +36,7 @@ pnpm --filter @dotloom/react pack --pack-destination "$PWD/dist-packages"
 In your project, install both tarballs in one command (React is optional):
 
 ```sh
-npm install ../dotloom/dist-packages/dotloom-sdk-0.1.0.tgz ../dotloom/dist-packages/dotloom-react-0.1.0.tgz
+npm install ../dotloom/dist-packages/dotloom-sdk-1.0.0.tgz ../dotloom/dist-packages/dotloom-react-1.0.0.tgz
 npm install react react-dom   # only for @dotloom/react
 ```
 :::

@@ -16,7 +16,7 @@ import { type DotloomPlugin, PluginHost } from '@dotloom/sdk'
 const shelves: DotloomPlugin = {
   id: 'acme.shelves',        // namespaced plugin ID
   version: '1.2.0',
-  sdk: '^0.1.0',             // supported @dotloom/sdk range
+  sdk: '^1.0.0',             // supported @dotloom/sdk range
   types: [shelfType],        // EntityTypeDef[]; type IDs use the plugin namespace (acme.*)
   tools: [() => placeShelfTool],
   commands: { addShelf: { label: 'Add shelf', run: (api, width) => ({ commands: [/* … */] }) } },

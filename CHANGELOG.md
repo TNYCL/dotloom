@@ -2,14 +2,17 @@
 
 All notable changes are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
-[Semantic Versioning](https://semver.org/) (pre-1.0: minor versions may break).
+[Semantic Versioning](https://semver.org/) (breaking changes only in major versions).
 Engine crates, `@dotloom/sdk` and `@dotloom/react` are versioned in lockstep; file
 and protocol versions are listed in [`compatibility.json`](compatibility.json).
 
 ## [Unreleased]
 
-The first stable release (`1.0.0`) is in preparation; the workspace still carries
-the preview version `0.1.0`. Nothing is published to npm or crates.io yet.
+## [1.0.0] - 2026-10-02
+
+First stable release. The public TypeScript and Rust APIs, the `.dotl` format
+(container format 1, document schema 1) and the worker protocol follow Semantic
+Versioning from here on; see `compatibility.json`.
 
 ### Added
 

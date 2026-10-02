@@ -42,7 +42,7 @@ function tableTool() {
 export const acmePlugin = {
   id: 'acme.furniture',
   version: '1.0.0',
-  sdk: '^0.1.0',
+  sdk: '^1.0.0',
   types: [tableType],
   tools: [tableTool],
   constraintTemplates: [

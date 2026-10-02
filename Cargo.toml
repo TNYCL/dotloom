@@ -16,7 +16,7 @@ members = [
 exclude = ["fuzz"]
 
 [workspace.package]
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.89"
 license = "MIT OR Apache-2.0"
@@ -29,13 +29,13 @@ categories = ["graphics", "mathematics", "wasm"]
 readme = "README.md"
 
 [workspace.dependencies]
-dotloom-geometry = { path = "crates/geometry", version = "0.1.0" }
-dotloom-document = { path = "crates/document", version = "0.1.0" }
-dotloom-constraints = { path = "crates/constraints", version = "0.1.0" }
-dotloom-scene = { path = "crates/scene", version = "0.1.0" }
-dotloom-engine = { path = "crates/engine", version = "0.1.0" }
-dotloom-io = { path = "crates/io", version = "0.1.0" }
-dotloom-render = { path = "crates/render", version = "0.1.0" }
+dotloom-geometry = { path = "crates/geometry", version = "1.0.0" }
+dotloom-document = { path = "crates/document", version = "1.0.0" }
+dotloom-constraints = { path = "crates/constraints", version = "1.0.0" }
+dotloom-scene = { path = "crates/scene", version = "1.0.0" }
+dotloom-engine = { path = "crates/engine", version = "1.0.0" }
+dotloom-io = { path = "crates/io", version = "1.0.0" }
+dotloom-render = { path = "crates/render", version = "1.0.0" }
 
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"

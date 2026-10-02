@@ -1,6 +1,6 @@
 {
   "name": "@dotloom/example-plugins",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Plugins used by the Dotloom examples and playground: shelf, floor plan, timeline",

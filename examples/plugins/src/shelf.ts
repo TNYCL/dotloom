@@ -72,7 +72,7 @@ export const shelfType: EntityTypeDef = {
 export const shelfPlugin: DotloomPlugin = {
   id: 'shelf.configurator',
   version: '1.0.0',
-  sdk: '^0.1.0',
+  sdk: '^1.0.0',
   types: [shelfType],
   tools: [placeTool('shelf.place', 'Shelf', 'shelf.unit')],
   constraintTemplates: [

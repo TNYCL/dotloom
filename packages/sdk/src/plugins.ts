@@ -89,7 +89,7 @@ export interface DotloomPlugin {
   id: string
   /** Plugin version (semver). */
   version: string
-  /** Semver range of `@dotloom/sdk` the plugin supports, e.g. `^0.1.0`. */
+  /** Semver range of `@dotloom/sdk` the plugin supports, e.g. `^1.0.0`. */
   sdk?: string
   types?: EntityTypeDef[]
   /** Tool factories (fresh instances on every enable). */

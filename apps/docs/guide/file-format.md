@@ -21,7 +21,7 @@ assets/<sha256>.<ext>    binary assets referenced from the document as "asset:<s
   "format": "dotloom",
   "formatVersion": 1,
   "schemaVersion": 1,
-  "producer": { "name": "dotloom", "version": "0.1.0" },
+  "producer": { "name": "dotloom", "version": "1.0.0" },
   "plugins": [{ "typeId": "floorplan.wall", "version": 2 }],
   "assets": [{ "path": "assets/9f2c….png", "mediaType": "image/png", "size": 1234, "sha256": "9f2c…" }]
 }

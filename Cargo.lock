@@ -357,7 +357,7 @@ dependencies = [
 
 [[package]]
 name = "dotloom-cli"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "clap",
  "dotloom-engine",
@@ -369,7 +369,7 @@ dependencies = [
 
 [[package]]
 name = "dotloom-constraints"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "kasuari",
  "libm",
@@ -381,7 +381,7 @@ dependencies = [
 
 [[package]]
 name = "dotloom-document"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "dotloom-geometry",
  "proptest",
@@ -392,7 +392,7 @@ dependencies = [
 
 [[package]]
 name = "dotloom-engine"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "dotloom-constraints",
  "dotloom-document",
@@ -406,7 +406,7 @@ dependencies = [
 
 [[package]]
 name = "dotloom-geometry"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "libm",
  "proptest",
@@ -419,7 +419,7 @@ dependencies = [
 
 [[package]]
 name = "dotloom-io"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "dotloom-document",
  "dotloom-engine",
@@ -435,7 +435,7 @@ dependencies = [
 
 [[package]]
 name = "dotloom-render"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "bytemuck",
  "dotloom-geometry",
@@ -451,7 +451,7 @@ dependencies = [
 
 [[package]]
 name = "dotloom-render-web"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "console_error_panic_hook",
  "dotloom-render",
@@ -466,7 +466,7 @@ dependencies = [
 
 [[package]]
 name = "dotloom-scene"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "dotloom-geometry",
  "proptest",
@@ -476,7 +476,7 @@ dependencies = [
 
 [[package]]
 name = "dotloom-wasm"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "console_error_panic_hook",
  "dotloom-engine",

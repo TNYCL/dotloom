@@ -201,7 +201,7 @@ class DoorTool implements Tool {
 export const floorplanPlugin: DotloomPlugin = {
   id: 'floorplan.rooms',
   version: '1.0.0',
-  sdk: '^0.1.0',
+  sdk: '^1.0.0',
   types: [wallType, doorType],
   tools: [() => new WallTool(), () => new DoorTool()],
 }

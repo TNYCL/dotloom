@@ -1,6 +1,6 @@
 {
   "name": "@dotloom/sdk",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Framework-agnostic TypeScript SDK for Dotloom, the open-source framework for constraint-driven 2D editors",
   "license": "MIT OR Apache-2.0",
   "author": "TNYCL",
