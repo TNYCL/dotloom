@@ -21,6 +21,7 @@ mod curve;
 pub mod dimension;
 pub mod edit;
 mod error;
+mod font_metrics;
 pub mod intersect;
 pub mod math;
 mod point;

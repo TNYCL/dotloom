@@ -5,6 +5,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      update-visual-baselines:
+        description: Write new visual baselines (uploaded as the `visual` artifact for review)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -57,6 +62,20 @@ jobs:
       - run: cargo test --workspace --all-features --locked
         env:
           WGPU_BACKEND: vulkan
+      - name: Visual regression against the reviewed lavapipe baselines
+        run: cargo test -p dotloom-cli --features png --test visual --locked -- --ignored
+        env:
+          WGPU_BACKEND: vulkan
+          DOTLOOM_VISUAL_UPDATE: ${{ inputs.update-visual-baselines && '1' || '0' }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: visual
+          path: |
+            target/visual
+            tests/fixtures/visual
+          if-no-files-found: ignore
+          retention-days: 14
 
   dxf-readback:
     name: dxf export read back with ezdxf

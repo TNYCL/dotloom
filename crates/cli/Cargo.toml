@@ -30,6 +30,7 @@ png = ["dep:dotloom-render", "dotloom-render/png"]
 
 [dev-dependencies]
 dotloom-io.workspace = true
+png = "0.18.1"
 serde_json.workspace = true
 
 [lints]

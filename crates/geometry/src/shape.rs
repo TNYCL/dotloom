@@ -5,6 +5,7 @@ use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
 
+use crate::font_metrics as fm;
 use crate::{
     Aabb, Affine, Arc, Circle, CubicBez, Curve, FlattenTolerance, GeoResult, GeometryError, LinearKind, ModelTolerance,
     Orientation, Point, QuadBez, Segment, Vector, curve::SIMILARITY_REL, intersect, orientation,
@@ -293,43 +294,79 @@ pub struct Text {
 }
 
 impl Text {
-    /// Average advance relative to height used for the geometric *estimate*.
-    /// The renderer measures real glyph metrics; this estimate is only used for
-    /// headless hit-testing and bounding boxes.
-    pub const ESTIMATED_ADVANCE: f64 = 0.6;
     /// Line spacing relative to height.
     pub const LINE_SPACING: f64 = 1.2;
+    /// Top of the text block above the first baseline (relative to height) for
+    /// `Top`, `Middle` and `Bottom` alignment — the renderer's layout contract.
+    pub const TOP_ABOVE_BASELINE: f64 = 0.8;
 
-    /// Estimated local box (before rotation) relative to `position`.
+    /// Model units per em for text of `height` (height = cap height + descender).
+    fn em(height: f64) -> f64 {
+        height / ((fm::CAP_HEIGHT + fm::DESCENT) / fm::UNITS_PER_EM)
+    }
+
+    /// Advance width of one line in model units, measured with the renderer's
+    /// default font (its advance widths, no kerning — exactly how it is drawn).
+    /// Tabs count as spaces; control characters are skipped.
     #[must_use]
-    pub fn estimated_local_box(&self) -> Aabb {
+    pub fn line_width(line: &str, height: f64) -> f64 {
+        let units: f64 = line.trim_end_matches('\r').chars().filter_map(advance_units).sum();
+        units / fm::UNITS_PER_EM * Self::em(height)
+    }
+
+    /// Layout box (before rotation) relative to `position`: each line's advance
+    /// width with its alignment, from the ascender of the first line to the
+    /// descender of the last. Matches the renderer's layout of the default font.
+    #[must_use]
+    pub fn layout_box(&self) -> Aabb {
+        let h = self.height;
+        let em = Self::em(h);
         let lines: Vec<&str> = self.content.split('\n').collect();
-        let max_chars = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0);
-        let w = max_chars as f64 * self.height * Self::ESTIMATED_ADVANCE;
         let n = lines.len().max(1) as f64;
-        let block_h = self.height * (1.0 + (n - 1.0) * Self::LINE_SPACING);
-        let x0 = match self.halign {
-            HAlign::Left => 0.0,
-            HAlign::Center => -w * 0.5,
-            HAlign::Right => -w,
+        let block_h = h * (1.0 + (n - 1.0) * Self::LINE_SPACING);
+        let first_baseline = match self.valign {
+            VAlign::Baseline => 0.0,
+            VAlign::Top => -Self::TOP_ABOVE_BASELINE * h,
+            VAlign::Middle => block_h * 0.5 - Self::TOP_ABOVE_BASELINE * h,
+            VAlign::Bottom => block_h - Self::TOP_ABOVE_BASELINE * h,
         };
-        // Baseline of the first line at y = 0, ascent ≈ 0.8 h, descent ≈ 0.2 h.
-        let top_rel_baseline = 0.8 * self.height;
-        let y_top = match self.valign {
-            VAlign::Baseline => top_rel_baseline,
-            VAlign::Top => 0.0,
-            VAlign::Middle => block_h * 0.5,
-            VAlign::Bottom => block_h,
-        };
-        Aabb::from_corners(Point::new(x0, y_top), Point::new(x0 + w, y_top - block_h))
+        let (mut x0, mut x1) = (0.0_f64, 0.0_f64);
+        for line in &lines {
+            let w = Self::line_width(line, h);
+            let start = match self.halign {
+                HAlign::Left => 0.0,
+                HAlign::Center => -w * 0.5,
+                HAlign::Right => -w,
+            };
+            x0 = x0.min(start);
+            x1 = x1.max(start + w);
+        }
+        let top = first_baseline + fm::ASCENT / fm::UNITS_PER_EM * em;
+        let bottom = first_baseline - (n - 1.0) * Self::LINE_SPACING * h - fm::DESCENT / fm::UNITS_PER_EM * em;
+        Aabb::from_corners(Point::new(x0, top), Point::new(x1, bottom))
     }
 
-    /// The four corners of the estimated box in model space.
+    /// The four corners of the layout box in model space.
     #[must_use]
-    pub fn estimated_corners(&self) -> [Point; 4] {
+    pub fn layout_corners(&self) -> [Point; 4] {
         let t = Affine::rotate(self.rotation).then(Affine::translate(self.position.to_vector()));
-        self.estimated_local_box().corners().map(|c| t.apply(c))
+        self.layout_box().corners().map(|c| t.apply(c))
     }
+}
+
+/// Advance of one character in font units, with the renderer's substitutions.
+fn advance_units(c: char) -> Option<f64> {
+    let c = match c {
+        '\t' | '\u{00a0}' | '\u{2007}' | '\u{202f}' => ' ',
+        '\u{2300}' => '\u{2205}',
+        c if c.is_control() => return None,
+        c => c,
+    };
+    let units = match fm::ADVANCES.binary_search_by_key(&u32::from(c), |e| e.0) {
+        Ok(i) => fm::ADVANCES.get(i).map_or(fm::NOTDEF_ADVANCE, |e| e.1),
+        Err(_) => fm::NOTDEF_ADVANCE,
+    };
+    Some(f64::from(units))
 }
 
 /// How to handle transforms that a shape cannot represent exactly.
@@ -646,12 +683,12 @@ impl Shape {
         }
     }
 
-    /// Bounding box (text uses the estimated box).
+    /// Bounding box (text: its layout box with the default font).
     #[must_use]
     pub fn bbox(&self) -> Aabb {
         match self {
             Self::Point(p) => Aabb::from_corners(p.at, p.at),
-            Self::Text(t) => Aabb::from_points(t.estimated_corners()),
+            Self::Text(t) => Aabb::from_points(t.layout_corners()),
             Self::Rect(r) => Aabb::from_points(r.corners()),
             Self::Polygon(p) => Aabb::from_points(p.outer.iter().copied()),
             _ => self.curves().iter().fold(Aabb::EMPTY, |b, c| b.union(c.bbox())),
@@ -672,19 +709,16 @@ impl Shape {
         }
     }
 
-    /// Distance from `p` to the outline (text: to the estimated box).
+    /// Distance from `p` to the outline (text: to its layout box).
     #[must_use]
     pub fn distance_to(&self, p: Point) -> f64 {
         match self {
             Self::Point(s) => s.at.distance(p),
             Self::Text(t) => {
-                if point_in_ring(p, &t.estimated_corners()) {
+                if point_in_ring(p, &t.layout_corners()) {
                     0.0
                 } else {
-                    ring_lines(&t.estimated_corners())
-                        .iter()
-                        .map(|c| c.distance_to_point(p))
-                        .fold(f64::INFINITY, f64::min)
+                    ring_lines(&t.layout_corners()).iter().map(|c| c.distance_to_point(p)).fold(f64::INFINITY, f64::min)
                 }
             }
             _ => self.curves().iter().map(|c| c.distance_to_point(p)).fold(f64::INFINITY, f64::min),
@@ -755,7 +789,7 @@ impl Shape {
         match self {
             Self::Point(p) => r.contains_point(p.at),
             Self::Text(t) => {
-                let corners = t.estimated_corners();
+                let corners = t.layout_corners();
                 corners.iter().any(|c| r.contains_point(*c))
                     || rect_edges(r).iter().any(|e| {
                         ring_lines(&corners).iter().any(|c| !intersect::intersect(e, c, tol).points.is_empty())
@@ -797,7 +831,7 @@ impl Shape {
         };
         match self {
             Self::Point(p) => vec![FlatPath { points: vec![p.at], closed: false }],
-            Self::Text(t) => vec![FlatPath { points: t.estimated_corners().to_vec(), closed: true }],
+            Self::Text(t) => vec![FlatPath { points: t.layout_corners().to_vec(), closed: true }],
             Self::Line(s) => vec![FlatPath { points: vec![s.a, s.b], closed: false }],
             Self::Rect(r) => vec![FlatPath { points: r.corners().to_vec(), closed: true }],
             Self::Polygon(p) => core::iter::once(&p.outer)
@@ -1278,8 +1312,11 @@ mod tests {
             unreachable!();
         }
         assert!(t.transform(Affine::scale(2.0, 1.0), TransformPolicy::Convert).is_err());
-        // Character count is Unicode-aware (11 chars incl. the space).
+        // Width follows the default font's advances, character by character
+        // (checked against the font file in dotloom-render).
         let b = t.bbox();
-        assert!((b.width() - 11.0 * 2.5 * 0.6).abs() < 1e-9);
+        let w = Text::line_width("Ölçü ğüşıİç", 2.5);
+        assert!((b.width() - w).abs() < 1e-9);
+        assert!(w > 11.0 * 2.5 * 0.4 && w < 11.0 * 2.5 * 0.8, "{w}");
     }
 }

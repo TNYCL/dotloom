@@ -363,6 +363,7 @@ dependencies = [
  "dotloom-engine",
  "dotloom-io",
  "dotloom-render",
+ "png",
  "serde_json",
 ]
 
