@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Import fixture: plain shapes next to content Dotloom never runs or fetches. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="200mm" height="100mm" viewBox="0 0 200 100">
+  <script>alert('never executed')</script>
+  <style>.wall { stroke: #333; stroke-dasharray: 4 2 }</style>
+  <defs>
+    <linearGradient id="g"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="2"/></filter>
+  </defs>
+  <image href="https://example.com/tracking.png" x="0" y="0" width="10" height="10"/>
+  <use xlink:href="https://example.com/sprite.svg#icon"/>
+  <foreignObject width="10" height="10"><div xmlns="http://www.w3.org/1999/xhtml" onclick="alert(1)">html</div></foreignObject>
+  <g id="plan">
+    <line class="wall" x1="10" y1="10" x2="190" y2="10" stroke="#333" stroke-width="2"/>
+    <rect x="20" y="20" width="60" height="40" fill="url(#g)" filter="url(#blur)"/>
+    <circle cx="140" cy="50" r="20" fill="none" stroke="#06c"/>
+    <text x="20" y="90" font-size="8">Plan ölçeği 1:50</text>
+  </g>
+</svg>

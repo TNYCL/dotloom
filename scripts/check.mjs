@@ -6,7 +6,7 @@
 //   pnpm run check -- ts      # only TypeScript (biome + tsc)
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -38,6 +38,20 @@ if (all || which.includes('rust')) {
   run('cargo fmt --check', 'cargo', ['fmt', '--all', '--', '--check'])
   run('dependency boundaries', process.execPath, [join(root, 'scripts', 'check-boundaries.mjs')])
   run('third-party notices', process.execPath, [join(root, 'scripts', 'third-party-notices.mjs'), '--check'])
+  // Published crates carry the license texts (crates.io packages cannot reach the root).
+  console.log('
+▶ crate license files')
+  for (const name of readdirSync(join(root, 'crates'))) {
+    const manifest = readFileSync(join(root, 'crates', name, 'Cargo.toml'), 'utf8')
+    if (/^publish\s*=\s*false/m.test(manifest)) continue
+    for (const lic of ['LICENSE-MIT', 'LICENSE-APACHE']) {
+      const copy = join(root, 'crates', name, lic)
+      if (!existsSync(copy) || readFileSync(copy, 'utf8') !== readFileSync(join(root, lic), 'utf8')) {
+        console.error(`✖ crates/${name}/${lic} is missing or differs from the root copy`)
+        failed = true
+      }
+    }
+  }
   run('cargo clippy', 'cargo', [
     'clippy',
     '--workspace',
