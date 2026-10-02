@@ -141,8 +141,8 @@ changing code.
 
 ## Platforms
 
-Chrome, Edge and Firefox on WebGPU and WebGL2, Safari (WebGL2; WebGPU where Safari
-exposes it), Node.js for headless use, and the Rust crates on Windows, Linux and
+Chrome, Edge and Firefox on WebGPU and WebGL2, Safari 27 and 26 (WebGL2; WebGPU
+where Safari exposes it, not yet verified on Mac hardware), Node.js for headless use, and the Rust crates on Windows, Linux and
 macOS. The [support table](https://tnycl.github.io/dotloom/guide/platforms) lists
 which combination is verified by which test.
 
