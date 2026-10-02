@@ -1,0 +1,168 @@
+name: compat
+
+# Platform compatibility (DL-TEST-13, DL-CI): native Rust tests on Windows and macOS
+# (Linux runs in ci.yml), the declared minimum Rust version, Playwright WebKit on
+# macOS and a real-Safari smoke test through safaridriver.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compat-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  rust-native:
+    name: rust test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Hosted Windows runners have no GPU: the GPU tests use WARP (D3D12 software).
+          - os: windows-2025
+            backend: dx12
+          # Apple-silicon runners expose a paravirtualized Metal device.
+          - os: macos-15
+            backend: metal
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install toolchain from rust-toolchain.toml
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: compat-${{ matrix.os }}
+      - run: cargo test --workspace --all-features --locked
+        env:
+          WGPU_BACKEND: ${{ matrix.backend }}
+
+  msrv:
+    name: msrv (rust-version)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install the declared minimum toolchain
+        run: |
+          msrv=$(grep -m1 '^rust-version' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "MSRV=$msrv" >> "$GITHUB_ENV"
+          rustup toolchain install "$msrv" --profile minimal
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: msrv
+      - name: Build every crate with the minimum toolchain
+        run: cargo +"$MSRV" check --workspace --all-features --all-targets --locked
+
+  wasm:
+    name: wasm build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install toolchain from rust-toolchain.toml
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: wasm
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: wasm-bindgen@0.2.129
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: node scripts/build-wasm.mjs
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: compat-sdk-wasm
+          path: packages/sdk/src/wasm
+          if-no-files-found: error
+          retention-days: 7
+
+  webkit-macos:
+    name: browser e2e (webkit, macos)
+    needs: wasm
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: compat-sdk-wasm
+          path: packages/sdk/src/wasm
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Install WebKit
+        working-directory: tests/e2e
+        run: npx playwright install webkit
+      - name: Run browser tests
+        working-directory: tests/e2e
+        run: npx playwright test
+        env:
+          DOTLOOM_E2E_BROWSERS: webkit
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: e2e-webkit-macos
+          path: |
+            tests/e2e/results
+            tests/e2e/test-results
+          retention-days: 7
+
+  safari:
+    name: safari smoke (macos)
+    needs: wasm
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: compat-sdk-wasm
+          path: packages/sdk/src/wasm
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Build the harness and the playground
+        run: |
+          pnpm --filter @dotloom/e2e run build
+          pnpm --filter @dotloom/playground run build
+      - name: Serve them and start safaridriver
+        run: |
+          (cd tests/e2e && pnpm run preview > "$RUNNER_TEMP/harness.log" 2>&1 &)
+          (pnpm --filter @dotloom/playground run preview > "$RUNNER_TEMP/playground.log" 2>&1 &)
+          sudo safaridriver --enable
+          (safaridriver -p 4444 > "$RUNNER_TEMP/safaridriver.log" 2>&1 &)
+          for url in http://localhost:5199/ http://localhost:5198/ http://localhost:4444/status; do
+            for i in $(seq 1 60); do curl -sf "$url" > /dev/null && break; sleep 1; done
+          done
+      - name: Safari smoke test
+        run: node tests/e2e/safari/smoke.mjs
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: safari-smoke
+          path: tests/e2e/results/safari.json
+          retention-days: 30
