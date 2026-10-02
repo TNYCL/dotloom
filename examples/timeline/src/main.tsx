@@ -22,7 +22,7 @@ const clock = (s: number | undefined): string => {
 function BlockTimes(): ReactNode {
   const selection = useEditorState((s) => s.selection)
   const info = useEntityInfo(selection.length === 1 ? (selection[0] ?? null) : null)
-  if (!info || info.entity.type !== 'timeline.block') {
+  if (info?.entity.type !== 'timeline.block') {
     return (
       <section className="dl-panel">
         <h2>Timeline</h2>

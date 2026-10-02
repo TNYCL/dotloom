@@ -496,8 +496,8 @@ fn parse_transform(s: &str) -> Affine {
             ("scale", [x, y]) => Affine::scale(*x, *y),
             ("rotate", [a]) => Affine::rotate(a.to_radians()),
             ("rotate", [a, cx, cy]) => Affine::rotate_about(a.to_radians(), Point::new(*cx, *cy)),
-            ("skewX", [a]) => Affine { m: [1.0, 0.0, a.to_radians().tan(), 1.0, 0.0, 0.0] },
-            ("skewY", [a]) => Affine { m: [1.0, a.to_radians().tan(), 0.0, 1.0, 0.0, 0.0] },
+            ("skewX", [a]) => Affine { m: [1.0, 0.0, dotloom_geometry::math::tan(a.to_radians()), 1.0, 0.0, 0.0] },
+            ("skewY", [a]) => Affine { m: [1.0, dotloom_geometry::math::tan(a.to_radians()), 0.0, 1.0, 0.0, 0.0] },
             _ => Affine::IDENTITY,
         };
         list.push(m);
@@ -563,7 +563,7 @@ fn svg_arc(p0: Point, rx: f64, ry: f64, phi_deg: f64, large: bool, sweep: bool, 
         return;
     }
     let phi = phi_deg.to_radians();
-    let (s, c) = phi.sin_cos();
+    let (s, c) = dotloom_geometry::math::sin_cos(phi);
     let dx = (p0.x - p1.x) / 2.0;
     let dy = (p0.y - p1.y) / 2.0;
     let x1 = c * dx + s * dy;
@@ -584,7 +584,7 @@ fn svg_arc(p0: Point, rx: f64, ry: f64, phi_deg: f64, large: bool, sweep: bool, 
     let cy1 = coef * (-ry * x1 / rx);
     let cx = c * cx1 - s * cy1 + (p0.x + p1.x) / 2.0;
     let cy = s * cx1 + c * cy1 + (p0.y + p1.y) / 2.0;
-    let ang = |ux: f64, uy: f64, vx: f64, vy: f64| (ux * vy - uy * vx).atan2(ux * vx + uy * vy);
+    let ang = |ux: f64, uy: f64, vx: f64, vy: f64| dotloom_geometry::math::atan2(ux * vy - uy * vx, ux * vx + uy * vy);
     let th1 = ang(1.0, 0.0, (x1 - cx1) / rx, (y1 - cy1) / ry);
     let mut dth = ang((x1 - cx1) / rx, (y1 - cy1) / ry, (-x1 - cx1) / rx, (-y1 - cy1) / ry);
     if !sweep && dth > 0.0 {

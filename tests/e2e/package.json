@@ -5,7 +5,8 @@
   "scripts": {
     "build": "vite build",
     "preview": "vite preview --port 5199 --strictPort",
-    "test": "playwright test"
+    "test": "playwright test",
+    "bench": "playwright test -c playwright.bench.config.ts"
   },
   "dependencies": {
     "@dotloom/sdk": "workspace:*"

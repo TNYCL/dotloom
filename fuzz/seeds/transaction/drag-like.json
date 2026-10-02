@@ -1,0 +1,1 @@
+[{ "op": "setParams", "values": [{ "entity": 1001, "param": "b.y", "value": -30 }], "mode": "prefer" }]

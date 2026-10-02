@@ -22,6 +22,14 @@ Status: accepted (2026-10-02)
   - `ScreenTolerance { css_px }` — pick/snap radius, converted with the view scale.
 - Critical orientation decisions use Shewchuk's adaptive predicate (`robust` crate).
   Everything else uses explicit relative tolerances, documented at each use.
+- Elementary functions (`sin`, `cos`, `atan2`, `hypot`, `tan`, `acos`, …) go through
+  `dotloom_geometry::math` (pure-Rust `libm`) in every core crate; `f64::sin` & co.
+  are disallowed by clippy (`clippy.toml`). Platform math libraries differ in the
+  last bit between Windows, Linux, macOS and WebAssembly, which changed solver
+  trajectories (iteration counts) between the native and WASM builds. With `libm`
+  the same input gives bit-identical commits, documents, scenes and exports
+  everywhere; `crates/wasm/tests/parity.rs` and `packages/sdk/test/parity.test.ts`
+  check this against shared digests (`tests/fixtures/parity/`).
 
 ## Consequences
 

@@ -1,0 +1,55 @@
+name: Bug report
+description: Something does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security problems: please use private reporting (see SECURITY.md), not an issue.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: Minimal steps, code or a small .dotl/SVG/DXF file (attach it).
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Dotloom version or commit
+      placeholder: 0.1.0 / main@abc1234
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Engine / constraints (Rust)
+        - Files (.dotl, SVG, DXF, PNG)
+        - Renderer (WebGPU / WebGL2)
+        - SDK (TypeScript)
+        - React editor
+        - Documentation / examples
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser and version, renderer backend (Viewport.info), OS, GPU; or Rust/Node version.
+      placeholder: Chrome 154, WebGPU, Windows 11, GeForce GTX 1060
+  - type: textarea
+    id: logs
+    attributes:
+      label: Errors and logs
+      description: Error codes/messages (DotloomError code), console output.
+      render: text

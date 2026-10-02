@@ -125,7 +125,7 @@ impl<'a> Checker<'a> {
             let l = d.length();
             if l == 0.0 { f64::NAN } else { d.cross(p - a) / l }
         };
-        let angle_between = |u: Vector, v: Vector| u.cross(v).atan2(u.dot(v));
+        let angle_between = |u: Vector, v: Vector| dotloom_geometry::math::atan2(u.cross(v), u.dot(v));
         Ok(match &c.rule {
             RuleSpec::Fix { param, value } => ((self.param(param)? - value).abs(), self.tol_for(self.param_dim(param))),
             RuleSpec::Equal { a, b } => ((self.param(a)? - self.param(b)?).abs(), self.tol_for(self.param_dim(a))),
@@ -191,8 +191,8 @@ impl<'a> Checker<'a> {
                 let ((a1, b1), (a2, b2)) = (self.line(a)?, self.line(b)?);
                 let th = angle_between(b1 - a1, b2 - a2);
                 let r = match &c.rule {
-                    RuleSpec::Parallel { .. } => th.sin().abs(),
-                    RuleSpec::Perpendicular { .. } => th.cos().abs(),
+                    RuleSpec::Parallel { .. } => dotloom_geometry::math::sin(th).abs(),
+                    RuleSpec::Perpendicular { .. } => dotloom_geometry::math::cos(th).abs(),
                     RuleSpec::Angle { value, .. } => normalize_angle_signed(th - value).abs(),
                     _ => 0.0,
                 };

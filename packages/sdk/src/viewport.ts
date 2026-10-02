@@ -119,6 +119,18 @@ type WebRenderer = import('./wasm/render/dotloom_render_web.js').WebRenderer
 
 export const RENDER_PROTOCOL = 1
 
+/** Yield to the event loop for one task (MessageChannel: no timer clamping). */
+function yieldTask(): Promise<void> {
+  return new Promise((resolve) => {
+    const ch = new MessageChannel()
+    ch.port1.onmessage = () => {
+      ch.port1.close()
+      resolve()
+    }
+    ch.port2.postMessage(null)
+  })
+}
+
 let modulePromise: Promise<RenderModule> | null = null
 
 /** Load (once) the renderer WebAssembly module. */
@@ -165,6 +177,8 @@ type ViewportEvents = {
 const MAX_RECOVERIES = 3
 const RECOVERY_WINDOW_MS = 30_000
 const LOSS_RESTORE_TIMEOUT_MS = 1500
+/** A device lost this soon after creation marks its backend as unstable here. */
+const EARLY_LOSS_MS = 5000
 const LOSS_WATCHDOG_MS = 500
 
 export class Viewport implements ViewportLike {
@@ -186,6 +200,11 @@ export class Viewport implements ViewportLike {
   private disposed = false
   private lostState: string | null = null
   private recoveries: number[] = []
+  /** When the current renderer was created / the last backend change or loss. */
+  private createdAt = 0
+  private lastChange = 0
+  /** Backends whose devices were lost right after creation (tried last). */
+  private readonly unstable = new Set<Backend>()
   private readonly listeners = new Map<keyof ViewportEvents, Set<(v: never) => void>>()
   private readonly cleanup: (() => void)[] = []
   private readonly label: string
@@ -379,6 +398,8 @@ export class Viewport implements ViewportLike {
         )
         attempts.push({ backend, ok: true })
         this.renderer = r
+        this.createdAt = performance.now()
+        this.lastChange = this.createdAt
         this.info = JSON.parse(r.info()) as RendererInfo
         this.attempts = attempts
         this.applySettings()
@@ -411,6 +432,10 @@ export class Viewport implements ViewportLike {
   private markLost(backend: Backend, reason: string): void {
     if (this.lostState) return
     this.lostState = reason
+    this.lastChange = performance.now()
+    // Lost right after creation (e.g. software adapters that cannot keep a device):
+    // recover on the other backends first.
+    if (this.lastChange - this.createdAt < EARLY_LOSS_MS) this.unstable.add(backend)
     this.emit('lost', { backend, reason })
     // If the browser never restores the context, recover on a fresh canvas.
     setTimeout(() => {
@@ -448,7 +473,8 @@ export class Viewport implements ViewportLike {
     this.replaceCanvas()
     try {
       const rest = this.backends.filter((b) => b !== backend)
-      await this.start([backend, ...rest])
+      const order = this.unstable.has(backend) ? [...rest, backend] : [backend, ...rest]
+      await this.start(order)
       this.emit('restored', { backend: this.info?.backend ?? backend, recoveries: this.recoveries.length })
     } catch (e) {
       this.emit('error', parseErr(e))
@@ -619,6 +645,49 @@ export class Viewport implements ViewportLike {
         }, 100)
       }
       return null
+    }
+  }
+
+  /**
+   * Resolve once rendering has been running on the same backend, without a device
+   * loss, for `quietMs` — e.g. before taking a screenshot or thumbnail right after
+   * start-up, when a backend that loses its device immediately is replaced.
+   * Rejects after `timeoutMs`.
+   */
+  async whenStable(quietMs = 500, timeoutMs = 15_000): Promise<void> {
+    const t0 = performance.now()
+    for (;;) {
+      if (this.disposed) throw new DotloomError({ code: 'disposed', message: 'viewport disposed' })
+      const now = performance.now()
+      if (this.renderer && !this.lostState && now - this.lastChange >= quietMs) return
+      if (now - t0 > timeoutMs) {
+        throw new DotloomError({ code: 'render', message: 'rendering did not become stable' })
+      }
+      await new Promise((r) => setTimeout(r, 50))
+    }
+  }
+
+  /**
+   * Renderer memory: WebAssembly linear memory (high-water mark, shared by all
+   * viewports of the page) and GPU buffers/textures of this viewport (last frame).
+   */
+  memoryStats(): { wasmBytes: number; gpuBytes: number } {
+    return { wasmBytes: this.mod.memoryBytes(), gpuBytes: this.lastStats?.gpuBytes ?? 0 }
+  }
+
+  /**
+   * Resolve once the GPU has finished every frame submitted so far (frame-time
+   * measurements: input → GPU done). Rendering never needs it. Resolves early if
+   * the renderer is lost, replaced or disposed, or after `timeoutMs`.
+   */
+  async gpuIdle(timeoutMs = 2000): Promise<void> {
+    const r = this.renderer
+    if (!r || this.lostState || this.disposed) return
+    r.markWork()
+    const t0 = performance.now()
+    while (!r.workDone()) {
+      if (r !== this.renderer || this.lostState || this.disposed || performance.now() - t0 > timeoutMs) return
+      await yieldTask()
     }
   }
 

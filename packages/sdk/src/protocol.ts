@@ -42,6 +42,7 @@ export type MethodName =
   | 'copy'
   | 'fullScene'
   | 'historyState'
+  | 'memory'
   | 'debugTrap'
 
 /** Machine-readable error codes. */

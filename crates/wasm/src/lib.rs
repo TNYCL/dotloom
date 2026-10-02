@@ -120,8 +120,11 @@ impl WasmEngine {
 
     /// Load a `.dotl` file. Returns the load report JSON.
     pub fn load_dotl(&mut self, bytes: &[u8]) -> Result<String, JsValue> {
-        let (file, report) = read_dotl(bytes, &DotlLimits::default()).map_err(|e| err_msg("file", e))?;
-        let revision = self.engine.load(file.document.clone()).map_err(|e| err(&e))?;
+        let (mut file, report) = read_dotl(bytes, &DotlLimits::default()).map_err(|e| err_msg("file", e))?;
+        // The engine owns the document; the file keeps only what saving needs besides
+        // it (view, assets, unknown entries and manifest fields).
+        let document = core::mem::replace(&mut file.document, Document::new());
+        let revision = self.engine.load(document).map_err(|e| err(&e))?;
         let missing: Vec<String> = report
             .plugins
             .iter()
@@ -200,8 +203,10 @@ impl WasmEngine {
     pub fn step(&mut self, budget: u32) -> String {
         match self.engine.step_pending(budget) {
             Ok(PendingState::Running { id }) => json!({ "state": "running", "id": id }).to_string(),
-            Ok(PendingState::Done(Ok(report))) => json!({ "state": "done", "ok": true, "report": report }).to_string(),
-            Ok(PendingState::Done(Err(e))) => json!({ "state": "done", "ok": false, "error": { "code": e.code(), "message": e.to_string(), "details": e } }).to_string(),
+            Ok(PendingState::Done(r)) => match *r {
+                Ok(report) => json!({ "state": "done", "ok": true, "report": report }).to_string(),
+                Err(e) => json!({ "state": "done", "ok": false, "error": { "code": e.code(), "message": e.to_string(), "details": e } }).to_string(),
+            },
             Err(e) => json!({ "state": "done", "ok": false, "error": { "code": e.code(), "message": e.to_string(), "details": e } }).to_string(),
         }
     }
@@ -401,6 +406,13 @@ impl WasmEngine {
         to_json(&v)
     }
 
+    /// Size of the engine's WebAssembly linear memory in bytes. Linear memory never
+    /// shrinks, so this is the high-water mark (peak memory of opened files).
+    #[must_use]
+    pub fn memory_bytes(&self) -> f64 {
+        wasm_memory_bytes()
+    }
+
     /// Undo/redo availability (JSON).
     #[must_use]
     pub fn history_state(&self) -> String {
@@ -418,5 +430,18 @@ impl WasmEngine {
 impl Default for WasmEngine {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Bytes of this module's linear memory (0 outside WebAssembly).
+#[must_use]
+fn wasm_memory_bytes() -> f64 {
+    #[cfg(target_arch = "wasm32")]
+    {
+        core::arch::wasm32::memory_size::<0>() as f64 * 65536.0
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        0.0
     }
 }

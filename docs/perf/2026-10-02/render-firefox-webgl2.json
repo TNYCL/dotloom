@@ -1,0 +1,149 @@
+{
+  "project": "firefox-webgl2",
+  "browser": "firefox 155.0",
+  "backend": "webgl2",
+  "adapter": {
+    "adapter": "ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Direct3D11 vs_5_0 ps_5_0), or similar",
+    "alphaMode": "Opaque",
+    "backend": "webgl2",
+    "deviceType": "Other",
+    "driver": "",
+    "format": "Rgba8Unorm",
+    "maxTextureDimension2D": 16384,
+    "protocol": 1,
+    "sampleCount": 4,
+    "vendor": 4318,
+    "wgpuBackend": "gl"
+  },
+  "env": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:155.0) Gecko/20100101 Firefox/155.0",
+    "devicePixelRatio": 1,
+    "viewport": [
+      1920,
+      1080
+    ],
+    "screen": [
+      1920,
+      1080
+    ]
+  },
+  "fixture": {
+    "shapes": 10000,
+    "frames": 600,
+    "warmup": 60,
+    "queries": 500
+  },
+  "loadMs": 372,
+  "frame": {
+    "method": "input → GPU done (fence reported late: not a frame time)",
+    "p50": 39,
+    "p95": 45,
+    "max": 1300,
+    "cpuP95": 2
+  },
+  "phases": [
+    {
+      "name": "pan (fitted, all shapes visible)",
+      "p95": 43,
+      "chunksDrawn": [
+        30,
+        40
+      ],
+      "lineSegments": [
+        27165,
+        35286
+      ],
+      "triangles": [
+        1536,
+        2000
+      ]
+    },
+    {
+      "name": "zoom in to 10×",
+      "p95": 45,
+      "chunksDrawn": [
+        5,
+        40
+      ],
+      "lineSegments": [
+        8878,
+        38952
+      ],
+      "triangles": [
+        256,
+        2000
+      ]
+    },
+    {
+      "name": "zoom out to 0.25×",
+      "p95": 45,
+      "chunksDrawn": [
+        34,
+        40
+      ],
+      "lineSegments": [
+        27097,
+        35370
+      ],
+      "triangles": [
+        1740,
+        2000
+      ]
+    }
+  ],
+  "items": 10000,
+  "slowest": [
+    {
+      "i": 310,
+      "ms": 1300,
+      "zoom": 9.72,
+      "rebuilt": 0,
+      "tessellated": 0
+    },
+    {
+      "i": 580,
+      "ms": 1269,
+      "zoom": 0.65,
+      "rebuilt": 0,
+      "tessellated": 0
+    },
+    {
+      "i": 531,
+      "ms": 1175,
+      "zoom": 0.29,
+      "rebuilt": 0,
+      "tessellated": 0
+    },
+    {
+      "i": 248,
+      "ms": 723,
+      "zoom": 4.84,
+      "rebuilt": 10,
+      "tessellated": 768
+    },
+    {
+      "i": 573,
+      "ms": 142,
+      "zoom": 0.57,
+      "rebuilt": 0,
+      "tessellated": 0
+    }
+  ],
+  "raf": {
+    "p50": 8.34,
+    "p95": 8.34,
+    "dropped": 0
+  },
+  "hit": {
+    "p50": 0,
+    "p95": 1,
+    "max": 2,
+    "mean": 0.068
+  },
+  "snap": {
+    "p50": 0,
+    "p95": 1,
+    "max": 1,
+    "mean": 0.092
+  }
+}

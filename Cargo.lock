@@ -363,6 +363,7 @@ dependencies = [
  "dotloom-engine",
  "dotloom-io",
  "dotloom-render",
+ "png",
  "serde_json",
 ]
 
@@ -371,6 +372,7 @@ name = "dotloom-constraints"
 version = "0.1.0"
 dependencies = [
  "kasuari",
+ "libm",
  "nalgebra",
  "proptest",
  "serde",
@@ -406,6 +408,7 @@ dependencies = [
 name = "dotloom-geometry"
 version = "0.1.0"
 dependencies = [
+ "libm",
  "proptest",
  "robust",
  "rstar",

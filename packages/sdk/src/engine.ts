@@ -89,6 +89,8 @@ export class DotloomEngine {
   private timeoutMs: number
   private disposed = false
   private crashed: string | null = null
+  /** Buffers created by the SDK (safe to transfer to the worker). */
+  private readonly owned = new WeakSet<ArrayBuffer>()
   /** Latest committed revision reported by the engine. */
   revision = 0
   /** Versions and capabilities reported at initialization. */
@@ -227,8 +229,12 @@ export class DotloomEngine {
       } else if (kind === 'dispose') {
         this.transport.send({ v: 1, kind: 'dispose', id })
       } else {
+        // Transfer only buffers the SDK created itself; caller-owned bytes are
+        // copied (structured clone) so the caller's array stays usable.
         const transfer: Transferable[] = []
-        for (const a of args) if (a instanceof Uint8Array && a.byteOffset === 0) transfer.push(a.buffer as ArrayBuffer)
+        for (const a of args) {
+          if (a instanceof Uint8Array && this.owned.has(a.buffer as ArrayBuffer)) transfer.push(a.buffer as ArrayBuffer)
+        }
         const msg: {
           v: 1
           kind: 'call'
@@ -256,14 +262,18 @@ export class DotloomEngine {
     return this.call('newDocument')
   }
 
-  /** Open a `.dotl` file. */
+  /**
+   * Open a `.dotl` file. The caller's bytes are copied to the engine, never
+   * transferred: the array stays usable afterwards.
+   */
   async load(file: Uint8Array | ArrayBuffer | Blob): Promise<LoadReport> {
-    const bytes =
-      file instanceof Uint8Array
-        ? file
-        : file instanceof ArrayBuffer
-          ? new Uint8Array(file)
-          : new Uint8Array(await file.arrayBuffer())
+    let bytes: Uint8Array
+    if (file instanceof Uint8Array) bytes = file
+    else if (file instanceof ArrayBuffer) bytes = new Uint8Array(file)
+    else {
+      bytes = new Uint8Array(await file.arrayBuffer())
+      this.owned.add(bytes.buffer as ArrayBuffer)
+    }
     return this.call('loadDotl', [bytes])
   }
 
@@ -418,6 +428,14 @@ export class DotloomEngine {
   }
 
   /** Copy entities (plus internal constraints/groups) for `paste`. */
+  /**
+   * Engine WebAssembly memory in bytes. Linear memory never shrinks, so this is the
+   * high-water mark (e.g. the peak memory of opening a file).
+   */
+  memory(): Promise<{ wasmBytes: number }> {
+    return this.call('memory')
+  }
+
   copy(ids: EntityId[]): Promise<Clipboard> {
     return this.call('copy', [JSON.stringify(ids)])
   }

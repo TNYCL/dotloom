@@ -34,7 +34,7 @@ on Mesa lavapipe in CI.
 
 | Environment | Status |
 |---|---|
-| Rust (headless engine, CLI) | Windows, Linux, macOS (CI matrix); MSRV 1.88 |
+| Rust (headless engine, CLI) | Windows, Linux, macOS (CI matrix); MSRV 1.89 |
 | Node.js ≥ 22 | `@dotloom/sdk/node` (in-thread engine), tested in CI |
 | Browsers | module Web Workers, WebAssembly, ES2022 |
 | SSR / build tools | importing the packages has no side effects; create engines only in the browser |

@@ -66,7 +66,7 @@ impl Affine {
     /// Counter-clockwise rotation by `angle` radians about the origin.
     #[must_use]
     pub fn rotate(angle: f64) -> Self {
-        let (s, c) = angle.sin_cos();
+        let (s, c) = crate::math::sin_cos(angle);
         Self { m: [c, s, -s, c, 0.0, 0.0] }
     }
 
@@ -194,7 +194,7 @@ impl Affine {
     /// Rotation angle of the linear part (meaningful for similarities).
     #[must_use]
     pub fn rotation_angle(self) -> f64 {
-        self.m[1].atan2(self.m[0])
+        crate::math::atan2(self.m[1], self.m[0])
     }
 
     /// Whether the linear part is a diagonal (axis aligned) scale with positive or

@@ -8,8 +8,11 @@ export default defineConfig({
     outDir: '../dist',
     emptyOutDir: true,
     target: 'es2022',
-    // probe.html: a page without Dotloom for plain WebGL/WebGPU environment probes.
-    rollupOptions: { input: { main: 'harness/index.html', probe: 'harness/probe.html' } },
+    // probe.html: a page without Dotloom for plain WebGL/WebGPU environment probes;
+    // bench.html: the reference-device benchmark (playwright.bench.config.ts).
+    rollupOptions: {
+      input: { main: 'harness/index.html', probe: 'harness/probe.html', bench: 'harness/bench.html' },
+    },
   },
   worker: { format: 'es' },
   optimizeDeps: { exclude: ['@dotloom/sdk'] },

@@ -9,6 +9,9 @@ async function open(page: Page): Promise<void> {
   await page.goto('./')
   const r = (await page.evaluate(() => window.dl.ready)) as { ok: boolean; error?: string }
   expect(r.ok, r.error).toBe(true)
+  // A backend that loses its device right after start (software adapters on CI)
+  // is replaced on a new canvas: interact only once rendering is stable.
+  await page.evaluate(() => window.dl.editor?.viewport.whenStable())
 }
 
 async function count(page: Page): Promise<number> {
@@ -32,7 +35,7 @@ test('draw a line with the mouse, select it and delete it with the keyboard', as
   await expect.poll(() => page.evaluate(() => window.dl.editor?.core.state.getSnapshot().selection.length)).toBe(1)
   await page.keyboard.press('Delete')
   await expect.poll(() => count(page)).toBe(0)
-  await page.keyboard.press('Control+z')
+  await page.keyboard.press('ControlOrMeta+z')
   await expect.poll(() => count(page)).toBe(1)
 })
 
@@ -47,7 +50,7 @@ test('typing in a form field never triggers editor shortcuts', async ({ page }) 
   await page.locator('#field').type('line l, delete')
   await page.locator('#field').press('Backspace')
   await page.locator('#field').press('Delete')
-  await page.locator('#field').press('Control+a')
+  await page.locator('#field').press('ControlOrMeta+a')
   expect(await page.locator('#field').inputValue()).toBe('line l, delet')
   expect(await count(page)).toBe(1)
   expect(await page.evaluate(() => window.dl.editor?.core.state.getSnapshot().tool)).toBe('select')
@@ -158,18 +161,22 @@ test('worker crash is reported and a new engine reopens the saved document', asy
       () => 'ok',
       (e: { code?: string }) => e.code,
     )
-    // Reopen in a fresh engine (new worker).
+    // Reopen in a fresh engine (new worker), twice from the same array: the SDK
+    // copies caller-owned bytes instead of transferring (detaching) them.
     const fresh = await window.dl.sdk.DotloomEngine.create()
+    const size = saved.byteLength
+    await fresh.load(saved)
     await fresh.load(saved)
     const n = (await fresh.documentJson()).entities.length
     fresh.dispose()
-    return { code, message, after, crashed: editor.engine.isCrashed, n }
+    return { code, message, after, crashed: editor.engine.isCrashed, n, kept: saved.byteLength === size && size > 0 }
   })
   expect(r.code).toBe('crashed')
   expect(r.crashed).toBe(true)
   expect(r.after).toBe('crashed')
   expect(r.message.length).toBeGreaterThan(0)
   expect(r.n).toBe(1)
+  expect(r.kept).toBe(true)
 })
 
 test('stale revisions are rejected through the worker', async ({ page }) => {

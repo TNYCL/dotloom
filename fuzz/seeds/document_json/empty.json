@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "meta": {},
+  "settings": {
+    "displayUnit": "millimetre",
+    "grid": {
+      "spacing": 10.0,
+      "majorEvery": 10
+    }
+  },
+  "layers": [
+    {
+      "id": 1,
+      "name": "Layer 1"
+    }
+  ],
+  "entities": [],
+  "groups": [],
+  "constraints": [],
+  "nextId": 2
+}

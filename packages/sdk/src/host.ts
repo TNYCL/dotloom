@@ -363,6 +363,9 @@ export class EngineHost {
         case 'historyState':
           value = JSON.parse(e.history_state())
           break
+        case 'memory':
+          value = { wasmBytes: e.memory_bytes() }
+          break
         case 'debugTrap':
           e.debug_trap()
           break

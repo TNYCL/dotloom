@@ -238,7 +238,7 @@ impl Arc {
         if c == 0.0 || !c.is_finite() {
             return Err(GeometryError::Degenerate("bulge arc with coincident endpoints"));
         }
-        let sweep = 4.0 * bulge.atan();
+        let sweep = 4.0 * crate::math::atan(bulge);
         let left = chord.perp() / c;
         let h = (c * 0.5) * (1.0 - bulge * bulge) / (2.0 * bulge);
         let center = p0.midpoint(p1) + left * h;
@@ -249,7 +249,7 @@ impl Arc {
     /// Bulge value of this arc (`tan(sweep/4)`).
     #[must_use]
     pub fn bulge(self) -> f64 {
-        (self.sweep / 4.0).tan()
+        crate::math::tan(self.sweep / 4.0)
     }
 
     /// End angle (`start + sweep`).
@@ -384,7 +384,7 @@ pub(crate) fn arc_segments(radius: f64, sweep: f64, tol: f64) -> u32 {
         return 1;
     }
     // sagitta = r (1 - cos(θ/2)) ≤ tol  ⇒  θ ≤ 2 acos(1 - tol/r)
-    let max_step = 2.0 * (1.0 - tol / radius).clamp(-1.0, 1.0).acos();
+    let max_step = 2.0 * crate::math::acos((1.0 - tol / radius).clamp(-1.0, 1.0));
     if max_step <= 0.0 || !max_step.is_finite() {
         return 4096;
     }

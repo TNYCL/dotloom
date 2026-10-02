@@ -2,3 +2,23 @@ allow-unwrap-in-tests = true
 allow-expect-in-tests = true
 allow-panic-in-tests = true
 allow-indexing-slicing-in-tests = true
+
+# Platform math libraries differ in the last bit; geometry, solver, scene and file
+# output must be identical on every platform and in WebAssembly (DL-TEST-6).
+disallowed-methods = [
+  { path = "f64::sin", reason = "use dotloom_geometry::math (deterministic libm)" },
+  { path = "f64::cos", reason = "use dotloom_geometry::math (deterministic libm)" },
+  { path = "f64::sin_cos", reason = "use dotloom_geometry::math (deterministic libm)" },
+  { path = "f64::tan", reason = "use dotloom_geometry::math (deterministic libm)" },
+  { path = "f64::asin", reason = "use dotloom_geometry::math (deterministic libm)" },
+  { path = "f64::acos", reason = "use dotloom_geometry::math (deterministic libm)" },
+  { path = "f64::atan", reason = "use dotloom_geometry::math (deterministic libm)" },
+  { path = "f64::atan2", reason = "use dotloom_geometry::math (deterministic libm)" },
+  { path = "f64::hypot", reason = "use dotloom_geometry::math (deterministic libm)" },
+  { path = "f64::exp", reason = "use libm (deterministic)" },
+  { path = "f64::ln", reason = "use libm (deterministic)" },
+  { path = "f64::log2", reason = "use dotloom_geometry::math (deterministic libm)" },
+  { path = "f64::log10", reason = "use libm (deterministic)" },
+  { path = "f64::powf", reason = "use libm (deterministic)" },
+  { path = "f64::cbrt", reason = "use libm (deterministic)" },
+]

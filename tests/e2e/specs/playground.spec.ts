@@ -11,6 +11,11 @@ test.use({ baseURL: 'http://localhost:5198/', deviceScaleFactor: 1 })
 
 async function ready(page: Page): Promise<void> {
   await page.waitForFunction(() => 'dotloom' in window, null, { timeout: 30_000 })
+  // Wait until rendering runs on a stable backend (see Viewport.whenStable).
+  await page.evaluate(async () => {
+    const v = (window as unknown as { dotloom: { viewport: { whenStable?: () => Promise<void> } } }).dotloom.viewport
+    await v.whenStable?.()
+  })
 }
 
 async function entityCount(page: Page): Promise<number> {
@@ -95,7 +100,7 @@ test('command palette exports SVG; save and reopen a .dotl file', async ({ page 
   await ready(page)
   await expect.poll(() => entityCount(page)).toBe(4)
   await page.locator('.dl-canvas canvas').click({ position: { x: 5, y: 5 } })
-  await page.keyboard.press('Control+k')
+  await page.keyboard.press('ControlOrMeta+k')
   const input = page.getByPlaceholder('Type a command…')
   await input.fill('svg')
   const [svgDownload] = await Promise.all([page.waitForEvent('download'), input.press('Enter')])
@@ -159,7 +164,7 @@ test('keyboard-only: reach an object through the list and edit it; Turkish UI', 
     const width = page.getByRole('textbox', { name: 'Inner width', exact: true })
     await expect(width).toBeVisible()
     await width.focus()
-    await page.keyboard.press('Control+a')
+    await page.keyboard.press('ControlOrMeta+a')
     await page.keyboard.type('1,7 m')
     await page.keyboard.press('Enter')
     await expect(width).toHaveValue('170')

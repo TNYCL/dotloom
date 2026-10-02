@@ -214,7 +214,7 @@ pub fn perpendicular(a1: &PointExpr, b1: &PointExpr, a2: &PointExpr, b2: &PointE
 #[must_use]
 pub fn angle(a1: &PointExpr, b1: &PointExpr, a2: &PointExpr, b2: &PointExpr, theta: f64) -> Vec<Row> {
     let (cross, dot, _) = cross_dot(a1, b1, a2, b2);
-    let (s, c) = theta.sin_cos();
+    let (s, c) = libm::sincos(theta);
     // angle(φ − θ) = atan2(sinφ cosθ − cosφ sinθ, cosφ cosθ + sinφ sinθ), scaled by |u||v|.
     let y = Expr::sub(Expr::mul(cross.clone(), Expr::c(c)), Expr::mul(dot.clone(), Expr::c(s)));
     let x = Expr::add(Expr::mul(dot, Expr::c(c)), Expr::mul(cross, Expr::c(s)));

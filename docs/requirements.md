@@ -187,27 +187,27 @@ that ran + documentation.
 | DL-TEST-3 | independent validation of final geometry | local (solver tests); engine commit validator pending | closed-form checks in `tests/solver.rs` |
 | DL-TEST-4 | transaction/history tests | local | `crates/engine/tests/engine.rs` (atomicity, undo/redo, history limits), SDK undo/redo tests |
 | DL-TEST-5 | file fixtures: round-trip, migration, unknown plugin, corrupt ZIP/JSON, missing asset, loss reports | planned | |
-| DL-TEST-6 | native/WASM parity on normalized output | planned | |
+| DL-TEST-6 | native/WASM parity on normalized output | local | bit-identical digests of commit reports, documents, full scenes, hit-test/snap and SVG/DXF exports over 8 corpus cases: `crates/wasm/tests/parity.rs` (native; Linux in `ci`, Windows/macOS in `compat`) and `packages/sdk/test/parity.test.ts` (WASM) against `tests/fixtures/parity/expected.json`; deterministic `libm` math (ADR-0002) |
 | DL-TEST-7 | SDK public type tests, protocol, lifecycle, error mapping, asset loading | local | `packages/sdk/test/*.test.ts` (30 tests: protocol, lifecycle, error mapping, editor) |
 | DL-TEST-8 | browser E2E user flows through reopen | local (partial) | browser flows in `tests/e2e/specs/editor.spec.ts` (draw → select → delete → undo, crash → reopen); autosave/recovery flow pending |
 | DL-TEST-9 | visual regression with fixed font/backend/environment | planned | |
 | DL-TEST-10 | bounded fuzz with reproducible seeds; findings become fixtures | planned | |
 | DL-TEST-11 | package consumer tests from real tarballs/crates | planned | |
-| DL-TEST-12 | resource lifecycle tests | local (partial) | dispose tests (engine, viewport/canvas, GPU buffers destroyed in `Renderer::dispose`); leak measurement pending |
+| DL-TEST-12 | resource lifecycle tests | hw | dispose tests (engine, viewport/canvas, GPU buffers destroyed in `Renderer::dispose`); 20-cycle open/close leak check (`tests/e2e/bench/files.bench.ts`, DL-PERF-7) |
 | DL-TEST-13 | native Windows/Linux/macOS; Chromium/Firefox/WebKit; WebGPU and WebGL2 selected separately; real Safari smoke | local (Windows: Chromium WebGPU+WebGL2, Firefox WebGL2, WebKit WebGL2); CI Linux matrix pending; real Safari `ext` | `tests/e2e/playwright.config.ts`; results summary in `status.md` |
 
 ## DL-PERF — performance
 
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
-| DL-PERF-1 | reference device + method recorded before measuring | planned | |
-| DL-PERF-2 | 10k shapes 1080p pan/zoom p95 ≤ 16.7 ms | planned | |
-| DL-PERF-3 | hit-test/snap p95 ≤ 8 ms on the same scene | planned | |
-| DL-PERF-4 | 200-variable geometric corpus p95 ≤ 50 ms, hard constraints satisfied | planned | |
-| DL-PERF-5 | open 10k-object `.dotl` ≤ 2 s (excl. WASM init) | planned | |
-| DL-PERF-6 | 100k stress: open/navigate without crash, real cancel | planned | |
-| DL-PERF-7 | repeated open/close: no sustained leak after warm-up | planned | |
-| DL-PERF-8 | WASM size, cold start, glyph cache, peak file memory reported | planned | |
+| DL-PERF-1 | reference device + method recorded before measuring | hw | `docs/performance.md` (device, browsers, display 1080p@120 Hz, build profile, warm-up and timer rules) |
+| DL-PERF-2 | 10k shapes 1080p pan/zoom p95 ≤ 16.7 ms | hw | presented-frame p95 8.4 ms, 0 dropped (Chrome/Edge WebGPU+WebGL2, Firefox WebGPU+WebGL2); input→GPU-done p95 ≤ 9.4 ms (Chromium); `tests/e2e/bench/render.bench.ts`, `tests/e2e/harness/bench.ts`; `docs/performance.md` |
+| DL-PERF-3 | hit-test/snap p95 ≤ 8 ms on the same scene | hw | worker round trip p95 ≤ 1 ms, mean ≤ 0.09 ms; `render.bench.ts`; `docs/performance.md` |
+| DL-PERF-4 | 200-variable geometric corpus p95 ≤ 50 ms, hard constraints satisfied | hw | gated corpus p95 23.2 ms via SDK/WASM, 0 violations; `scripts/bench/solver-corpus.mjs`, `scripts/bench/solver.mjs`, `crates/engine/examples/solver_corpus.rs`; solver tests `far_preference_on_a_circle_converges_in_few_iterations`, `bent_chain_typed_end_position_is_exact_and_fast`; ADR-0004 |
+| DL-PERF-5 | open 10k-object `.dotl` ≤ 2 s (excl. WASM init) | hw | median 101–187 ms, max 188 ms; `tests/e2e/bench/files.bench.ts`; `docs/performance.md` |
+| DL-PERF-6 | 100k stress: open/navigate without crash, real cancel | hw | open 1.1–1.3 s, 120 frames without error, 16 000-variable solve cancelled (86–435 ms), revision unchanged; `files.bench.ts` |
+| DL-PERF-7 | repeated open/close: no sustained leak after warm-up | hw | 20 cycles: heap growth ≤ +0.7 % (Chromium, after `gc()`), renderer WASM memory constant (all); Firefox heap not measurable; `files.bench.ts` |
+| DL-PERF-8 | WASM size, cold start, glyph cache, peak file memory reported | hw | `docs/performance.md` (raw/gzip/brotli, cold 239–423 ms, atlas 4+4 MiB, peaks 10k/100k); `scripts/bench/wasm-size.mjs`, `crates/wasm/examples/memory_profile.rs`, `Viewport.memoryStats()`, `engine.memory()` |
 
 ## DL-CI — repository, Actions, deployment
 

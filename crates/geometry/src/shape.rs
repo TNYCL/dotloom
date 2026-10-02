@@ -1,9 +1,11 @@
 //! Canonical shape model.
 
 use core::f64::consts::{FRAC_PI_2, TAU};
+use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
 
+use crate::font_metrics as fm;
 use crate::{
     Aabb, Affine, Arc, Circle, CubicBez, Curve, FlattenTolerance, GeoResult, GeometryError, LinearKind, ModelTolerance,
     Orientation, Point, QuadBez, Segment, Vector, curve::SIMILARITY_REL, intersect, orientation,
@@ -292,43 +294,79 @@ pub struct Text {
 }
 
 impl Text {
-    /// Average advance relative to height used for the geometric *estimate*.
-    /// The renderer measures real glyph metrics; this estimate is only used for
-    /// headless hit-testing and bounding boxes.
-    pub const ESTIMATED_ADVANCE: f64 = 0.6;
     /// Line spacing relative to height.
     pub const LINE_SPACING: f64 = 1.2;
+    /// Top of the text block above the first baseline (relative to height) for
+    /// `Top`, `Middle` and `Bottom` alignment — the renderer's layout contract.
+    pub const TOP_ABOVE_BASELINE: f64 = 0.8;
 
-    /// Estimated local box (before rotation) relative to `position`.
+    /// Model units per em for text of `height` (height = cap height + descender).
+    fn em(height: f64) -> f64 {
+        height / ((fm::CAP_HEIGHT + fm::DESCENT) / fm::UNITS_PER_EM)
+    }
+
+    /// Advance width of one line in model units, measured with the renderer's
+    /// default font (its advance widths, no kerning — exactly how it is drawn).
+    /// Tabs count as spaces; control characters are skipped.
     #[must_use]
-    pub fn estimated_local_box(&self) -> Aabb {
+    pub fn line_width(line: &str, height: f64) -> f64 {
+        let units: f64 = line.trim_end_matches('\r').chars().filter_map(advance_units).sum();
+        units / fm::UNITS_PER_EM * Self::em(height)
+    }
+
+    /// Layout box (before rotation) relative to `position`: each line's advance
+    /// width with its alignment, from the ascender of the first line to the
+    /// descender of the last. Matches the renderer's layout of the default font.
+    #[must_use]
+    pub fn layout_box(&self) -> Aabb {
+        let h = self.height;
+        let em = Self::em(h);
         let lines: Vec<&str> = self.content.split('\n').collect();
-        let max_chars = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0);
-        let w = max_chars as f64 * self.height * Self::ESTIMATED_ADVANCE;
         let n = lines.len().max(1) as f64;
-        let block_h = self.height * (1.0 + (n - 1.0) * Self::LINE_SPACING);
-        let x0 = match self.halign {
-            HAlign::Left => 0.0,
-            HAlign::Center => -w * 0.5,
-            HAlign::Right => -w,
+        let block_h = h * (1.0 + (n - 1.0) * Self::LINE_SPACING);
+        let first_baseline = match self.valign {
+            VAlign::Baseline => 0.0,
+            VAlign::Top => -Self::TOP_ABOVE_BASELINE * h,
+            VAlign::Middle => block_h * 0.5 - Self::TOP_ABOVE_BASELINE * h,
+            VAlign::Bottom => block_h - Self::TOP_ABOVE_BASELINE * h,
         };
-        // Baseline of the first line at y = 0, ascent ≈ 0.8 h, descent ≈ 0.2 h.
-        let top_rel_baseline = 0.8 * self.height;
-        let y_top = match self.valign {
-            VAlign::Baseline => top_rel_baseline,
-            VAlign::Top => 0.0,
-            VAlign::Middle => block_h * 0.5,
-            VAlign::Bottom => block_h,
-        };
-        Aabb::from_corners(Point::new(x0, y_top), Point::new(x0 + w, y_top - block_h))
+        let (mut x0, mut x1) = (0.0_f64, 0.0_f64);
+        for line in &lines {
+            let w = Self::line_width(line, h);
+            let start = match self.halign {
+                HAlign::Left => 0.0,
+                HAlign::Center => -w * 0.5,
+                HAlign::Right => -w,
+            };
+            x0 = x0.min(start);
+            x1 = x1.max(start + w);
+        }
+        let top = first_baseline + fm::ASCENT / fm::UNITS_PER_EM * em;
+        let bottom = first_baseline - (n - 1.0) * Self::LINE_SPACING * h - fm::DESCENT / fm::UNITS_PER_EM * em;
+        Aabb::from_corners(Point::new(x0, top), Point::new(x1, bottom))
     }
 
-    /// The four corners of the estimated box in model space.
+    /// The four corners of the layout box in model space.
     #[must_use]
-    pub fn estimated_corners(&self) -> [Point; 4] {
+    pub fn layout_corners(&self) -> [Point; 4] {
         let t = Affine::rotate(self.rotation).then(Affine::translate(self.position.to_vector()));
-        self.estimated_local_box().corners().map(|c| t.apply(c))
+        self.layout_box().corners().map(|c| t.apply(c))
     }
+}
+
+/// Advance of one character in font units, with the renderer's substitutions.
+fn advance_units(c: char) -> Option<f64> {
+    let c = match c {
+        '\t' | '\u{00a0}' | '\u{2007}' | '\u{202f}' => ' ',
+        '\u{2300}' => '\u{2205}',
+        c if c.is_control() => return None,
+        c => c,
+    };
+    let units = match fm::ADVANCES.binary_search_by_key(&u32::from(c), |e| e.0) {
+        Ok(i) => fm::ADVANCES.get(i).map_or(fm::NOTDEF_ADVANCE, |e| e.1),
+        Err(_) => fm::NOTDEF_ADVANCE,
+    };
+    Some(f64::from(units))
 }
 
 /// How to handle transforms that a shape cannot represent exactly.
@@ -371,7 +409,9 @@ pub enum AnchorKind {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Anchor {
     /// Stable name within the shape (`start`, `end`, `mid`, `center`, `v3`, ...).
-    pub name: String,
+    /// Built-in names are static (no allocation per anchor: engines cache the
+    /// anchors of every entity).
+    pub name: Cow<'static, str>,
     /// Kind.
     pub kind: AnchorKind,
     /// Position.
@@ -379,8 +419,68 @@ pub struct Anchor {
 }
 
 impl Anchor {
-    fn new(name: impl Into<String>, kind: AnchorKind, point: Point) -> Self {
+    fn new(name: impl Into<Cow<'static, str>>, kind: AnchorKind, point: Point) -> Self {
         Self { name: name.into(), kind, point }
+    }
+}
+
+/// `prefix{i}` names (`v0`, `m3`, `c1`, …); the first 32 of each are static.
+fn indexed(prefix: char, i: usize) -> Cow<'static, str> {
+    const N: usize = 32;
+    macro_rules! table {
+        ($p:literal) => {
+            [
+                concat!($p, "0"),
+                concat!($p, "1"),
+                concat!($p, "2"),
+                concat!($p, "3"),
+                concat!($p, "4"),
+                concat!($p, "5"),
+                concat!($p, "6"),
+                concat!($p, "7"),
+                concat!($p, "8"),
+                concat!($p, "9"),
+                concat!($p, "10"),
+                concat!($p, "11"),
+                concat!($p, "12"),
+                concat!($p, "13"),
+                concat!($p, "14"),
+                concat!($p, "15"),
+                concat!($p, "16"),
+                concat!($p, "17"),
+                concat!($p, "18"),
+                concat!($p, "19"),
+                concat!($p, "20"),
+                concat!($p, "21"),
+                concat!($p, "22"),
+                concat!($p, "23"),
+                concat!($p, "24"),
+                concat!($p, "25"),
+                concat!($p, "26"),
+                concat!($p, "27"),
+                concat!($p, "28"),
+                concat!($p, "29"),
+                concat!($p, "30"),
+                concat!($p, "31"),
+            ]
+        };
+    }
+    static V: [&str; N] = table!("v");
+    static M: [&str; N] = table!("m");
+    static C: [&str; N] = table!("c");
+    static E: [&str; N] = table!("e");
+    static Q: [&str; N] = table!("q");
+    let table: Option<&[&'static str; N]> = match prefix {
+        'v' => Some(&V),
+        'm' => Some(&M),
+        'c' => Some(&C),
+        'e' => Some(&E),
+        'q' => Some(&Q),
+        _ => None,
+    };
+    match table.and_then(|t| t.get(i)) {
+        Some(name) => Cow::Borrowed(name),
+        None => Cow::Owned(format!("{prefix}{i}")),
     }
 }
 
@@ -583,12 +683,12 @@ impl Shape {
         }
     }
 
-    /// Bounding box (text uses the estimated box).
+    /// Bounding box (text: its layout box with the default font).
     #[must_use]
     pub fn bbox(&self) -> Aabb {
         match self {
             Self::Point(p) => Aabb::from_corners(p.at, p.at),
-            Self::Text(t) => Aabb::from_points(t.estimated_corners()),
+            Self::Text(t) => Aabb::from_points(t.layout_corners()),
             Self::Rect(r) => Aabb::from_points(r.corners()),
             Self::Polygon(p) => Aabb::from_points(p.outer.iter().copied()),
             _ => self.curves().iter().fold(Aabb::EMPTY, |b, c| b.union(c.bbox())),
@@ -609,19 +709,16 @@ impl Shape {
         }
     }
 
-    /// Distance from `p` to the outline (text: to the estimated box).
+    /// Distance from `p` to the outline (text: to its layout box).
     #[must_use]
     pub fn distance_to(&self, p: Point) -> f64 {
         match self {
             Self::Point(s) => s.at.distance(p),
             Self::Text(t) => {
-                if point_in_ring(p, &t.estimated_corners()) {
+                if point_in_ring(p, &t.layout_corners()) {
                     0.0
                 } else {
-                    ring_lines(&t.estimated_corners())
-                        .iter()
-                        .map(|c| c.distance_to_point(p))
-                        .fold(f64::INFINITY, f64::min)
+                    ring_lines(&t.layout_corners()).iter().map(|c| c.distance_to_point(p)).fold(f64::INFINITY, f64::min)
                 }
             }
             _ => self.curves().iter().map(|c| c.distance_to_point(p)).fold(f64::INFINITY, f64::min),
@@ -692,7 +789,7 @@ impl Shape {
         match self {
             Self::Point(p) => r.contains_point(p.at),
             Self::Text(t) => {
-                let corners = t.estimated_corners();
+                let corners = t.layout_corners();
                 corners.iter().any(|c| r.contains_point(*c))
                     || rect_edges(r).iter().any(|e| {
                         ring_lines(&corners).iter().any(|c| !intersect::intersect(e, c, tol).points.is_empty())
@@ -734,7 +831,7 @@ impl Shape {
         };
         match self {
             Self::Point(p) => vec![FlatPath { points: vec![p.at], closed: false }],
-            Self::Text(t) => vec![FlatPath { points: t.estimated_corners().to_vec(), closed: true }],
+            Self::Text(t) => vec![FlatPath { points: t.layout_corners().to_vec(), closed: true }],
             Self::Line(s) => vec![FlatPath { points: vec![s.a, s.b], closed: false }],
             Self::Rect(r) => vec![FlatPath { points: r.corners().to_vec(), closed: true }],
             Self::Polygon(p) => core::iter::once(&p.outer)
@@ -769,10 +866,10 @@ impl Shape {
             ],
             Self::Polyline(p) => {
                 let mut v: Vec<Anchor> =
-                    p.points.iter().enumerate().map(|(i, q)| Anchor::new(format!("v{i}"), K::Vertex, *q)).collect();
+                    p.points.iter().enumerate().map(|(i, q)| Anchor::new(indexed('v', i), K::Vertex, *q)).collect();
                 for i in 0..p.segment_count() {
                     if let Some(c) = p.segment(i) {
-                        v.push(Anchor::new(format!("m{i}"), K::Midpoint, c.point_at(0.5)));
+                        v.push(Anchor::new(indexed('m', i), K::Midpoint, c.point_at(0.5)));
                     }
                 }
                 if !p.closed {
@@ -788,9 +885,9 @@ impl Shape {
             Self::Rect(r) => {
                 let c = r.corners();
                 let mut v: Vec<Anchor> =
-                    c.iter().enumerate().map(|(i, q)| Anchor::new(format!("c{i}"), K::Corner, *q)).collect();
+                    c.iter().enumerate().map(|(i, q)| Anchor::new(indexed('c', i), K::Corner, *q)).collect();
                 for i in 0..4 {
-                    v.push(Anchor::new(format!("e{i}"), K::Midpoint, c[i].midpoint(c[(i + 1) % 4])));
+                    v.push(Anchor::new(indexed('e', i), K::Midpoint, c[i].midpoint(c[(i + 1) % 4])));
                 }
                 v.push(Anchor::new("center", K::Center, r.center()));
                 v
@@ -798,7 +895,11 @@ impl Shape {
             Self::Circle(c) => {
                 let mut v = vec![Anchor::new("center", K::Center, c.center)];
                 for i in 0..4u8 {
-                    v.push(Anchor::new(format!("q{i}"), K::Quadrant, c.point_at_angle(f64::from(i) * FRAC_PI_2)));
+                    v.push(Anchor::new(
+                        indexed('q', usize::from(i)),
+                        K::Quadrant,
+                        c.point_at_angle(f64::from(i) * FRAC_PI_2),
+                    ));
                 }
                 v
             }
@@ -811,7 +912,7 @@ impl Shape {
             Self::Path(p) => {
                 let pts = p.on_curve_points();
                 let mut v: Vec<Anchor> =
-                    pts.iter().enumerate().map(|(i, q)| Anchor::new(format!("v{i}"), K::Vertex, *q)).collect();
+                    pts.iter().enumerate().map(|(i, q)| Anchor::new(indexed('v', i), K::Vertex, *q)).collect();
                 if let Some(f) = pts.first() {
                     v.push(Anchor::new("start", K::Endpoint, *f));
                 }
@@ -822,7 +923,7 @@ impl Shape {
             }
             Self::Polygon(p) => {
                 let mut v: Vec<Anchor> =
-                    p.outer.iter().enumerate().map(|(i, q)| Anchor::new(format!("v{i}"), K::Vertex, *q)).collect();
+                    p.outer.iter().enumerate().map(|(i, q)| Anchor::new(indexed('v', i), K::Vertex, *q)).collect();
                 if let Some(c) = ring_centroid(&p.outer) {
                     v.push(Anchor::new("centroid", K::Centroid, c));
                 }
@@ -1033,7 +1134,7 @@ fn polyline_signed_area(p: &Polyline) -> f64 {
         if let Some(Curve::Arc(arc)) = p.segment(i) {
             // Signed circular segment area between chord and arc.
             let th = arc.sweep;
-            a += 0.5 * arc.radius * arc.radius * (th - th.sin());
+            a += 0.5 * arc.radius * arc.radius * (th - crate::math::sin(th));
         }
     }
     a
@@ -1044,7 +1145,7 @@ fn polyline_signed_area(p: &Polyline) -> f64 {
 pub fn arc_to_cubics(a: Arc) -> Vec<Curve> {
     let n = (a.sweep.abs() / FRAC_PI_2).ceil().max(1.0) as u32;
     let step = a.sweep / f64::from(n);
-    let k = 4.0 / 3.0 * (step / 4.0).tan();
+    let k = 4.0 / 3.0 * crate::math::tan(step / 4.0);
     (0..n)
         .map(|i| {
             let a0 = a.start + step * f64::from(i);
@@ -1211,8 +1312,11 @@ mod tests {
             unreachable!();
         }
         assert!(t.transform(Affine::scale(2.0, 1.0), TransformPolicy::Convert).is_err());
-        // Character count is Unicode-aware (11 chars incl. the space).
+        // Width follows the default font's advances, character by character
+        // (checked against the font file in dotloom-render).
         let b = t.bbox();
-        assert!((b.width() - 11.0 * 2.5 * 0.6).abs() < 1e-9);
+        let w = Text::line_width("Ölçü ğüşıİç", 2.5);
+        assert!((b.width() - w).abs() < 1e-9);
+        assert!(w > 11.0 * 2.5 * 0.4 && w < 11.0 * 2.5 * 0.8, "{w}");
     }
 }

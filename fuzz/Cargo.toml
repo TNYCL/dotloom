@@ -1,0 +1,72 @@
+# cargo-fuzz targets (DL-TEST-10). Needs a nightly toolchain:
+#   cargo install cargo-fuzz --locked
+#   cargo +nightly fuzz run dotl fuzz/seeds/dotl -- -max_total_time=60 -seed=1
+# A separate workspace: the main workspace builds on stable without sanitizers.
+
+[package]
+name = "dotloom-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+license = "MIT OR Apache-2.0"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4.10"
+dotloom-engine = { path = "../crates/engine" }
+dotloom-io = { path = "../crates/io" }
+serde_json = "1.0.151"
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "dotl"
+path = "fuzz_targets/dotl.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "document_json"
+path = "fuzz_targets/document_json.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "svg"
+path = "fuzz_targets/svg.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "dxf"
+path = "fuzz_targets/dxf.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "transaction"
+path = "fuzz_targets/transaction.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "plugin"
+path = "fuzz_targets/plugin.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "scene"
+path = "fuzz_targets/scene.rs"
+test = false
+doc = false
+bench = false

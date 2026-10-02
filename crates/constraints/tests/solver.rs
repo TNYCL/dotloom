@@ -3,6 +3,9 @@
 //! Final geometry is validated with independent closed-form checks, never only with
 //! the solver's own residual report.
 
+// Independent reference values use the platform math functions on purpose.
+#![allow(clippy::disallowed_methods)]
+
 use dotloom_constraints::{
     Backend, Certainty, DiagnosticKind, Expr, PointExpr, Problem, Progress, Rule, SolveJob, SolveOptions, Status,
     Strength, Target, VarId, Variable,
@@ -475,4 +478,93 @@ fn chain_distances_hold_independently() {
         let d = (s[2 * i + 2] - s[2 * i]).hypot(s[2 * i + 3] - s[2 * i + 1]);
         assert!((d - 10.0).abs() < 1e-6, "segment {i}: {d}");
     }
+}
+
+// ---------------------------------------------------------------------------
+// Convergence on curved manifolds (SQP curvature, approach phase)
+
+fn bent_chain(p: &mut Problem, links: usize, link: f64) -> Vec<(VarId, VarId, PointExpr)> {
+    let mut pts = Vec::new();
+    let (mut x, mut y) = (0.0f64, 0.0f64);
+    for i in 0..=links {
+        pts.push(point(p, x, y));
+        let a = 0.9 * (i as f64 * 0.35).sin();
+        x += link * a.cos();
+        y += link * a.sin();
+    }
+    rule(p, 1, rules::fix_point(&pts[0].2, (0.0, 0.0), L));
+    for (i, w) in pts.windows(2).enumerate() {
+        rule(p, 100 + i as u64, rules::distance(&w[0].2, &w[1].2, link, L));
+    }
+    pts
+}
+
+#[test]
+fn far_preference_on_a_circle_converges_in_few_iterations() {
+    // A point on a circle of radius 100 pulled towards (300, −250): the optimum is
+    // the radial projection. Without constraint curvature in the step model this
+    // creeps along the circle for dozens of iterations.
+    let mut p = Problem::default();
+    let (_, _, c) = point(&mut p, 0.0, 0.0);
+    let (px, py, pp) = point(&mut p, 0.0, 100.0);
+    rule(&mut p, 1, rules::fix_point(&c, (0.0, 0.0), L));
+    rule(&mut p, 2, rules::distance(&c, &pp, 100.0, L));
+    p.targets.push(Target { var: px, value: 300.0, strength: Strength::Strong });
+    p.targets.push(Target { var: py, value: -250.0, strength: Strength::Strong });
+    let sol = solve(&p, &SolveOptions::default());
+    assert!(sol.accepted(), "{sol:?}");
+    // The stays (weight 1e-3) pull back by ~1e-5 mm: compare at 1e-4 mm.
+    let k = 100.0 / 300f64.hypot(250.0);
+    assert!((at(&sol.values, px) - 300.0 * k).abs() < 1e-4, "{}", at(&sol.values, px));
+    assert!((at(&sol.values, py) + 250.0 * k).abs() < 1e-4, "{}", at(&sol.values, py));
+    let r = at(&sol.values, px).hypot(at(&sol.values, py));
+    assert!((r - 100.0).abs() < 1e-6, "{r}");
+    assert!(sol.iterations <= 15, "iterations {}", sol.iterations);
+}
+
+#[test]
+fn far_hard_edit_keeps_the_elbow_branch() {
+    // Two-link arm, elbow up. The end is fixed far from where it is: the approach
+    // phase follows the manifold, so the elbow stays up instead of flipping.
+    let mut p = Problem::default();
+    let (_, _, base) = point(&mut p, 0.0, 0.0);
+    let (jx, jy, joint) = point(&mut p, 50.0, 100.0 * (0.75f64).sqrt());
+    let (ex, ey, end) = point(&mut p, 100.0, 0.0);
+    rule(&mut p, 1, rules::fix_point(&base, (0.0, 0.0), L));
+    rule(&mut p, 2, rules::distance(&base, &joint, 100.0, L));
+    rule(&mut p, 3, rules::distance(&joint, &end, 100.0, L));
+    rule(&mut p, 4, rules::fix_point(&end, (60.0, 150.0), L));
+    let sol = solve(&p, &SolveOptions::default());
+    assert!(sol.accepted(), "{sol:?}");
+    let s = &sol.values;
+    assert_eq!((at(s, ex), at(s, ey)), (60.0, 150.0));
+    let (x, y) = (at(s, jx), at(s, jy));
+    assert!((x.hypot(y) - 100.0).abs() < 1e-6);
+    assert!(((60.0 - x).hypot(150.0 - y) - 100.0).abs() < 1e-6);
+    // The elbow stays left of the base→end direction, as it started:
+    // cross((100, 0), (50, 86.6)) > 0 before, cross((60, 150), (x, y)) after.
+    let before = 100.0 * (100.0 * 0.75f64.sqrt()) - 0.0 * 50.0;
+    let after = 60.0 * y - 150.0 * x;
+    assert!(before > 0.0 && after > 0.0, "elbow flipped: ({x}, {y})");
+}
+
+#[test]
+fn bent_chain_typed_end_position_is_exact_and_fast() {
+    // 40 links of 100 mm, bent; the end is typed 300 mm away (hard).
+    let mut p = Problem::default();
+    let pts = bent_chain(&mut p, 40, 100.0);
+    let (ex, ey, end) = pts[40].clone();
+    let (x0, y0) = (p.vars[ex.index()].value, p.vars[ey.index()].value);
+    let target = (x0 - 180.0, y0 + 240.0);
+    rule(&mut p, 2, rules::fix_point(&end, target, L));
+    let sol = solve(&p, &SolveOptions::default());
+    assert!(sol.accepted(), "{sol:?}");
+    let s = &sol.values;
+    assert_eq!((at(s, ex), at(s, ey)), target);
+    for w in pts.windows(2) {
+        let d = (at(s, w[1].0) - at(s, w[0].0)).hypot(at(s, w[1].1) - at(s, w[0].1));
+        assert!((d - 100.0).abs() < 1e-6, "link length {d}");
+    }
+    assert_eq!((at(s, pts[0].0), at(s, pts[0].1)), (0.0, 0.0));
+    assert!(sol.iterations <= 60, "iterations {}", sol.iterations);
 }

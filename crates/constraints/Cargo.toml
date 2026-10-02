@@ -1,6 +1,6 @@
 [package]
 name = "dotloom-constraints"
-description = "Dotloom constraint solver: linear (Cassowary/kasuari) and hierarchical Gauss-Newton backends with diagnostics and budgeted cancellation"
+description = "Dotloom constraint solver: linear (Cassowary/kasuari) and sparse sequential-quadratic-programming backends with exact hard rules, weighted preferences, diagnostics and budgeted cancellation"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -15,6 +15,7 @@ readme = "README.md"
 [dependencies]
 serde.workspace = true
 kasuari.workspace = true
+libm.workspace = true
 nalgebra.workspace = true
 
 [dev-dependencies]

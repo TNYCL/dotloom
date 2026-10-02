@@ -1,0 +1,149 @@
+{
+  "project": "chrome-webgpu",
+  "browser": "chromium 154.0.8037.58",
+  "backend": "webgpu",
+  "adapter": {
+    "adapter": "",
+    "alphaMode": "Opaque",
+    "backend": "webgpu",
+    "deviceType": "Other",
+    "driver": "",
+    "format": "Bgra8Unorm",
+    "maxTextureDimension2D": 16384,
+    "protocol": 1,
+    "sampleCount": 4,
+    "vendor": 0,
+    "wgpuBackend": "browserwebgpu"
+  },
+  "env": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36",
+    "devicePixelRatio": 1,
+    "viewport": [
+      1920,
+      1080
+    ],
+    "screen": [
+      1920,
+      1080
+    ]
+  },
+  "fixture": {
+    "shapes": 10000,
+    "frames": 600,
+    "warmup": 60,
+    "queries": 500
+  },
+  "loadMs": 327.2,
+  "frame": {
+    "method": "input → GPU done",
+    "p50": 2.7,
+    "p95": 4.3,
+    "max": 164.8,
+    "cpuP95": 0.3
+  },
+  "phases": [
+    {
+      "name": "pan (fitted, all shapes visible)",
+      "p95": 3.8,
+      "chunksDrawn": [
+        30,
+        40
+      ],
+      "lineSegments": [
+        27165,
+        35286
+      ],
+      "triangles": [
+        1536,
+        2000
+      ]
+    },
+    {
+      "name": "zoom in to 10×",
+      "p95": 4.2,
+      "chunksDrawn": [
+        5,
+        40
+      ],
+      "lineSegments": [
+        8878,
+        38952
+      ],
+      "triangles": [
+        256,
+        2000
+      ]
+    },
+    {
+      "name": "zoom out to 0.25×",
+      "p95": 6.5,
+      "chunksDrawn": [
+        34,
+        40
+      ],
+      "lineSegments": [
+        27097,
+        35370
+      ],
+      "triangles": [
+        1740,
+        2000
+      ]
+    }
+  ],
+  "items": 10000,
+  "slowest": [
+    {
+      "i": 481,
+      "ms": 164.8,
+      "zoom": 0.27,
+      "rebuilt": 0,
+      "tessellated": 0
+    },
+    {
+      "i": 121,
+      "ms": 57.3,
+      "zoom": 1,
+      "rebuilt": 0,
+      "tessellated": 0
+    },
+    {
+      "i": 205,
+      "ms": 11.3,
+      "zoom": 1.2,
+      "rebuilt": 36,
+      "tessellated": 2766
+    },
+    {
+      "i": 576,
+      "ms": 10,
+      "zoom": 0.6,
+      "rebuilt": 40,
+      "tessellated": 3000
+    },
+    {
+      "i": 238,
+      "ms": 9.3,
+      "zoom": 3.65,
+      "rebuilt": 0,
+      "tessellated": 0
+    }
+  ],
+  "raf": {
+    "p50": 8.3,
+    "p95": 8.4,
+    "dropped": 0
+  },
+  "hit": {
+    "p50": 0,
+    "p95": 0.1,
+    "max": 0.8,
+    "mean": 0.04960000005364418
+  },
+  "snap": {
+    "p50": 0,
+    "p95": 0.1,
+    "max": 0.8,
+    "mean": 0.05419999998807907
+  }
+}

@@ -11,6 +11,8 @@ homepage.workspace = true
 keywords.workspace = true
 categories = ["command-line-utilities", "graphics"]
 readme = "README.md"
+# The tests read repository fixtures (tests/fixtures, fuzz/); they run in the repository.
+exclude = ["tests/"]
 
 [[bin]]
 name = "dotloom"
@@ -30,6 +32,7 @@ png = ["dep:dotloom-render", "dotloom-render/png"]
 
 [dev-dependencies]
 dotloom-io.workspace = true
+png = "0.18.1"
 serde_json.workspace = true
 
 [lints]

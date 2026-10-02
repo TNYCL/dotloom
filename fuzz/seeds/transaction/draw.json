@@ -1,0 +1,16 @@
+[
+  {
+    "op": "createEntity",
+    "entity": { "geometry": { "type": "polyline", "points": [[0, 0], [50, 0], [50, 50]], "bulges": [0, 1] } }
+  },
+  {
+    "op": "addConstraint",
+    "constraint": {
+      "rule": {
+        "kind": "horizontal",
+        "a": { "entity": 1000, "anchor": "start" },
+        "b": { "entity": 1000, "anchor": "end" }
+      }
+    }
+  }
+]

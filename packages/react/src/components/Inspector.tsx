@@ -19,7 +19,7 @@ import {
   parseLength,
   type Transaction,
 } from '@dotloom/sdk'
-import { type ReactNode, useEffect, useId, useState } from 'react'
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react'
 import { useDocument, useEditor, useEditorState, useEntityInfo, usePluginTypes } from '../context.js'
 import { type Translate, useT } from '../i18n.js'
 import { Icon } from './icons.js'
@@ -103,7 +103,13 @@ function NumberField(props: {
   const [text, setText] = useState(shown)
   const [error, setError] = useState<FieldError | null>(null)
   const [busy, setBusy] = useState(false)
-  useEffect(() => setText(shown), [shown])
+  // Follow engine updates, except while the user is typing: a value that arrives
+  // then (late entity info, a concurrent solve) would replace the typed text.
+  // Enter/blur submits (engine values show again afterwards), Escape discards.
+  const editing = useRef(false)
+  useEffect(() => {
+    if (!editing.current) setText(shown)
+  }, [shown])
   const commit = async (value: number): Promise<void> => {
     setBusy(true)
     try {
@@ -119,6 +125,7 @@ function NumberField(props: {
     }
   }
   const submit = (): void => {
+    editing.current = false
     if (text.trim() === shown) {
       setError(null)
       return
@@ -163,11 +170,15 @@ function NumberField(props: {
           aria-invalid={error !== null}
           aria-describedby={error ? `${id}-err` : undefined}
           aria-busy={busy}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            editing.current = true
+            setText(e.target.value)
+          }}
           onBlur={submit}
           onKeyDown={(e) => {
             if (e.key === 'Enter') submit()
             if (e.key === 'Escape') {
+              editing.current = false
               setText(shown)
               setError(null)
             }

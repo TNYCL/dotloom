@@ -1,0 +1,114 @@
+{
+  "rows": [
+    {
+      "name": "linkage-drag",
+      "vars": 200,
+      "rules": 100,
+      "edits": 25,
+      "rejected": 0,
+      "violations": 0,
+      "setupMs": 23,
+      "p50": 14.4,
+      "p95": 16.73,
+      "max": 28.94
+    },
+    {
+      "name": "linkage-typed",
+      "vars": 200,
+      "rules": 100,
+      "edits": 25,
+      "rejected": 0,
+      "violations": 0,
+      "setupMs": 4,
+      "p50": 18.2,
+      "p95": 53.28,
+      "max": 53.28
+    },
+    {
+      "name": "polygon-40",
+      "vars": 160,
+      "rules": 81,
+      "edits": 25,
+      "rejected": 0,
+      "violations": 0,
+      "setupMs": 3,
+      "p50": 8.3,
+      "p95": 13.95,
+      "max": 15.99
+    },
+    {
+      "name": "rectangles-12",
+      "vars": 192,
+      "rules": 117,
+      "edits": 25,
+      "rejected": 0,
+      "violations": 0,
+      "setupMs": 3,
+      "p50": 7.61,
+      "p95": 7.89,
+      "max": 8.27
+    },
+    {
+      "name": "circles-40",
+      "vars": 200,
+      "rules": 139,
+      "edits": 25,
+      "rejected": 0,
+      "violations": 0,
+      "setupMs": 6,
+      "p50": 10.97,
+      "p95": 28.09,
+      "max": 28.93
+    },
+    {
+      "name": "mixed-sketch",
+      "vars": 176,
+      "rules": 82,
+      "edits": 25,
+      "rejected": 0,
+      "violations": 0,
+      "setupMs": 5,
+      "p50": 0.29,
+      "p95": 4.01,
+      "max": 13.54
+    },
+    {
+      "name": "shelves-50",
+      "vars": 200,
+      "rules": 50,
+      "edits": 25,
+      "rejected": 0,
+      "violations": 0,
+      "setupMs": 24,
+      "p50": 8.04,
+      "p95": 8.39,
+      "max": 8.83
+    },
+    {
+      "name": "linkage-straight-jump (stress)",
+      "vars": 200,
+      "rules": 100,
+      "edits": 25,
+      "rejected": 0,
+      "violations": 0,
+      "setupMs": 3,
+      "p50": 29.14,
+      "p95": 53.91,
+      "max": 102.04
+    }
+  ],
+  "summary": {
+    "gated": {
+      "p50": 8.27,
+      "p95": 23.24,
+      "edits": 175
+    },
+    "stress": {
+      "p50": 29.14,
+      "p95": 53.91,
+      "edits": 25
+    }
+  },
+  "node": "v24.19.0",
+  "date": "2026-10-02T04:49:29.667Z"
+}

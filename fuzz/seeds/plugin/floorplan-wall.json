@@ -1,0 +1,75 @@
+{
+  "anchors": [
+    {
+      "expr": "start",
+      "kind": "endpoint",
+      "name": "start"
+    },
+    {
+      "expr": "end",
+      "kind": "endpoint",
+      "name": "end"
+    },
+    {
+      "expr": "lerp(start, end, 0.5)",
+      "kind": "midpoint",
+      "name": "mid"
+    }
+  ],
+  "constraints": [
+    {
+      "label": "wall longer than it is thick",
+      "lhs": "dist(start, end)",
+      "op": ">=",
+      "rhs": "thickness"
+    }
+  ],
+  "derived": [
+    {
+      "expr": "norm(end - start)",
+      "name": "dir"
+    },
+    {
+      "expr": "perp(dir) * (thickness / 2)",
+      "name": "side"
+    }
+  ],
+  "label": "Wall",
+  "migrations": [
+    {
+      "from": 1,
+      "rename": {
+        "thick": "thickness"
+      }
+    }
+  ],
+  "primitives": [
+    {
+      "kind": "polygon",
+      "points": ["start + side", "end + side", "end - side", "start - side"],
+      "style": {
+        "fill": "#9aa5b180"
+      }
+    }
+  ],
+  "props": {
+    "end": {
+      "default": [4000, 0],
+      "label": "End",
+      "type": "point"
+    },
+    "start": {
+      "label": "Start",
+      "type": "point"
+    },
+    "thickness": {
+      "default": "20cm",
+      "dim": "length",
+      "label": "Thickness",
+      "min": "5cm",
+      "type": "number"
+    }
+  },
+  "typeId": "floorplan.wall",
+  "version": 2
+}

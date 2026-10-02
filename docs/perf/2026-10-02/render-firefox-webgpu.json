@@ -1,0 +1,149 @@
+{
+  "project": "firefox-webgpu",
+  "browser": "firefox 155.0",
+  "backend": "webgpu",
+  "adapter": {
+    "adapter": "",
+    "alphaMode": "Opaque",
+    "backend": "webgpu",
+    "deviceType": "Other",
+    "driver": "",
+    "format": "Bgra8Unorm",
+    "maxTextureDimension2D": 16384,
+    "protocol": 1,
+    "sampleCount": 4,
+    "vendor": 0,
+    "wgpuBackend": "browserwebgpu"
+  },
+  "env": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:155.0) Gecko/20100101 Firefox/155.0",
+    "devicePixelRatio": 1,
+    "viewport": [
+      1920,
+      1080
+    ],
+    "screen": [
+      1920,
+      1080
+    ]
+  },
+  "fixture": {
+    "shapes": 10000,
+    "frames": 600,
+    "warmup": 60,
+    "queries": 500
+  },
+  "loadMs": 806,
+  "frame": {
+    "method": "input → GPU done (fence reported late: not a frame time)",
+    "p50": 100,
+    "p95": 106,
+    "max": 4081,
+    "cpuP95": 1
+  },
+  "phases": [
+    {
+      "name": "pan (fitted, all shapes visible)",
+      "p95": 102,
+      "chunksDrawn": [
+        30,
+        40
+      ],
+      "lineSegments": [
+        27165,
+        35286
+      ],
+      "triangles": [
+        1536,
+        2000
+      ]
+    },
+    {
+      "name": "zoom in to 10×",
+      "p95": 109,
+      "chunksDrawn": [
+        5,
+        40
+      ],
+      "lineSegments": [
+        8878,
+        38952
+      ],
+      "triangles": [
+        256,
+        2000
+      ]
+    },
+    {
+      "name": "zoom out to 0.25×",
+      "p95": 108,
+      "chunksDrawn": [
+        34,
+        40
+      ],
+      "lineSegments": [
+        27097,
+        35370
+      ],
+      "triangles": [
+        1740,
+        2000
+      ]
+    }
+  ],
+  "items": 10000,
+  "slowest": [
+    {
+      "i": 426,
+      "ms": 4081,
+      "zoom": 0.58,
+      "rebuilt": 0,
+      "tessellated": 0
+    },
+    {
+      "i": 528,
+      "ms": 3780,
+      "zoom": 0.29,
+      "rebuilt": 0,
+      "tessellated": 0
+    },
+    {
+      "i": 221,
+      "ms": 3648,
+      "zoom": 2.11,
+      "rebuilt": 0,
+      "tessellated": 0
+    },
+    {
+      "i": 324,
+      "ms": 3544,
+      "zoom": 8.51,
+      "rebuilt": 0,
+      "tessellated": 0
+    },
+    {
+      "i": 217,
+      "ms": 1778,
+      "zoom": 1.84,
+      "rebuilt": 0,
+      "tessellated": 0
+    }
+  ],
+  "raf": {
+    "p50": 8.34,
+    "p95": 8.34,
+    "dropped": 0
+  },
+  "hit": {
+    "p50": 0,
+    "p95": 1,
+    "max": 1,
+    "mean": 0.084
+  },
+  "snap": {
+    "p50": 0,
+    "p95": 1,
+    "max": 1,
+    "mean": 0.08
+  }
+}

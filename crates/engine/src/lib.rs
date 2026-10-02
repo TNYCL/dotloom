@@ -43,7 +43,7 @@ pub use dotloom_document as document;
 pub use dotloom_geometry as geometry;
 pub use dotloom_scene as scene;
 pub use drag::{DragPreview, DragSpec};
-pub use engine::{ApplyOptions, CommitReport, Engine, EngineOptions, Event, PendingState, Transaction};
+pub use engine::{ApplyOptions, CommitReport, Engine, EngineOptions, Event, PendingState, SolverStats, Transaction};
 pub use error::{DiagnosticReport, EngineError, NearestValue, SolveFailure};
 pub use migrate::migrate_entities;
 pub use query::{Hit, SelectMode, Snap, SnapKind, SnapOptions, SnapQuery};

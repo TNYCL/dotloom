@@ -328,3 +328,38 @@ fn ids_are_never_reused() {
     let b = line(&mut doc, (0.0, 0.0), (1.0, 0.0));
     assert!(b.0 > a.0);
 }
+
+#[test]
+fn text_parse_matches_the_migration_path_and_bounds_nesting() {
+    // Current-schema text takes the direct typed path; it must give the same
+    // document (unknown fields included) as the JSON-tree path.
+    let j = json!({
+        "schema": SCHEMA_VERSION,
+        "layers": [{"id": 1, "name": "L", "futureLayerFlag": true}],
+        "entities": [{
+            "id": 2, "type": "vendor.gadget", "layer": 1,
+            "props": {"size": 3.0, "label": "tür"},
+            "data": {"vendor.gadget": {"nested": [1, 2, {"deep": "x"}]}},
+            "futureEntityField": {"a": 1}
+        }],
+        "nextId": 3,
+        "futureTopLevel": "keep me"
+    });
+    let text = serde_json::to_string(&j).unwrap();
+    let (direct, notes) = Document::from_json_str(&text, &Limits::default()).unwrap();
+    let (tree, _) = Document::from_json_value(j, &Limits::default()).unwrap();
+    assert!(notes.is_empty());
+    assert_eq!(direct.to_json_string().unwrap(), tree.to_json_string().unwrap());
+    // Same validation on the direct path.
+    let broken = r#"{"schema":1,"layers":[{"id":1,"name":"L"}],"entities":[{"id":2,"type":"dotloom.line","layer":9,"geometry":{"type":"line","a":[0,0],"b":[1,0]}}],"nextId":3}"#;
+    assert!(Document::from_json_str(broken, &Limits::default()).is_err());
+    // Nesting stays bounded on the direct path (serde_json recursion limit).
+    let mut deep = String::from("1");
+    for _ in 0..200 {
+        deep = format!("[{deep}]");
+    }
+    let nested = format!(
+        r#"{{"schema":{SCHEMA_VERSION},"layers":[{{"id":1,"name":"L"}}],"entities":[{{"id":2,"type":"vendor.gadget","layer":1,"data":{{"vendor.gadget":{deep}}}}}],"nextId":3}}"#
+    );
+    assert!(Document::from_json_str(&nested, &Limits::default()).is_err());
+}

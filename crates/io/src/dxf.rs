@@ -540,17 +540,31 @@ fn f(v: f64) -> String {
     if s.contains('.') || s.contains('e') { s } else { format!("{s}.0") }
 }
 
-fn dxf_text(s: &str) -> String {
-    // R12 files are ASCII/ANSI: non-ASCII characters are written as \U+XXXX.
+fn dxf_text(s: &str, rec: &mut Recorder) -> String {
+    // R12 files are ASCII/ANSI: non-ASCII characters are written as \U+XXXX, which
+    // has four hex digits; R12 TEXT has a single line. Every change is reported.
+    // (Joined lines are reported where the entity is written.)
     let mut o = String::with_capacity(s.len());
+    let (mut replaced, mut removed) = (false, false);
     for c in s.chars() {
         if c.is_ascii() && !c.is_ascii_control() {
             o.push(c);
         } else if c == '\n' {
             o.push(' ');
+        } else if c.is_control() {
+            removed = true;
         } else if (c as u32) <= 0xFFFF {
             let _ = write!(o, "\\U+{:04X}", c as u32);
+        } else {
+            o.push('?');
+            replaced = true;
         }
+    }
+    if replaced {
+        rec.add(LossKind::Text, "characters outside the Basic Multilingual Plane written as '?'");
+    }
+    if removed {
+        rec.add(LossKind::Text, "control characters removed from text");
     }
     o
 }
@@ -650,7 +664,7 @@ fn shape_dxf(out: &mut String, layer: &str, s: &Shape, rec: &mut Recorder) {
             g(out, 20, f(t.position.y));
             g(out, 30, "0.0");
             g(out, 40, f(t.height));
-            g(out, 1, dxf_text(&t.content));
+            g(out, 1, dxf_text(&t.content, rec));
             if t.rotation != 0.0 {
                 g(out, 50, f(t.rotation.to_degrees()));
             }

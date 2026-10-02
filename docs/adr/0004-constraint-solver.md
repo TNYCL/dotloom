@@ -1,6 +1,8 @@
 # ADR-0004: Constraint solver architecture
 
 Status: accepted (2026-10-02), revised 2026-10-02 after implementation measurements
+and again after the DL-PERF-4 solver benchmark (sparse algebra, curvature, approach
+phase; see `docs/performance.md`)
 
 ## Decision
 
@@ -26,21 +28,48 @@ Status: accepted (2026-10-02), revised 2026-10-02 after implementation measureme
    - *presolve* eliminates unknowns fixed by hard equalities that are linear in a single
      unknown (`fix`, `fixPoint`, propagated chains); contradictions found here are
      certain conflicts;
-   - *restoration phase* (start point violates hard rows): damped minimum-norm Newton
-     steps `Δ = Aᵀ(AAᵀ)⁻¹(−r)` on the hard rows only;
-   - *optimization phase* (feasible point): equality-constrained least-squares step
-     solved through the KKT system's Schur complement — hard rows are exact constraints
-     of the step, never penalty terms; preferences (strong 1, medium 0.1, weak 0.01)
-     and stays towards the previous valid values (0.001) form the objective. The bounded
-     weight ladder keeps the Schur complement well conditioned (an earlier variant with
-     a 1e-5…1e3 range lost the hard rows of cheap variables to rounding and was
-     rejected). Each trial step is projected back onto the hard manifold with damped
-     Newton steps and accepted only if all hard rows hold and the objective decreases;
+   - *approach phase*: single-unknown hard equalities that the starting point violates
+     (typed edits, hard drag targets) are first followed as strong preferences from the
+     current, feasible configuration and only then enforced exactly (presolved). It
+     ends when they are within 1e-6 (scaled) or a step gains < 0.1 %. Jumping straight
+     to the new value starts the restoration far from the manifold, where Newton steps
+     on chains overshoot and crawl (measured: up to 100 iterations); following the
+     manifold also keeps the previous branch (elbow side) instead of flipping;
+   - *restoration phase* (start point violates hard rows): damped minimum-norm
+     Gauss–Newton steps `Δ = Aᵀ(AAᵀ)⁻¹(−r)` on the hard rows only, with an Armijo test
+     on `Σ violation²` (the maximum violation as merit rejected good steps that trade
+     error between rows). Levenberg–Marquardt damping and a non-monotone acceptance
+     were measured and rejected: damping relative to the largest diagonal suppresses
+     the low-frequency "move the whole chain" mode of path-like Jacobians;
+   - *optimization phase* (feasible point): equality-constrained quadratic step —
+     hard rows are exact constraints of the step, never penalty terms; preferences
+     (strong 1, medium 0.1, weak 0.01) and stays towards the previous valid values
+     (0.001) form the objective. The bounded weight ladder keeps the system well
+     conditioned (an earlier variant with a 1e-5…1e3 range lost the hard rows of cheap
+     variables to rounding and was rejected). From the second step on, the model
+     includes the **constraint curvature** `Σ λᵢ∇²cᵢ` (row Hessians by forward
+     differences of the exact gradients, weighted with the previous multipliers): an
+     SQP step. Without it the method is a projected Gauss–Newton step that converges
+     linearly on curved manifolds (measured: 101-iteration budget exhausted on a
+     40-gon and a tangent-circle chain; 14–18 iterations with curvature). When the
+     curvature makes the model non-convex on the feasible directions (inertia check;
+     `ρ·AᵀA` augmentation removes indefiniteness in the range of `Aᵀ` without changing
+     the step), the step falls back to the Gauss–Newton model. Each trial step is
+     projected back onto the hard manifold with damped Newton steps and accepted only
+     if all hard rows hold and the objective decreases;
+   - *linear algebra* (`crates/constraints/src/sparse.rs`): sparse, deterministic.
+     Minimum-norm corrections and diagonal-Hessian steps factor the normal equations
+     `A·D·Aᵀ` (reverse Cuthill–McKee order, envelope Cholesky, escalating diagonal
+     regularization for redundant rows); curvature steps factor the quasi-definite KKT
+     matrix `[H Aᵀ; A −εI]` with `L·D·Lᵀ` (duals ordered after their primal
+     neighbours, inertia check, two steps of iterative refinement). The dense
+     predecessor spent 75 % of a 200-variable solve in `A·Aᵀ` and its Cholesky;
    - inequalities use a primal active set: the most violated linearized inequality is
      added, active rows with negative multipliers are released;
    - trust region on the scaled step, explicit stop criteria (hard rows within
      `tolerance · row.scale`, relative objective gain ≤ 1e-9 or step ≤ 1e-12, iteration
-     budget). A feasible point reached when the budget runs out is still valid.
+     budget). A feasible point reached when the budget runs out is still valid;
+   - line-search trial points are evaluated without gradients (values only).
 5. **Status**: `solved` (no remaining DOF), `underconstrained { dof }` (valid and
    usable; DOF counts equality rows only — an inequality at its bound limits motion in
    one direction but removes no freedom), `conflicting` (proven: kasuari

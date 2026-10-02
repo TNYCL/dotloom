@@ -181,13 +181,13 @@ impl Expr {
     /// `sin a`.
     #[must_use]
     pub fn sin(a: Self) -> Self {
-        a.as_const().map_or_else(|| Self::Sin(Box::new(a)), |x| Self::Const(x.sin()))
+        a.as_const().map_or_else(|| Self::Sin(Box::new(a)), |x| Self::Const(libm::sin(x)))
     }
 
     /// `cos a`.
     #[must_use]
     pub fn cos(a: Self) -> Self {
-        a.as_const().map_or_else(|| Self::Cos(Box::new(a)), |x| Self::Const(x.cos()))
+        a.as_const().map_or_else(|| Self::Cos(Box::new(a)), |x| Self::Const(libm::cos(x)))
     }
 
     /// `sqrt a`.
@@ -206,7 +206,7 @@ impl Expr {
     #[must_use]
     pub fn atan2(y: Self, x: Self) -> Self {
         match (y.as_const(), x.as_const()) {
-            (Some(a), Some(b)) => Self::Const(a.atan2(b)),
+            (Some(a), Some(b)) => Self::Const(libm::atan2(a, b)),
             _ => Self::Atan2(Box::new(y), Box::new(x)),
         }
     }
@@ -215,7 +215,7 @@ impl Expr {
     #[must_use]
     pub fn hypot(x: Self, y: Self) -> Self {
         match (x.as_const(), y.as_const()) {
-            (Some(a), Some(b)) => Self::Const(a.hypot(b)),
+            (Some(a), Some(b)) => Self::Const(libm::hypot(a, b)),
             _ => Self::Hypot(Box::new(x), Box::new(y)),
         }
     }
@@ -249,12 +249,12 @@ impl Expr {
             Self::Mul(a, b) => a.eval(x) * b.eval(x),
             Self::Div(a, b) => a.eval(x) / b.eval(x),
             Self::Neg(a) => -a.eval(x),
-            Self::Sin(a) => a.eval(x).sin(),
-            Self::Cos(a) => a.eval(x).cos(),
+            Self::Sin(a) => libm::sin(a.eval(x)),
+            Self::Cos(a) => libm::cos(a.eval(x)),
             Self::Sqrt(a) => a.eval(x).sqrt(),
             Self::Abs(a) => a.eval(x).abs(),
-            Self::Atan2(y, xx) => y.eval(x).atan2(xx.eval(x)),
-            Self::Hypot(a, b) => a.eval(x).hypot(b.eval(x)),
+            Self::Atan2(y, xx) => libm::atan2(y.eval(x), xx.eval(x)),
+            Self::Hypot(a, b) => libm::hypot(a.eval(x), b.eval(x)),
             Self::Min(a, b) => a.eval(x).min(b.eval(x)),
             Self::Max(a, b) => a.eval(x).max(b.eval(x)),
         }
@@ -292,11 +292,11 @@ impl Expr {
             }
             Self::Sin(a) => {
                 let a = a.eval_dual(x);
-                Dual { v: a.v.sin(), g: scale(&a.g, a.v.cos()) }
+                Dual { v: libm::sin(a.v), g: scale(&a.g, libm::cos(a.v)) }
             }
             Self::Cos(a) => {
                 let a = a.eval_dual(x);
-                Dual { v: a.v.cos(), g: scale(&a.g, -a.v.sin()) }
+                Dual { v: libm::cos(a.v), g: scale(&a.g, -libm::sin(a.v)) }
             }
             Self::Sqrt(a) => {
                 let a = a.eval_dual(x);
@@ -319,14 +319,14 @@ impl Expr {
                 let (y, xx) = (y.eval_dual(x), xx.eval_dual(x));
                 let r2 = y.v * y.v + xx.v * xx.v;
                 if r2 > 0.0 {
-                    Dual { v: y.v.atan2(xx.v), g: merge(&y.g, xx.v / r2, &xx.g, -y.v / r2) }
+                    Dual { v: libm::atan2(y.v, xx.v), g: merge(&y.g, xx.v / r2, &xx.g, -y.v / r2) }
                 } else {
                     Dual { v: 0.0, g: Vec::new() }
                 }
             }
             Self::Hypot(a, b) => {
                 let (a, b) = (a.eval_dual(x), b.eval_dual(x));
-                let v = a.v.hypot(b.v);
+                let v = libm::hypot(a.v, b.v);
                 if v > 0.0 { Dual { v, g: merge(&a.g, a.v / v, &b.g, b.v / v) } } else { Dual { v, g: a.g } }
             }
             Self::Min(a, b) => {

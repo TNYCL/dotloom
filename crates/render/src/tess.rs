@@ -188,7 +188,7 @@ impl Mesh {
             return true;
         }
         let Some(glyphs) = ts.layout(t) else { return false };
-        let (sin, cos) = if t.rotation.is_finite() { t.rotation.sin_cos() } else { (0.0, 1.0) };
+        let (sin, cos) = if t.rotation.is_finite() { dotloom_geometry::math::sin_cos(t.rotation) } else { (0.0, 1.0) };
         let rot = |x: f64, y: f64| Point::new(t.position.x + x * cos - y * sin, t.position.y + x * sin + y * cos);
         for g in glyphs {
             let o = rot(g.x0, g.y0);

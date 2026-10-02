@@ -1,0 +1,95 @@
+{
+  "anchors": [
+    {
+      "expr": "hingePoint",
+      "kind": "endpoint",
+      "name": "hinge"
+    },
+    {
+      "expr": "latchPoint",
+      "kind": "endpoint",
+      "name": "latch"
+    },
+    {
+      "expr": "lerp(hingePoint, latchPoint, 0.5)",
+      "kind": "midpoint",
+      "name": "mid"
+    }
+  ],
+  "constraints": [
+    {
+      "label": "door starts on the wall",
+      "lhs": "offset",
+      "op": ">=",
+      "rhs": "0mm"
+    },
+    {
+      "label": "door fits in the wall",
+      "lhs": "offset + width",
+      "op": "<=",
+      "rhs": "dist(host.start, host.end)"
+    }
+  ],
+  "derived": [
+    {
+      "expr": "norm(host.end - host.start)",
+      "name": "dir"
+    },
+    {
+      "expr": "host.start + dir * offset",
+      "name": "hingePoint"
+    },
+    {
+      "expr": "host.start + dir * (offset + width)",
+      "name": "latchPoint"
+    }
+  ],
+  "label": "Door",
+  "primitives": [
+    {
+      "from": "hingePoint",
+      "kind": "line",
+      "style": {
+        "width": 2
+      },
+      "to": "hingePoint + perp(dir) * width"
+    },
+    {
+      "center": "hingePoint",
+      "kind": "arc",
+      "radius": "width",
+      "start": "angle(dir)",
+      "style": {
+        "dash": [4, 3]
+      },
+      "sweep": "90deg"
+    }
+  ],
+  "props": {
+    "host": {
+      "label": "Wall",
+      "onDelete": "cascade",
+      "required": true,
+      "target": "floorplan.wall",
+      "type": "ref"
+    },
+    "offset": {
+      "default": "50cm",
+      "dim": "length",
+      "label": "Offset from wall start",
+      "stay": "low",
+      "type": "number"
+    },
+    "width": {
+      "default": "90cm",
+      "dim": "length",
+      "label": "Width",
+      "max": "200cm",
+      "min": "60cm",
+      "stay": "high",
+      "type": "number"
+    }
+  },
+  "typeId": "floorplan.door",
+  "version": 1
+}

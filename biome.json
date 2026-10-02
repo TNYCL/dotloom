@@ -17,7 +17,11 @@
       "!**/playwright-report",
       "!**/.vitepress/cache",
       "!**/.vitepress/dist",
-      "!tests/fixtures"
+      "!tests/fixtures",
+      "!bench",
+      "!docs/perf",
+      "!fuzz/seeds",
+      "!fuzz/regressions"
     ]
   },
   "formatter": {

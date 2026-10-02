@@ -75,8 +75,30 @@ fn depth(v: &Value, d: usize) -> usize {
 
 impl Document {
     /// Parse, migrate and validate a document from JSON text.
+    ///
+    /// Documents of the current schema are deserialized directly; only older
+    /// schemas go through the JSON tree the migration steps work on (the tree costs
+    /// several times the document's own memory: ~150 MB for 100 000 shapes). Nesting
+    /// depth stays bounded by `serde_json`'s recursion limit (128) on both paths.
     pub fn from_json_str(s: &str, limits: &Limits) -> Result<(Self, Vec<MigrationNote>), DocError> {
-        let v: Value = serde_json::from_str(s).map_err(|e| DocError::Malformed(e.to_string()))?;
+        Self::from_json_slice(s.as_bytes(), limits)
+    }
+
+    /// [`Document::from_json_str`] on UTF-8 bytes.
+    pub fn from_json_slice(bytes: &[u8], limits: &Limits) -> Result<(Self, Vec<MigrationNote>), DocError> {
+        #[derive(serde::Deserialize)]
+        struct Peek {
+            schema: Option<u64>,
+        }
+        let peek: Peek = serde_json::from_slice(bytes).map_err(|e| DocError::Malformed(e.to_string()))?;
+        if peek.schema == Some(u64::from(SCHEMA_VERSION)) {
+            let doc: Self = serde_json::from_slice(bytes).map_err(|e| DocError::Malformed(e.to_string()))?;
+            if let Some(first) = doc.validate_all(limits).into_iter().next() {
+                return Err(first);
+            }
+            return Ok((doc, Vec::new()));
+        }
+        let v: Value = serde_json::from_slice(bytes).map_err(|e| DocError::Malformed(e.to_string()))?;
         Self::from_json_value(v, limits)
     }
 

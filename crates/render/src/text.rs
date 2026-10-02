@@ -26,7 +26,7 @@ pub const ATLAS_SIZE: usize = 2048;
 /// Line distance relative to the text height (scene contract).
 const LINE_SPACING: f64 = Text::LINE_SPACING;
 /// Ascent used for vertical alignment (scene contract: top ≈ 0.8 h above baseline).
-const TOP_ABOVE_BASELINE: f64 = 0.8;
+const TOP_ABOVE_BASELINE: f64 = Text::TOP_ABOVE_BASELINE;
 
 /// A glyph in the atlas.
 #[derive(Debug, Clone, Copy)]
@@ -428,6 +428,27 @@ mod tests {
         // Second line is 1.2 h lower.
         let two = ts.layout(&text("H\nH")).unwrap();
         assert!((two[0].y0 - two[1].y0 - 12.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn headless_text_metrics_match_the_font() {
+        // dotloom-geometry measures text with a generated advance table
+        // (crates/render/assets/text-metrics.py); it must equal what is drawn.
+        let mut ts = TextSystem::with_default_font().unwrap();
+        for s in ["Dotloom 0123 ABC xyz", "Ölçü ğüşıİç ÇĞÖŞÜ", "W i\tm", "∅ 40 mm ⌀ ±0,5 €", "Дж Ωπ", "\u{e000}?"]
+        {
+            let want = ts.line_width(s, 10.0);
+            let got = Text::line_width(s, 10.0);
+            assert!((got - want).abs() <= 1e-5 * want.max(1.0), "{s:?}: geometry {got} vs renderer {want}");
+        }
+        // The layout box encloses every drawn glyph quad (minus the SDF padding).
+        let t = Text { content: "Ölçü\nÇĞÖŞÜ gjpq".into(), ..text("") };
+        let b = t.layout_box();
+        let pad = SPREAD as f64 / f64::from(RASTER_PX) * (t.height / ts.height_per_em);
+        for g in ts.layout(&t).unwrap() {
+            assert!(g.x0 + pad >= b.min.x - 1e-6 && g.x1 - pad <= b.max.x + 1e-6, "x {g:?} {b:?}");
+            assert!(g.y0 + pad >= b.min.y - 1e-6 && g.y1 - pad <= b.max.y + 1e-6, "y {g:?} {b:?}");
+        }
     }
 
     #[test]
