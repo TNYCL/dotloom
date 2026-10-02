@@ -12,6 +12,12 @@ const BACKENDS = ['webgpu', 'webgl2'] as const
 async function open(page: Page, backend: string, browserName: string): Promise<Ready> {
   await page.goto(`./?backend=${backend}`)
   const r = (await page.evaluate(() => window.dl.ready)) as Ready
+  if (r.ok && backend === 'webgpu') {
+    // Environment check: does plain WebGPU keep a device and show a frame here?
+    const probe = await rawWebgpu(page)
+    test.info().annotations.push({ type: 'webgpu-probe', description: probe.ok ? 'ok' : probe.reason })
+    test.skip(!probe.ok, `${browserName}: ${probe.reason} (environment, reproduced without Dotloom)`)
+  }
   if (!r.ok) {
     // WebGPU is optional outside Chromium: report as skipped with the reason.
     test.skip(backend === 'webgpu' && browserName !== 'chromium', `WebGPU unavailable in ${browserName}: ${r.error}`)
@@ -73,6 +79,76 @@ async function rawWebglResizeComposites(page: Page): Promise<boolean> {
   const img = decodePng(await page.locator('#probe').screenshot())
   await page.evaluate(() => document.getElementById('probe')?.remove())
   return isDark(img.at(10, 10))
+}
+
+// Minimal WebGPU shapes for the probe (no @webgpu/types dependency).
+interface ProbeEncoder {
+  beginRenderPass(desc: unknown): { end(): void }
+  finish(): unknown
+}
+interface ProbeDevice {
+  lost: Promise<{ message: string }>
+  createCommandEncoder(): ProbeEncoder
+  queue: { submit(buffers: unknown[]): void }
+}
+interface ProbeGpu {
+  requestAdapter(): Promise<{ requestDevice(): Promise<ProbeDevice> } | null>
+  getPreferredCanvasFormat(): string
+}
+interface ProbeContext {
+  configure(config: unknown): void
+  getCurrentTexture(): { createView(): unknown }
+}
+
+/**
+ * Plain WebGPU (no Dotloom code): request a device, clear a canvas to red, wait,
+ * and report device loss or a non-displayed frame. Used to tell environment
+ * problems (e.g. software adapters losing devices) from renderer bugs.
+ */
+async function rawWebgpu(page: Page): Promise<{ ok: boolean; reason: string }> {
+  const r = await page.evaluate(async () => {
+    const gpu = (navigator as unknown as { gpu?: ProbeGpu }).gpu
+    if (!gpu) return { lost: 'no navigator.gpu' }
+    const adapter = await gpu.requestAdapter()
+    if (!adapter) return { lost: 'no adapter' }
+    const device = await adapter.requestDevice()
+    let lost: string | null = null
+    device.lost.then((i) => {
+      lost = i.message
+    })
+    const c = document.createElement('canvas')
+    c.id = 'probe-gpu'
+    c.width = 20
+    c.height = 20
+    c.style.cssText = 'position:absolute;left:700px;top:340px;width:20px;height:20px'
+    document.body.appendChild(c)
+    const ctx = c.getContext('webgpu') as unknown as ProbeContext
+    ctx.configure({ device, format: gpu.getPreferredCanvasFormat(), alphaMode: 'opaque' })
+    const draw = (): void => {
+      const enc = device.createCommandEncoder()
+      const pass = enc.beginRenderPass({
+        colorAttachments: [
+          {
+            view: ctx.getCurrentTexture().createView(),
+            loadOp: 'clear',
+            storeOp: 'store',
+            clearValue: { r: 1, g: 0, b: 0, a: 1 },
+          },
+        ],
+      })
+      pass.end()
+      device.queue.submit([enc.finish()])
+    }
+    draw()
+    await new Promise((res) => setTimeout(res, 300))
+    if (!lost) await new Promise<void>((res) => requestAnimationFrame(() => (draw(), res())))
+    await new Promise((res) => setTimeout(res, 100))
+    return { lost }
+  })
+  if (r.lost) return { ok: false, reason: `plain WebGPU device lost: ${r.lost}` }
+  const img = decodePng(await page.locator('#probe-gpu').screenshot())
+  await page.evaluate(() => document.getElementById('probe-gpu')?.remove())
+  return isRed(img.at(10, 10)) ? { ok: true, reason: '' } : { ok: false, reason: 'plain WebGPU frame not displayed' }
 }
 
 async function shot(page: Page): Promise<Rgba> {
