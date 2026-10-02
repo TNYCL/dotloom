@@ -360,12 +360,10 @@
 }
 
 .dl-palette-list {
-  list-style: none;
   margin: 8px 0 0;
-  padding: 0;
 }
 
-.dl-palette-list li {
+.dl-palette-list [role='option'] {
   display: flex;
   justify-content: space-between;
   padding: 6px 8px;
@@ -373,7 +371,7 @@
   cursor: pointer;
 }
 
-.dl-palette-list li[aria-selected='true'] {
+.dl-palette-list [role='option'][aria-selected='true'] {
   background: var(--dl-accent);
   color: var(--dl-accent-text);
 }
@@ -408,4 +406,13 @@
     border-left: none;
     border-top: 1px solid var(--dl-border);
   }
+}
+
+.dl-fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border: none;
+  margin: 4px 0 0;
+  padding: 0;
 }

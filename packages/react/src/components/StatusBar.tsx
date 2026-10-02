@@ -45,7 +45,8 @@ export function StatusBar(props: { unit: LengthUnit }): ReactNode {
         {prompt ? t(prompt) : ''}
       </span>
       {input && (
-        <span className="dl-badge" aria-label={t('status.input')}>
+        <span className="dl-badge">
+          <span className="dl-visually-hidden">{t('status.input')}: </span>
           {input} {sym}
         </span>
       )}

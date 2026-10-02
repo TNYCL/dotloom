@@ -43,12 +43,7 @@ export function CommandPalette(props: { actions: Action[]; onClose: () => void }
     void a.run()
   }
   return (
-    <div
-      className="dl-dialog-backdrop"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) props.onClose()
-      }}
-    >
+    <div className="dl-dialog-backdrop">
       <div className="dl-dialog" role="dialog" aria-modal="true" aria-label={t('menu.commands')}>
         <input
           ref={input}
@@ -84,22 +79,25 @@ export function CommandPalette(props: { actions: Action[]; onClose: () => void }
         {results.length === 0 ? (
           <p className="dl-muted">{t('palette.empty')}</p>
         ) : (
-          <ul id="dl-palette-list" className="dl-palette-list" role="listbox">
+          <div id="dl-palette-list" className="dl-palette-list" role="listbox" aria-label={t('menu.commands')}>
             {results.map((a, i) => (
-              <li
+              <div
                 key={a.id}
                 id={`dl-cmd-${a.id}`}
                 role="option"
+                tabIndex={-1}
                 aria-selected={i === index}
                 onMouseEnter={() => setIndex(i)}
                 onClick={() => run(a)}
-                onKeyDown={() => undefined}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') run(a)
+                }}
               >
                 <span>{a.label}</span>
                 {a.shortcut && <span className="dl-kbd">{a.shortcut}</span>}
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </div>
     </div>

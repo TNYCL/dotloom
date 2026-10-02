@@ -103,6 +103,7 @@ export function ObjectsPanel(): ReactNode {
                 key={r.e.id}
                 id={`dl-obj-${r.e.id}`}
                 role="option"
+                tabIndex={-1}
                 aria-selected={sel.has(r.e.id)}
                 className="dl-list-item"
                 style={{ top: idx * ROW, outline: idx === focus ? '1px dashed var(--dl-focus)' : undefined }}

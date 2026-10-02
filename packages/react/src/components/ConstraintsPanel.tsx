@@ -183,7 +183,8 @@ export function ConstraintsPanel(): ReactNode {
         ))}
       </ul>
       {(tpl.length > 0 || pluginTpl.length > 0) && (
-        <div className="dl-row" style={{ flexWrap: 'wrap' }} role="group" aria-label={t('rules.add')}>
+        <fieldset className="dl-fieldset">
+          <legend className="dl-visually-hidden">{t('rules.add')}</legend>
           {tpl.map((x) => (
             <button
               key={x.id}
@@ -213,7 +214,7 @@ export function ConstraintsPanel(): ReactNode {
               + {template.label}
             </button>
           ))}
-        </div>
+        </fieldset>
       )}
     </section>
   )
