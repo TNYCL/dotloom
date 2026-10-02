@@ -28,7 +28,8 @@ async function wd(method, path, body) {
     body: body === undefined ? undefined : JSON.stringify(body),
   })
   const json = await res.json()
-  if (!res.ok || json.value?.error) throw new Error(`${method} ${path}: ${JSON.stringify(json.value ?? json)}`)
+  // WebDriver errors come with a non-2xx status; page results may carry an `error` field.
+  if (!res.ok) throw new Error(`${method} ${path}: ${JSON.stringify(json.value ?? json)}`)
   return json.value
 }
 

@@ -72,7 +72,7 @@ on the GTX 1060 (Chrome, Edge, Firefox headed).
 ## Next
 
 1. Merge PR #9 after CI.
-2. `compat.yml`: Rust tests on Windows/Linux/macOS, MSRV 1.88 build, macOS WebKit +
+2. `compat.yml`: Rust tests on Windows/Linux/macOS, MSRV build (1.89), macOS WebKit +
    Safari smoke; branch protection on `main`.
 3. Native/WASM parity tests (DL-TEST-6, libm), visual regression baselines
    (DL-TEST-9), bounded fuzz targets with seeds + `nightly.yml` (DL-TEST-10), ezdxf

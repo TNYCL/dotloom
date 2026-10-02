@@ -187,7 +187,7 @@ that ran + documentation.
 | DL-TEST-3 | independent validation of final geometry | local (solver tests); engine commit validator pending | closed-form checks in `tests/solver.rs` |
 | DL-TEST-4 | transaction/history tests | local | `crates/engine/tests/engine.rs` (atomicity, undo/redo, history limits), SDK undo/redo tests |
 | DL-TEST-5 | file fixtures: round-trip, migration, unknown plugin, corrupt ZIP/JSON, missing asset, loss reports | planned | |
-| DL-TEST-6 | native/WASM parity on normalized output | planned | |
+| DL-TEST-6 | native/WASM parity on normalized output | local | bit-identical digests of commit reports, documents, full scenes, hit-test/snap and SVG/DXF exports over 8 corpus cases: `crates/wasm/tests/parity.rs` (native; Linux in `ci`, Windows/macOS in `compat`) and `packages/sdk/test/parity.test.ts` (WASM) against `tests/fixtures/parity/expected.json`; deterministic `libm` math (ADR-0002) |
 | DL-TEST-7 | SDK public type tests, protocol, lifecycle, error mapping, asset loading | local | `packages/sdk/test/*.test.ts` (30 tests: protocol, lifecycle, error mapping, editor) |
 | DL-TEST-8 | browser E2E user flows through reopen | local (partial) | browser flows in `tests/e2e/specs/editor.spec.ts` (draw → select → delete → undo, crash → reopen); autosave/recovery flow pending |
 | DL-TEST-9 | visual regression with fixed font/backend/environment | planned | |

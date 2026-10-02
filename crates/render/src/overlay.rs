@@ -131,7 +131,7 @@ fn marker(m: &mut Mesh, kind: MarkerKind, c: [f64; 2], dpr: f64, theme: &Theme) 
             let pts: Vec<Point> = (0..24)
                 .map(|i| {
                     let a = f64::from(i) / 24.0 * core::f64::consts::TAU;
-                    p(a.cos(), a.sin())
+                    p(dotloom_geometry::math::cos(a), dotloom_geometry::math::sin(a))
                 })
                 .collect();
             m.polyline(&pts, true, color, w, [0.0; 4]);

@@ -136,7 +136,7 @@ impl View {
     /// tessellations stay valid while zooming within a bucket.
     #[must_use]
     pub fn lod(&self) -> i32 {
-        self.device_scale().log2().floor().clamp(-120.0, 120.0) as i32
+        dotloom_geometry::math::log2(self.device_scale()).floor().clamp(-120.0, 120.0) as i32
     }
 }
 

@@ -107,7 +107,7 @@ impl Vector {
     /// Unit vector at `angle` radians from +X, counter-clockwise.
     #[must_use]
     pub fn from_angle(angle: f64) -> Self {
-        let (s, c) = angle.sin_cos();
+        let (s, c) = crate::math::sin_cos(angle);
         Self::new(c, s)
     }
 
@@ -120,7 +120,7 @@ impl Vector {
     /// Euclidean length (overflow-safe).
     #[must_use]
     pub fn length(self) -> f64 {
-        self.x.hypot(self.y)
+        crate::math::hypot(self.x, self.y)
     }
 
     /// Squared length.
@@ -157,13 +157,13 @@ impl Vector {
     /// Angle from +X in radians, in `(-π, π]`.
     #[must_use]
     pub fn angle(self) -> f64 {
-        self.y.atan2(self.x)
+        crate::math::atan2(self.y, self.x)
     }
 
     /// Rotate by `angle` radians counter-clockwise.
     #[must_use]
     pub fn rotate(self, angle: f64) -> Self {
-        let (s, c) = angle.sin_cos();
+        let (s, c) = crate::math::sin_cos(angle);
         Self::new(self.x * c - self.y * s, self.x * s + self.y * c)
     }
 

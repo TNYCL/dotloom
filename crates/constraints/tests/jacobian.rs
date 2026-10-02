@@ -55,7 +55,8 @@ proptest! {
         let mut x = x;
         x[8] = x[8].abs() + 1.0;
         x[9] = x[9].abs() + 1.0;
-        if (x[0] - x[2]).hypot(x[1] - x[3]) < 1.0 || (x[4] - x[6]).hypot(x[5] - x[7]) < 1.0 {
+        let d = |a: f64, b: f64| (a * a + b * b).sqrt();
+        if d(x[0] - x[2], x[1] - x[3]) < 1.0 || d(x[4] - x[6], x[5] - x[7]) < 1.0 {
             return Ok(());
         }
         for (name, rows) in all_rows() {

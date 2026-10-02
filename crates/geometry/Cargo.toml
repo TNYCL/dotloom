@@ -16,6 +16,7 @@ readme = "README.md"
 serde.workspace = true
 thiserror.workspace = true
 robust.workspace = true
+libm.workspace = true
 rstar.workspace = true
 
 [dev-dependencies]

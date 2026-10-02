@@ -22,6 +22,7 @@ pub mod dimension;
 pub mod edit;
 mod error;
 pub mod intersect;
+pub mod math;
 mod point;
 mod shape;
 pub mod spatial;

@@ -1100,7 +1100,7 @@ fn polyline_signed_area(p: &Polyline) -> f64 {
         if let Some(Curve::Arc(arc)) = p.segment(i) {
             // Signed circular segment area between chord and arc.
             let th = arc.sweep;
-            a += 0.5 * arc.radius * arc.radius * (th - th.sin());
+            a += 0.5 * arc.radius * arc.radius * (th - crate::math::sin(th));
         }
     }
     a
@@ -1111,7 +1111,7 @@ fn polyline_signed_area(p: &Polyline) -> f64 {
 pub fn arc_to_cubics(a: Arc) -> Vec<Curve> {
     let n = (a.sweep.abs() / FRAC_PI_2).ceil().max(1.0) as u32;
     let step = a.sweep / f64::from(n);
-    let k = 4.0 / 3.0 * (step / 4.0).tan();
+    let k = 4.0 / 3.0 * crate::math::tan(step / 4.0);
     (0..n)
         .map(|i| {
             let a0 = a.start + step * f64::from(i);

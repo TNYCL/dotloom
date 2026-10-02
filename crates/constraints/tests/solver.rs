@@ -3,6 +3,9 @@
 //! Final geometry is validated with independent closed-form checks, never only with
 //! the solver's own residual report.
 
+// Independent reference values use the platform math functions on purpose.
+#![allow(clippy::disallowed_methods)]
+
 use dotloom_constraints::{
     Backend, Certainty, DiagnosticKind, Expr, PointExpr, Problem, Progress, Rule, SolveJob, SolveOptions, Status,
     Strength, Target, VarId, Variable,

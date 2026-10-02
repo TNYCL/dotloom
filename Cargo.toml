@@ -16,7 +16,7 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.88"
+rust-version = "1.89"
 license = "MIT OR Apache-2.0"
 authors = ["TNYCL <tunaycl@outlook.com>"]
 repository = "https://github.com/TNYCL/dotloom"
@@ -41,6 +41,7 @@ thiserror = "2.0.21"
 robust = "1.2.0"
 rstar = "0.13.0"
 kasuari = "0.4.12"
+libm = "0.2.16"
 nalgebra = { version = "0.35.0", default-features = false, features = ["std"] }
 proptest = "1.11.0"
 

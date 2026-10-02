@@ -136,7 +136,7 @@ impl Aabb {
         }
         let dx = (self.min.x - p.x).max(0.0).max(p.x - self.max.x);
         let dy = (self.min.y - p.y).max(0.0).max(p.y - self.max.y);
-        dx.hypot(dy)
+        crate::math::hypot(dx, dy)
     }
 
     /// The four corners counter-clockwise from `min`.
