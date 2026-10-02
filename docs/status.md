@@ -2,12 +2,13 @@
 
 Resume point for any contributor or agent. Keep it short; never store secrets here.
 
-- Branch: `feat/ui-polish` (load-error title, technical details disclosure, unmount test, platform table)
+- Branch: `docs/after-1.0.0` (release verification script and job, status after 1.0.0)
 - Last updated: 2026-10-02
-- Overall: **feature-complete and verified in CI; not released.** Every row of
+- Overall: **1.0.0 released on GitHub** (tag `v1.0.0` on `main@36b5e63`,
+  https://github.com/TNYCL/dotloom/releases/tag/v1.0.0). Every row of
   `docs/requirements.md` has code, a test that runs and documentation, except the
-  rows marked `ext` (external accounts/devices, below). No stable release yet: npm
-  and crates.io publishing and namespace ownership need the owner's accounts.
+  rows marked `ext`: publishing to npm and crates.io (no registry access) and
+  Safari 27. **Not complete** until those are done (see below).
 
 ## Merged (main)
 
@@ -23,11 +24,17 @@ Resume point for any contributor or agent. Keep it short; never store secrets he
 | #17 | single-edit measurement (DL-DOC-9), platform table, nightly fixes |
 | #18 | incremental linear drags, rule class checks, plugin panels/storage in the editor, UI state tests, accessibility scan, file fixtures, crate consumer, third-party notices, CI hygiene |
 | #21 | released-browser matrix (Chrome, Edge, Firefox current and previous major; Safari) through WebDriver; requirement evidence for every row |
+| #22 | load-error title, technical details disclosure, unmount test, released-browser support table |
+| #24 | release 1.0.0: lockstep version, CHANGELOG, install from the GitHub Release, `publish` mode for partial releases |
 
 ## Verified evidence (latest runs)
 
 | What | Run | Result |
 |---|---|---|
+| `ci` / `compat` / `pages` on the released commit `main@36b5e63` | 36981837890 / 36981837919 / 36981837985 | all green (21 required checks incl. six released-browser jobs) |
+| `release` dry run on `main@36b5e63` (release candidate) | 36981855431 | green |
+| `release` for tag `v1.0.0` | 36982429946 | GitHub Release published with 3 CLI archives, 8 crates, 2 npm tarballs, `SHA256SUMS`, `release-manifest.json`; npm and crates.io recorded as not published (no credentials) |
+| Published release checked from its public URLs (Windows 11) | `node scripts/verify-release.mjs v1.0.0` | checksums match; npm tarballs installed by URL into a fresh project and used from Node (engine 1.0.0, solve, save, reopen); Windows CLI `dotloom 1.0.0` inspects a 0.1.0 fixture |
 | `ci` on `main@480ad97` (lint incl. boundaries/notices/licenses, Rust tests + visual regression on Linux/lavapipe, ezdxf readback, WASM, TS, browser E2E Chromium/Firefox/WebKit, site checks incl. examples, package + crate consumers) | 36979044165 | all green |
 | `compat` on `main@480ad97` (Rust tests Windows/macOS, MSRV 1.89, WebKit macOS, Safari 26.6.1 smoke) | 36979044103 | all green |
 | `pages` on `main@480ad97` (build, site checks under `/dotloom/`, deploy, live smoke) | 36979044228 | green; https://tnycl.github.io/dotloom/ |
@@ -37,7 +44,7 @@ Resume point for any contributor or agent. Keep it short; never store secrets he
 | Released browsers in CI (WebDriver; `compat` on PR #21) | 36980003137 | Chrome 154.0.8037.92/153.0.8010.52, Edge 154.0.4258.53/153.0.4234.48, Firefox 157.0/156.0.1 (Linux), Safari 26.6.1 (macOS): WebGL2 and playground passed everywhere, WebGPU where offered (`docs/compat/2026-10-02/ci-run-36980003137/`) |
 | Released browsers on the reference device (WebGPU + WebGL2 + playground) | `docs/compat/2026-10-02/windows-gtx1060/` | Chrome 153.0.8010.52, Chrome 154.0.8037.58, Edge 154.0.4258.48 passed |
 
-Branch protection on `main` (read back from the API): 15 required checks, strict
+Branch protection on `main` (read back from the API): 21 required checks (incl. the six released-browser jobs), strict
 (up to date), enforced for admins, linear history, no force pushes, no deletions,
 conversation resolution required.
 
@@ -61,9 +68,11 @@ conversation resolution required.
 | Namespace ownership (DL-OSS-4) | names were unclaimed on 2026-10-02 but are owned only after the first publish | covered by the two steps above |
 | Safari 27 (current major) and Safari WebGPU on real Mac hardware (issue #13) | no Mac; hosted runners have Safari 26.6.x without WebGPU | on a Mac with Safari 27: `sudo safaridriver --enable`, serve the harness and playground, `node tests/e2e/webdriver/smoke.mjs --browser safari --webgpu required` |
 
-A stable GitHub Release is deliberately held back until the npm scope is secured, so
-that the release artifacts, the npm tarballs and the crates carry the same names and
-checksums (`release.yml` publishes all of them from one verified tag).
+Once the secrets exist, run the `release` workflow manually with `publish: v1.0.0`:
+it publishes the release's own npm tarballs and the crates (repackaged from the tag
+and compared byte-for-byte with the release's `.crate` files), skips versions that
+are already in a registry and records the result on the release. If the `@dotloom`
+npm scope cannot be obtained, the packages need another scope and a new version.
 
 ## Known issues / decisions to remember
 
@@ -82,12 +91,11 @@ checksums (`release.yml` publishes all of them from one verified tag).
 
 ## Next
 
-1. Merge the UI polish PR after CI; add the six real-browser jobs to the required
-   checks (they are green on PR #21 and `main`).
-2. With npm/crates.io access: bump the lockstep version to `1.0.0` (first stable
-   SemVer release; 0.x versions are previews), add the CHANGELOG section, tag `v1.0.0`,
-   run `release.yml`, verify the published packages from a clean consumer, update
-   DL-OSS-4/7.
+1. Owner: npm org + `NPM_TOKEN` (or trusted publishing) and `CARGO_REGISTRY_TOKEN`;
+   then `release` workflow with `publish: v1.0.0`; update DL-OSS-4/7.
+2. Safari 27 smoke test on a Mac (issue #13).
+3. Known limitations tracked as issues: kerning (#15), fontdue/ttf-parser (#16),
+   memory per object (#14).
 
 ## Commands
 
@@ -98,6 +106,7 @@ node scripts/build-wasm.mjs           # engine + renderer WASM into packages/sdk
 pnpm run build; pnpm run test
 cd tests/e2e; npx playwright test     # $env:DOTLOOM_E2E_BROWSERS = 'chromium' to limit
 pnpm run smoke:packages; pnpm run smoke:crates
+pnpm run verify:release -- v1.0.0     # a published release, from its public URLs
 pnpm --filter @dotloom/e2e run bench  # reference-device benchmarks (headed browsers)
 node tests/e2e/webdriver/install.mjs chrome previous --dir browsers/chrome-previous
 node tests/e2e/webdriver/smoke.mjs --info browsers/chrome-previous/browser.json
