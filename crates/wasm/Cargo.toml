@@ -1,0 +1,24 @@
+[package]
+name = "dotloom-wasm"
+description = "WebAssembly binding of the Dotloom engine (used by the TypeScript SDK; not published to crates.io)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+dotloom-engine.workspace = true
+dotloom-io.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+wasm-bindgen = "=0.2.129"
+console_error_panic_hook = "0.1.7"
+
+[lints]
+workspace = true

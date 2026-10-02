@@ -1,0 +1,57 @@
+{
+  "name": "@dotloom/sdk",
+  "version": "0.1.0",
+  "description": "Framework-agnostic TypeScript SDK for Dotloom, the open-source framework for constraint-driven 2D editors",
+  "license": "MIT OR Apache-2.0",
+  "author": "TNYCL",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TNYCL/dotloom.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://tnycl.github.io/dotloom/",
+  "keywords": [
+    "cad",
+    "constraints",
+    "editor",
+    "geometry",
+    "wasm",
+    "webgpu"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src/*.ts",
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node ../../scripts/build-package.mjs sdk",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "24.9.2",
+    "typescript": "6.0.3",
+    "vitest": "5.0.3"
+  }
+}

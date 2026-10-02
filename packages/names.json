@@ -1,0 +1,5 @@
+{
+  "$comment": "Single source of the public npm package names (ADR-0008). Change the scope here if @dotloom is not available.",
+  "sdk": "@dotloom/sdk",
+  "react": "@dotloom/react"
+}
