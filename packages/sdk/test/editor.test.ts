@@ -375,6 +375,77 @@ describe('selection and manipulation', () => {
   })
 })
 
+describe('configuration (DL-INPUT-5)', () => {
+  async function configured(options: ConstructorParameters<typeof EditorCore>[2]) {
+    const engine = await createNodeEngine()
+    const vp = new FakeViewport()
+    const core = new EditorCore(engine, vp, options)
+    for (const t of builtinTools()) core.registerTool(t)
+    core.start()
+    await core.idle()
+    cleanup.push(() => {
+      core.dispose()
+      engine.dispose()
+    })
+    const r = await engine.apply([
+      { op: 'createEntity', entity: { geometry: { type: 'line', a: [0, 0], b: [103, 7] } } },
+    ])
+    return { engine, core, vp, line: r.created[0] as number }
+  }
+
+  it('remapped shortcuts replace the defaults', async () => {
+    const { engine, core, line } = await configured({ shortcuts: { delete: ['q'], undo: ['Mod+u'] } })
+    await engine.setSelection([line])
+    await core.idle()
+    await press(core, 'Delete')
+    expect(await entities(engine)).toHaveLength(1)
+    await press(core, 'q')
+    expect(await entities(engine)).toHaveLength(0)
+    await press(core, 'z', { mod: true })
+    expect(await entities(engine)).toHaveLength(0)
+    await press(core, 'u', { mod: true })
+    expect(await entities(engine)).toHaveLength(1)
+  })
+
+  it('snap kinds can be switched off and the snap radius is configurable', async () => {
+    // Endpoint snapping off: 2 px from the endpoint gives another kind.
+    const a = await configured({ snap: { endpoint: false } })
+    a.core.setTool('line')
+    void a.core.pointerMove(ptr(a.vp, [101.5, 5.5], { buttons: 0 }))
+    await a.core.idle()
+    expect(a.core.pointer.getSnapshot().snap?.kind).not.toBe('endpoint')
+    // A 3 px radius: 7 px from the endpoint no longer snaps to it (the default 10 px does).
+    const b = await configured({ snapRadiusPx: 3 })
+    b.core.setTool('line')
+    void b.core.pointerMove(ptr(b.vp, [96, 4], { buttons: 0 }))
+    await b.core.idle()
+    expect(b.core.pointer.getSnapshot().snap?.kind).not.toBe('endpoint')
+    const c = await configured({})
+    c.core.setTool('line')
+    void c.core.pointerMove(ptr(c.vp, [96, 4], { buttons: 0 }))
+    await c.core.idle()
+    expect(c.core.pointer.getSnapshot().snap?.kind).toBe('endpoint')
+  })
+
+  it('grid snapping follows the configured grid spacing', async () => {
+    const { core, vp } = await configured({})
+    core.setTool('line')
+    for (const [spacing, at, expected] of [
+      [40, [41, 38], [40, 40]],
+      [25, [51, 49], [50, 50]],
+      [10, [51, 49], [50, 50]],
+      [10, [-33, 72], [-30, 70]],
+    ] as [number, Point, Point][]) {
+      vp.setGrid({ spacing })
+      void core.pointerMove(ptr(vp, at, { buttons: 0 }))
+      await core.idle()
+      const snap = core.pointer.getSnapshot().snap
+      expect(snap?.kind, `spacing ${spacing} at ${at}`).toBe('grid')
+      expect(snap?.point).toEqual(expected)
+    }
+  })
+})
+
 describe('input pipeline', () => {
   it('coalesces pointer moves (latest wins)', async () => {
     const { core, vp } = await setup()

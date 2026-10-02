@@ -217,6 +217,17 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: node scripts/build-site.mjs --base /dotloom/
+      # The same checks pages.yml runs before deploying, on every PR: docs, API
+      # references, playground and every example (incl. the vanilla UI) under /dotloom/.
+      - name: Install Chromium
+        working-directory: tests/e2e
+        run: npx playwright install --with-deps chromium
+      - name: Check the built site under /dotloom/
+        working-directory: tests/e2e
+        run: npx playwright test
+        env:
+          DOTLOOM_E2E_SITE: "1"
+          DOTLOOM_E2E_BROWSERS: chromium
 
   packages:
     name: package consumer (external plugin from tarballs)

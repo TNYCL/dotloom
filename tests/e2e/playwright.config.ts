@@ -23,8 +23,10 @@ if (process.platform === 'linux' || process.env.DOTLOOM_E2E_SWIFTSHADER === '1')
 // DOTLOOM_SITE_URL points them at a deployed site.
 const siteMode = process.env.DOTLOOM_E2E_SITE === '1'
 const siteUrl = process.env.DOTLOOM_SITE_URL ?? 'http://localhost:5200/dotloom/'
-// DOTLOOM_E2E_EXTERNAL=<dist dir> runs the external plugin app check.
+// DOTLOOM_E2E_EXTERNAL=<dist dir> runs the external plugin app check; the sub-path
+// build (`dist-subpath`, base /dotloom/) next to it is served under /dotloom/.
 const externalDir = process.env.DOTLOOM_E2E_EXTERNAL
+const externalSubDir = externalDir?.replace(/dist[/]?$/, 'dist-subpath')
 
 export default defineConfig({
   testDir: externalDir ? './external' : siteMode ? './site' : './specs',
@@ -45,6 +47,11 @@ export default defineConfig({
         {
           command: `node ../../scripts/serve-site.mjs --root "${externalDir}" --base / --port 5201`,
           url: 'http://localhost:5201/',
+          reuseExistingServer: false,
+        },
+        {
+          command: `node ../../scripts/serve-site.mjs --root "${externalSubDir}" --base /dotloom/ --port 5202`,
+          url: 'http://localhost:5202/dotloom/',
           reuseExistingServer: false,
         },
       ]

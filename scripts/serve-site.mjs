@@ -5,14 +5,16 @@
 
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
-import { dirname, extname, join, normalize, sep } from 'node:path'
+import { dirname, extname, join, normalize, resolve as resolvePath, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(name)
   return i >= 0 ? process.argv[i + 1] : fallback
 }
-const root = arg('--root', join(dirname(fileURLToPath(import.meta.url)), '..', 'site'))
+// Absolute with native separators, so the containment check below works for
+// `C:/x` style arguments on Windows too.
+const root = resolvePath(arg('--root', join(dirname(fileURLToPath(import.meta.url)), '..', 'site')))
 const port = Number(arg('--port', '5200'))
 const base = arg('--base', '/dotloom/')
 

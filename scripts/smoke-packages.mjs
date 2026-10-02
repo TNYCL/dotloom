@@ -109,6 +109,9 @@ if (installed.version !== expectedVersion || existsSync(join(app, 'node_modules'
 // 4. Test and build.
 run('npm', ['test'], app)
 run('npm', ['run', 'build'], app)
+// The same app built for an absolute sub-path (GitHub Pages style): worker, WASM and
+// font assets must resolve under /dotloom/ too (DL-SDK-10).
+run('npx', ['vite', 'build', '--base', '/dotloom/', '--outDir', 'dist-subpath'], app)
 console.log(`\n✓ external plugin built and tested from packed tarballs in ${app}`)
 
 if (serveAt) {

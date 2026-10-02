@@ -4,7 +4,7 @@
  * the page builds its own toolbar, file buttons and status line.
  */
 
-import { createEditor, DOTL_MIME, DotloomError, downloadBytes, pickFile } from '@dotloom/sdk'
+import { createEditor, DOTL_MIME, DotloomError, downloadBytes, pickFile, toolText } from '@dotloom/sdk'
 
 const root = document.getElementById('root') as HTMLDivElement
 root.innerHTML = `
@@ -37,7 +37,8 @@ try {
   // Tools from the registry (built-in tools; plugins would add theirs here too).
   const toolButtons = new Map<string, HTMLButtonElement>()
   for (const tool of core.listTools()) {
-    const label = tool.label.replace(/^tool\./, '')
+    // Built-in tools name themselves with message keys; `toolText` gives the text.
+    const label = toolText(tool.label, navigator.language)
     toolButtons.set(
       tool.id,
       button(label, () => core.setTool(tool.id), { 'aria-pressed': 'false', 'data-tool': tool.id }),
@@ -73,7 +74,8 @@ try {
     const s = core.state.getSnapshot()
     for (const [id, b] of toolButtons) b.setAttribute('aria-pressed', String(id === s.tool))
     const sel = s.selection.length ? ` · ${s.selection.length} selected` : ''
-    status.textContent = s.error ? `${s.error.code}: ${s.error.message}` : `${s.prompt || 'Ready'}${sel}`
+    const prompt = s.prompt ? toolText(s.prompt, navigator.language) : 'Ready'
+    status.textContent = s.error ? `${s.error.code}: ${s.error.message}` : `${prompt}${sel}`
   }
   core.state.subscribe(render)
   render()

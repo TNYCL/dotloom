@@ -13,6 +13,9 @@ import {
   InlineTransport,
   MemoryStorage,
   type StoredMeta,
+  TOOL_MESSAGES_EN,
+  TOOL_MESSAGES_TR,
+  toolText,
 } from '@dotloom/sdk'
 import { createNodeEngine } from '@dotloom/sdk/node'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -20,6 +23,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { initSync, WasmEngine } from '../../sdk/src/wasm/engine/dotloom_wasm.js'
 import type { EditorHandle } from '../src/context.js'
 import { DotloomEditor, type DotloomEditorProps } from '../src/DotloomEditor.js'
+import { en, tr } from '../src/i18n.js'
 
 const sdk = resolve(process.cwd(), '../sdk/src')
 const shelf = JSON.parse(
@@ -236,5 +240,46 @@ describe('plugin contributions in the editor', () => {
     })
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Shelf info' })).toBeNull())
     expect(mounted).toEqual(['mount', 'unmount', 'mount', 'unmount'])
+  })
+})
+
+describe('themes and messages', () => {
+  it('the system theme follows the OS preference and its changes', async () => {
+    let dark = true
+    const listeners = new Set<() => void>()
+    const original = window.matchMedia
+    window.matchMedia = ((query: string) => ({
+      get matches() {
+        return query.includes('dark') && dark
+      },
+      media: query,
+      addEventListener: (_: string, cb: () => void) => listeners.add(cb),
+      removeEventListener: (_: string, cb: () => void) => listeners.delete(cb),
+    })) as unknown as typeof window.matchMedia
+    try {
+      const { container } = render(<DotloomEditor engine={inlineEngine()} autosave={false} theme="system" />)
+      const root = container.querySelector('.dl-editor') as HTMLElement
+      expect(root.dataset.theme).toBe('dark')
+      dark = false
+      act(() => {
+        for (const cb of listeners) cb()
+      })
+      expect(root.dataset.theme).toBe('light')
+    } finally {
+      window.matchMedia = original
+    }
+  })
+
+  it('every English message has a Turkish translation with the same placeholders', () => {
+    const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort()
+    expect(Object.keys(tr).sort()).toEqual(Object.keys(en).sort())
+    for (const [key, text] of Object.entries(en)) {
+      const t = (tr as Record<string, string>)[key] ?? ''
+      expect(t.trim(), key).not.toBe('')
+      expect(placeholders(t), key).toEqual(placeholders(text))
+    }
+    expect(Object.keys(TOOL_MESSAGES_TR).sort()).toEqual(Object.keys(TOOL_MESSAGES_EN).sort())
+    expect(toolText('tool.line.start', 'tr-TR')).toBe(TOOL_MESSAGES_TR['tool.line.start'])
+    expect(toolText('acme.custom', 'tr')).toBe('acme.custom')
   })
 })
