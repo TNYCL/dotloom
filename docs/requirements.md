@@ -51,7 +51,7 @@ that ran + documentation.
 | DL-DOC-6 | derived geometry/cache separate from canonical data | local | `eval.rs` (`EvalCache`, derived plugin geometry never stored except explicit `fallback`) |
 | DL-DOC-7 | unknown plugin payloads preserved opaquely | local | `Entity::data`, `extra` maps; `unknown_fields_and_plugin_payloads_survive` |
 | DL-DOC-8 | normalized canonical hash/snapshot (order independent) | local | `canonical.rs`; `hash_ignores_insertion_order_but_not_draw_order`, `negative_zero_is_normalized` |
-| DL-DOC-9 | geometry-only edits do not copy/re-render the whole document (measured) | planned | |
+| DL-DOC-9 | geometry-only edits do not copy/re-render the whole document (measured) | hw | engine test `one_edit_in_a_large_document_touches_one_scene_item` (10k entities: one changed entity, one scene upsert, delta < 0.1 % of the full scene); render cache test `chunks_split_by_count_and_reuse_unchanged_chunks`; measured in Chrome/Firefox: commit p95 0.8–2 ms, 120-byte delta, 1 item tessellated, 1 chunk rebuilt (`files.bench.ts`, `docs/performance.md`) |
 
 ## DL-CMD — commands, previews, cancellation, history
 

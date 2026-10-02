@@ -761,3 +761,41 @@ fn feasible_drag_targets_are_met_exactly() {
     assert!(close(p(&e, door, "width"), 900.0), "{}", p(&e, door, "width"));
     assert!(close(p(&e, door, "offset"), 600.0), "{}", p(&e, door, "offset"));
 }
+
+#[test]
+fn one_edit_in_a_large_document_touches_one_scene_item() {
+    // DL-DOC-9: a geometry-only edit commits and re-emits that entity only — no
+    // document copy in the report, no full scene, no reordering.
+    let mut e = Engine::default();
+    let commands: Vec<Command> = (0..10_000)
+        .map(|i| {
+            let (x, y) = (f64::from(i % 100) * 100.0, f64::from(i / 100) * 100.0);
+            Command::CreateEntity {
+                id: None,
+                entity: NewEntity {
+                    geometry: Some(Shape::Line(Segment::new(Point::new(x, y), Point::new(x + 80.0, y + 60.0)))),
+                    ..NewEntity::default()
+                },
+            }
+        })
+        .collect();
+    let ids = apply(&mut e, commands).unwrap().created;
+    let _ = e.full_scene();
+    assert!(e.take_scene_delta().is_empty());
+    let target = ids[4321];
+    let r = apply(
+        &mut e,
+        vec![Command::SetParams {
+            values: vec![ParamValue { entity: target, param: "b.x".into(), value: 12_345.0 }],
+            mode: EditMode::Exact,
+        }],
+    )
+    .unwrap();
+    assert_eq!(r.changed, vec![target]);
+    let d = e.take_scene_delta();
+    assert!(!d.reset && d.order.is_none() && d.removals.is_empty());
+    assert_eq!(d.upserts.iter().map(|i| i.id).collect::<Vec<_>>(), vec![target.0]);
+    // The encoded delta is a tiny fraction of the full scene.
+    let full = e.full_scene().encode().len();
+    assert!(d.encode().len() * 1000 < full, "delta {} vs full {full}", d.encode().len());
+}
