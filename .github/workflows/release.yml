@@ -14,6 +14,12 @@ on:
       ref:
         description: Commit, branch or tag to build (dry run, nothing is published)
         default: main
+      publish:
+        description: >-
+          Publish an existing GitHub Release (e.g. v1.0.0) to npm and crates.io after
+          credentials were added: its own tarballs, and crates checked byte-for-byte
+          against its .crate files. Empty = dry run of `ref`.
+        default: ""
 
 permissions:
   contents: read
@@ -29,6 +35,7 @@ env:
 jobs:
   verify:
     name: verify the commit and versions
+    if: github.event_name == 'push' || inputs.publish == ''
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
@@ -260,6 +267,16 @@ jobs:
           ref: ${{ needs.verify.outputs.sha }}
       - name: Install toolchain from rust-toolchain.toml
         run: rustup show active-toolchain || rustup toolchain install
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-packages
+          path: artifacts
+      - name: The crates to publish are the ones attached to the release
+        run: |
+          cargo package --workspace --locked --exclude dotloom-wasm --exclude dotloom-render-web
+          for f in artifacts/crates/*.crate; do
+            cmp "$f" "target/package/$(basename "$f")" || { echo "::error::$(basename "$f") differs from the release asset"; exit 1; }
+          done
       - name: Publish the workspace crates in dependency order
         if: env.HAS_TOKEN == 'true'
         env:
@@ -274,3 +291,75 @@ jobs:
           echo "crates.io: $state" >> "$GITHUB_STEP_SUMMARY"
           echo "crates.io: $state" > crates-status.txt
           gh release upload "$TAG" crates-status.txt --repo "$GITHUB_REPOSITORY" --clobber
+
+  publish-existing:
+    # Completes a partial release: the GitHub Release exists, the registries were
+    # skipped (no credentials) or failed part-way. Nothing is rebuilt for npm (the
+    # release's own tarballs are published); crates are repackaged from the tag and
+    # must be byte-identical to the release's .crate files. Versions already in a
+    # registry are skipped, never overwritten.
+    name: publish an existing release (${{ inputs.publish }})
+    if: github.event_name == 'workflow_dispatch' && inputs.publish != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      TAG: ${{ inputs.publish }}
+      HAS_NPM: ${{ secrets.NPM_TOKEN != '' }}
+      HAS_CARGO: ${{ secrets.CARGO_REGISTRY_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.publish }}
+      - name: Download and verify the release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p assets
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir assets --pattern '*.tgz' --pattern '*.crate' --pattern SHA256SUMS
+          (cd assets && sha256sum --check --ignore-missing SHA256SUMS)
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          state="not published: no NPM_TOKEN secret"
+          if [ "$HAS_NPM" = true ]; then
+            for f in assets/dotloom-sdk-*.tgz assets/dotloom-react-*.tgz; do
+              name=$(tar -xzOf "$f" package/package.json | jq -r '.name + "@" + .version')
+              if npm view "$name" version > /dev/null 2>&1; then echo "$name is already on npm"; else npm publish "$f" --provenance --access public; fi
+            done
+            state=published
+          fi
+          echo "npm: $state" | tee -a "$GITHUB_STEP_SUMMARY" > npm-status.txt
+      - name: Install toolchain from rust-toolchain.toml
+        if: env.HAS_CARGO == 'true'
+        run: rustup show active-toolchain || rustup toolchain install
+      - name: crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          state="not published: no CARGO_REGISTRY_TOKEN secret"
+          if [ "$HAS_CARGO" = true ]; then
+            cargo package --workspace --locked --exclude dotloom-wasm --exclude dotloom-render-web
+            for f in assets/*.crate; do
+              cmp "$f" "target/package/$(basename "$f")" || { echo "::error::$(basename "$f") differs from the release asset"; exit 1; }
+            done
+            version=$(grep -m1 '^version = ' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+            for c in dotloom-geometry dotloom-constraints dotloom-document dotloom-scene dotloom-engine dotloom-io dotloom-render dotloom-cli; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' -A "dotloom-release (github.com/TNYCL/dotloom)" "https://crates.io/api/v1/crates/$c/$version")
+              if [ "$code" = 200 ]; then echo "$c $version is already on crates.io"; else cargo publish --locked -p "$c"; fi
+            done
+            state=published
+          fi
+          echo "crates.io: $state" | tee -a "$GITHUB_STEP_SUMMARY" > crates-status.txt
+      - name: Record the result on the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" npm-status.txt crates-status.txt --repo "$GITHUB_REPOSITORY" --clobber
