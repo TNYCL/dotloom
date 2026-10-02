@@ -1,0 +1,24 @@
+{
+  "chrome-webgpu": {
+    "browser": "chromium 154.0.8037.58",
+    "edit10k": {
+      "commitP50Ms": 0.5,
+      "commitP95Ms": 0.8,
+      "deltaBytesMax": 120,
+      "fullSceneBytes": 1093028,
+      "itemsTessellatedMax": 1,
+      "chunksRebuiltMax": 1
+    }
+  },
+  "firefox-webgl2": {
+    "browser": "firefox 155.0",
+    "edit10k": {
+      "commitP50Ms": 1,
+      "commitP95Ms": 2,
+      "deltaBytesMax": 120,
+      "fullSceneBytes": 1093028,
+      "itemsTessellatedMax": 1,
+      "chunksRebuiltMax": 1
+    }
+  }
+}

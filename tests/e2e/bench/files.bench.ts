@@ -25,6 +25,7 @@ test('open 10k .dotl, open/close leak check, 100k stress with cancel', async ({ 
 
   const warmStartMs = await page.evaluate(() => window.bench.warmStart())
   await page.evaluate(() => window.bench.load(10_000))
+  const edits = await page.evaluate((n) => window.bench.editOne(n), 50)
   const saved = await page.evaluate(() => window.bench.save())
   const opens = []
   for (let i = 0; i < 5; i++) opens.push(await page.evaluate(() => window.bench.open()))
@@ -53,6 +54,15 @@ test('open 10k .dotl, open/close leak check, 100k stress with cancel', async ({ 
       engineWasmMiB: mib(opens[0]?.engineWasmBytes ?? 0),
       rendererWasmMiB: mib(opens[0]?.rendererWasmBytes ?? 0),
       gpuMiB: mib(opens[0]?.gpuBytes ?? 0),
+    },
+    // DL-DOC-9: one exact edit of one line in the 10k-object document.
+    edit10k: {
+      commitP50Ms: r1(median(edits.ms)),
+      commitP95Ms: r1(pct(edits.ms, 95)),
+      deltaBytesMax: Math.max(...edits.deltaBytes),
+      fullSceneBytes: edits.fullSceneBytes,
+      itemsTessellatedMax: Math.max(...edits.itemsTessellated),
+      chunksRebuiltMax: Math.max(...edits.chunksRebuilt),
     },
     leak: {
       cycles: cycles.heap.length,
@@ -83,6 +93,10 @@ test('open 10k .dotl, open/close leak check, 100k stress with cancel', async ({ 
   console.log(JSON.stringify(summary, null, 2))
 
   expect(summary.dotl10k.openMaxMs, 'open 10k-object .dotl (excl. WASM init)').toBeLessThanOrEqual(2000)
+  // A one-entity edit re-sends and re-tessellates that entity only.
+  expect(summary.edit10k.deltaBytesMax * 100).toBeLessThan(summary.edit10k.fullSceneBytes)
+  expect(summary.edit10k.itemsTessellatedMax).toBeLessThanOrEqual(1)
+  expect(summary.edit10k.chunksRebuiltMax).toBeLessThanOrEqual(1)
   expect(summary.stress100k.errors, '100k stress: no crash, loss or renderer error').toEqual([])
   expect(stress.cancel.started, 'the long solve was still running when cancelled').toBe(true)
   expect(stress.cancel.cancelled, `cancel result: ${stress.cancel.code}`).toBe(true)

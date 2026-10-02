@@ -64,7 +64,20 @@ interface Bench {
   cycles(n: number): Promise<{ heap: number[]; rendererWasm: number[]; ms: number[] }>
   /** 100k-shape stress: build, open, navigate, then cancel a long solve. */
   stress(count: number): Promise<StressResult>
+  /** DL-DOC-9: single geometry edits in the loaded document. */
+  editOne(count: number): Promise<EditResult>
   memory(): { usedJSHeapSize: number } | null
+}
+
+interface EditResult {
+  /** Commit round trip of one exact edit. */
+  ms: number[]
+  /** Encoded scene delta per edit, and the full scene for comparison. */
+  deltaBytes: number[]
+  fullSceneBytes: number
+  /** Renderer work for the frame after each edit. */
+  itemsTessellated: number[]
+  chunksRebuilt: number[]
 }
 
 interface StressResult {
@@ -89,6 +102,8 @@ const t0Page = performance.now()
 let editor: DotloomEditor | null = null
 let fitted: Camera | null = null
 let dotl: Uint8Array | null = null
+/** IDs created by `load`, in fixture order (index % 10 < 4 are lines). */
+let created: number[] = []
 
 function fixture(count: number, first: number, batch = 1000): Command[] {
   const cols = Math.ceil(Math.sqrt(count))
@@ -198,8 +213,10 @@ const bench: Bench = {
     if (!editor) throw new Error('not ready')
     const t0 = performance.now()
     let batches = 0
+    created = []
     for (let first = 0; first < count; first += 1000) {
-      await editor.engine.apply(fixture(count, first))
+      const r = await editor.engine.apply(fixture(count, first))
+      created.push(...r.created)
       batches += 1
     }
     await editor.viewport.fit(null, 16)
@@ -437,6 +454,38 @@ const bench: Bench = {
     ed.dispose()
     el.remove()
     return result
+  },
+
+  async editOne(count) {
+    if (!editor) throw new Error('not ready')
+    const { engine, viewport } = editor
+    let last = 0
+    const off = engine.on('scene', (m) => {
+      last = m.delta.byteLength
+    })
+    try {
+      await engine.requestFullScene()
+      const fullSceneBytes = last
+      viewport.frame()
+      const out: EditResult = { ms: [], deltaBytes: [], fullSceneBytes, itemsTessellated: [], chunksRebuilt: [] }
+      for (let k = 0; k < count; k++) {
+        const id = created[(k * 37 * 10) % created.length] ?? created[0]
+        if (id === undefined) break
+        const t0 = performance.now()
+        await engine.apply([
+          { op: 'setParams', values: [{ entity: id, param: 'b.x', value: 5000 + k }], mode: 'exact' },
+        ])
+        out.ms.push(performance.now() - t0)
+        out.deltaBytes.push(last)
+        viewport.requestRender()
+        const stats = viewport.frame()
+        out.itemsTessellated.push(stats?.itemsTessellated ?? -1)
+        out.chunksRebuilt.push(stats?.chunksRebuilt ?? -1)
+      }
+      return out
+    } finally {
+      off()
+    }
   },
 
   memory() {

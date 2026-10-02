@@ -149,6 +149,22 @@ variables) is sent with an `AbortSignal` that fires after 100 ms. In every run t
 request rejected with `cancelled`, the document revision was unchanged, no renderer
 loss or engine crash was reported, and a hit-test right after answered in ≤ 0.5 ms.
 
+### Single edits in a large document (DL-DOC-9)
+
+50 exact edits of one line each in the loaded 10 000-shape document
+(`files.bench.ts`, `edit10k`):
+
+| Browser / backend | commit p50 / p95 | scene delta | renderer work per edit |
+|---|---|---|---|
+| Chrome 154 WebGPU | 0.5 / 0.8 ms | ≤ 120 bytes (full scene 1 093 028 bytes) | 1 item tessellated, 1 chunk rebuilt |
+| Firefox 155 WebGL2 | 1 / 2 ms (1 ms timer) | ≤ 120 bytes | 1 item tessellated, 1 chunk rebuilt |
+
+The engine commits through a copy-on-write overlay and re-emits only changed
+entities (`crates/engine/tests/engine.rs`,
+`one_edit_in_a_large_document_touches_one_scene_item`); the renderer re-tessellates
+only the changed item and rebuilds only its chunk (`crates/render/src/cache.rs`
+tests). Raw: `perf/2026-10-02/edit10k.json`.
+
 ### DL-PERF-7: repeated open/close
 
 20 cycles of: create an editor (engine worker + renderer), open the 10 000-shape
