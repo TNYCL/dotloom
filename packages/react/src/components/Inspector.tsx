@@ -7,6 +7,7 @@ import {
   type EntityInfo,
   type EntityTypeDef,
   formatAngle,
+  formatDuration,
   formatLength,
   LENGTH_UNITS,
   type LengthUnit,
@@ -14,6 +15,7 @@ import {
   type PropDef,
   type PropValue,
   parseAngle,
+  parseDuration,
   parseLength,
   type Transaction,
 } from '@dotloom/sdk'
@@ -35,19 +37,20 @@ function dimOf(name: string, def: EntityTypeDef | undefined): DimName {
 export function formatValue(v: number, dim: DimName, unit: LengthUnit): string {
   if (dim === 'length') return formatLength(v, unit, undefined, false)
   if (dim === 'angle') return formatAngle(v).replace('°', '')
-  if (dim === 'time') return String(Math.round(v * 1000) / 1000)
+  if (dim === 'time') return formatDuration(v)
   return String(Math.round(v * 1e6) / 1e6)
 }
 
 export function parseValue(text: string, dim: DimName, unit: LengthUnit): number | null {
   if (dim === 'length') return parseLength(text, unit)
   if (dim === 'angle') return parseAngle(text)
+  if (dim === 'time') return parseDuration(text)
   const v = Number(text.trim().replace(',', '.'))
   return Number.isFinite(v) ? v : null
 }
 
 function unitLabel(dim: DimName, unit: LengthUnit): string {
-  return dim === 'length' ? LENGTH_UNITS[unit].symbol : dim === 'angle' ? '°' : dim === 'time' ? 's' : ''
+  return dim === 'length' ? LENGTH_UNITS[unit].symbol : dim === 'angle' ? '°' : ''
 }
 
 function paramRef(entity: EntityId, name: string, builtin: boolean): ParamRef {

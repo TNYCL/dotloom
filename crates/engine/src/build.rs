@@ -86,6 +86,8 @@ pub struct Builder<'a> {
     /// First (strict) attempt: parameters of edited entities that are not edited
     /// themselves, and `high`-stay properties, are held fixed.
     pub pin: bool,
+    /// Make drag targets required (exact) instead of strong preferences.
+    pub hard_targets: bool,
     /// Parameters edited directly (never pinned).
     pub edited_params: std::collections::BTreeSet<(EntityId, String)>,
     next_synthetic: u64,
@@ -134,6 +136,7 @@ impl<'a> Builder<'a> {
             scales,
             edited: std::collections::BTreeSet::new(),
             pin: false,
+            hard_targets: false,
             edited_params: std::collections::BTreeSet::new(),
             next_synthetic: 0,
         }
@@ -668,7 +671,8 @@ impl<'a> Builder<'a> {
                 var.fixed = false;
             }
         }
-        let mut rule = Rule::new(SYNTHETIC, rules::fix_point(&p, (to.x, to.y), self.scales.length), Strength::Strong);
+        let strength = if self.hard_targets { Strength::Required } else { Strength::Strong };
+        let mut rule = Rule::new(SYNTHETIC, rules::fix_point(&p, (to.x, to.y), self.scales.length), strength);
         rule.label = format!("drag {id}.{anchor}");
         rule.source = "drag".into();
         rule.entities = vec![id.0];

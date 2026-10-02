@@ -719,3 +719,45 @@ fn constraint_on_unknown_anchor_is_rejected() {
     assert!(matches!(r, Err(EngineError::Command { .. })));
     let _ = Constraint::new(dotloom_engine::document::ConstraintId(1), RuleSpec::Radius { circle: a, value: 1.0 });
 }
+
+#[test]
+fn feasible_drag_targets_are_met_exactly() {
+    // Shortening a wall below its door's extent: the wall end lands exactly on the
+    // pointer and the door slides (low stay) instead of shrinking (high stay).
+    let mut e = Engine::default();
+    for d in floorplan_defs() {
+        e.register_type(d, "floorplan").unwrap();
+    }
+    let wall = create(
+        &mut e,
+        NewEntity {
+            type_id: Some(TypeId::new("floorplan.wall").unwrap()),
+            props: [
+                ("start".to_owned(), PropValue::Point(Point::ORIGIN)),
+                ("end".to_owned(), PropValue::Point(Point::new(4000.0, 0.0))),
+            ]
+            .into(),
+            ..NewEntity::default()
+        },
+    );
+    let door = create(
+        &mut e,
+        NewEntity {
+            type_id: Some(TypeId::new("floorplan.door").unwrap()),
+            props: [
+                ("host".to_owned(), PropValue::Ref(RefValue { entity: wall })),
+                ("offset".to_owned(), PropValue::Number(1000.0)),
+            ]
+            .into(),
+            ..NewEntity::default()
+        },
+    );
+    e.begin_drag(DragSpec::Anchor { entity: wall, anchor: "end".into() }).unwrap();
+    let (preview, _) = e.drag_to(Point::new(1500.0, 0.0)).unwrap();
+    assert!(preview.accepted);
+    e.end_drag(true).unwrap();
+    let end = e.evaluate(wall).unwrap().anchor("end").unwrap();
+    assert!(end.distance(Point::new(1500.0, 0.0)) < 1e-6, "{end:?}");
+    assert!(close(p(&e, door, "width"), 900.0), "{}", p(&e, door, "width"));
+    assert!(close(p(&e, door, "offset"), 600.0), "{}", p(&e, door, "offset"));
+}

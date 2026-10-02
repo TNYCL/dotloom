@@ -123,19 +123,30 @@ pub(crate) fn plan(
     prefer_all: bool,
     pin: bool,
 ) -> Option<(Problem, Plan)> {
-    plan_with(ov, deps, registry, notes, prefer_all, None, pin)
+    plan_with(ov, deps, registry, notes, prefer_all, Attempt { target: None, pin, hard_target: false })
 }
 
 /// [`plan`] with an optional anchor drag target `(entity, anchor, world point)`.
+/// How one solve attempt is set up.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Attempt<'a> {
+    /// Dragged anchor and its target.
+    pub target: Option<(EntityId, &'a str, dotloom_geometry::Point)>,
+    /// Hold the rest of edited entities and `high`-stay properties fixed.
+    pub pin: bool,
+    /// Make the drag target required instead of a strong preference.
+    pub hard_target: bool,
+}
+
 pub(crate) fn plan_with(
     ov: &Overlay<'_>,
     deps: &DepIndex,
     registry: &Registry,
     notes: &ApplyNotes,
     prefer_all: bool,
-    anchor_target: Option<(EntityId, &str, dotloom_geometry::Point)>,
-    pin: bool,
+    attempt: Attempt<'_>,
 ) -> Option<(Problem, Plan)> {
+    let Attempt { target: anchor_target, pin, hard_target } = attempt;
     let mut seeds: BTreeSet<EntityId> = notes.touched.iter().copied().filter(|id| ov.entity(*id).is_some()).collect();
     for cid in &notes.touched_constraints {
         if let Some(c) = ov.constraint(*cid) {
@@ -155,6 +166,7 @@ pub(crate) fn plan_with(
     b.edited = notes.edits.iter().map(|e| e.0).chain(anchor_target.map(|a| a.0)).collect();
     b.edited_params = notes.edits.iter().map(|e| (e.0, e.1.clone())).collect();
     b.pin = pin;
+    b.hard_targets = hard_target;
     for id in &cl.entities {
         b.add_entity_params(*id);
     }

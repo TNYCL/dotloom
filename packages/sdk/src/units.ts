@@ -73,3 +73,35 @@ export function parseAngle(text: string): number | null {
   if (!Number.isFinite(v)) return null
   return m[2]?.toLowerCase() === 'rad' ? v : (v * Math.PI) / 180
 }
+
+/** Format seconds as `2h 30m`, `45m`, `30s` (zero parts omitted). */
+export function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds)) return '—'
+  const neg = seconds < 0
+  let s = Math.round(Math.abs(seconds))
+  const h = Math.floor(s / 3600)
+  s -= h * 3600
+  const m = Math.floor(s / 60)
+  s -= m * 60
+  const parts = [h ? `${h}h` : '', m ? `${m}m` : '', s || (!h && !m) ? `${s}s` : ''].filter(Boolean)
+  return (neg ? '-' : '') + parts.join(' ')
+}
+
+/** Parse `90` (seconds), `1.5h`, `2h 30m`, `45m`, `10s`, `1,5 h` into seconds. */
+export function parseDuration(text: string): number | null {
+  const t = text.trim().toLowerCase().replace(/,/g, '.')
+  if (!t) return null
+  if (/^[+-]?\d+(\.\d+)?$/.test(t)) return Number(t)
+  const re = /([+-]?\d+(?:\.\d+)?)\s*(hours?|h|minutes?|min|m|seconds?|sec|s)\s*/gy
+  let total = 0
+  let any = false
+  for (const m of t.matchAll(re)) {
+    any = true
+    const v = Number(m[1])
+    const u = m[2] ?? 's'
+    total += u.startsWith('h') ? v * 3600 : u.startsWith('m') ? v * 60 : v
+  }
+  // The sticky regex must consume the whole string.
+  const consumed = [...t.matchAll(re)].map((m) => m[0]).join('')
+  return any && consumed.length === t.length ? total : null
+}

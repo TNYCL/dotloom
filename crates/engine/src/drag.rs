@@ -146,25 +146,33 @@ impl Engine {
         };
         let opts = preview_options(self.options.solve);
         let target = anchor_target.as_ref().map(|(e, a, p)| (*e, a.as_str(), *p));
-        // Pinned attempt first; relaxed attempt when it fails or misses the target.
+        // 1. Pinned, exact target: the dragged anchor lands on the pointer while the
+        //    rest of the dragged entity and `high`-stay properties keep their values.
+        // 2. Unpinned, exact target: everything may adapt (by stay priority).
+        // 3. Relaxed: the target becomes a preference — nearest feasible position.
         let mut chosen = None;
-        for pin in [true, false] {
-            let Some((problem, plan)) = solve::plan_with(&ov, &self.deps, &self.registry, &notes, true, target, pin)
-            else {
+        let attempts: &[(bool, bool)] = if target.is_some() {
+            &[(true, true), (false, true), (false, false)]
+        } else {
+            &[(true, false), (false, false)]
+        };
+        for (i, &(pin, hard)) in attempts.iter().enumerate() {
+            let attempt = solve::Attempt { target, pin, hard_target: hard };
+            let Some((problem, plan)) = solve::plan_with(&ov, &self.deps, &self.registry, &notes, true, attempt) else {
                 break;
             };
             let sol = SolveJob::new(problem.clone(), opts).into_solution();
             let good = sol.accepted() && solve::targets_met(&problem, &plan, &sol);
-            if pin && !good {
-                if sol.accepted() {
+            let last = i + 1 == attempts.len();
+            if good || last {
+                if sol.accepted() || chosen.is_none() {
                     chosen = Some((sol, problem, plan));
                 }
-                continue;
+                break;
             }
-            if sol.accepted() || chosen.is_none() {
+            if sol.accepted() && chosen.is_none() {
                 chosen = Some((sol, problem, plan));
             }
-            break;
         }
         let (accepted, status, diagnostics) = match chosen {
             None => (true, Status::Solved, Vec::new()),
