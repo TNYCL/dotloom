@@ -1,0 +1,30 @@
+[package]
+name = "dotloom-io"
+description = "Dotloom file formats: .dotl project container, SVG and ASCII DXF import/export with loss reports"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme = "README.md"
+
+[dependencies]
+dotloom-geometry.workspace = true
+dotloom-document.workspace = true
+dotloom-engine.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+miniz_oxide = "0.9.1"
+sha2 = "0.11.0"
+roxmltree = "0.21.1"
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

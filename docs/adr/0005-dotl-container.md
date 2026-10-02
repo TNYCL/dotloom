@@ -22,7 +22,7 @@ assets/<sha256>.<ext>    binary assets referenced from document.json
 - Not stored: renderer caches, WASM runtime state, solver iterations, undo history
   (history is session-only).
 - Reader limits (callers may lower them): 256 MiB total uncompressed, 64 MiB per
-  entry, 10 000 entries, compression ratio ≤ 200, no absolute or `..` paths, no
+  entry, 10 000 entries, compression ratio ≤ 1024 (deflate's practical maximum), no absolute or `..` paths, no
   duplicate names, UTF-8 names only, JSON nesting ≤ 128, ≤ 1 000 000 entities.
 - Native save writes a temp file in the target directory, flushes it, then atomically
   replaces the target; on failure the old file is untouched.

@@ -202,6 +202,7 @@ fn evaluate_builtin(e: &Entity) -> Evaluated {
     };
     let t = e.transform;
     match g.transform(t, TransformPolicy::Convert) {
+        Ok(Shape::Text(tx)) => ev.drawables.push(Drawable::Text(tx, PrimStyle::default())),
         Ok(s) => ev.drawables.push(Drawable::Shape(s, PrimStyle::default())),
         Err(err) => ev.error = Some(err.to_string()),
     }
