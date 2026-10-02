@@ -95,10 +95,8 @@ fn creating_with_explicit_props_adapts_defaults_but_not_explicit_values() {
     // Only the width is given: the default compartments adapt to it.
     let mut props = std::collections::BTreeMap::new();
     props.insert("width".to_string(), PropValue::Number(1200.0));
-    let s = create(
-        &mut e,
-        NewEntity { type_id: Some(TypeId::new("shelf.unit").unwrap()), props, ..NewEntity::default() },
-    );
+    let s =
+        create(&mut e, NewEntity { type_id: Some(TypeId::new("shelf.unit").unwrap()), props, ..NewEntity::default() });
     let (w1, w2, w3) = (p(&e, s, "w1"), p(&e, s, "w2"), p(&e, s, "w3"));
     assert!(close(p(&e, s, "width"), 1200.0));
     assert!(close(w1 + w2 + w3, 1200.0) && close(w2, w3) && w2 >= 400.0 - 1e-6, "{w1} {w2} {w3}");
