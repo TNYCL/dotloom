@@ -7,3 +7,4 @@
 *.zip binary
 # Fixtures are kept byte-for-byte (line endings matter for parsers).
 tests/fixtures/** -text
+crates/render/assets/*.ttf binary

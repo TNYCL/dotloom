@@ -21,7 +21,12 @@ dotloom-engine.workspace = true
 dotloom-io.workspace = true
 serde_json.workspace = true
 clap = { version = "4.6.7", features = ["derive"] }
+dotloom-render = { workspace = true, optional = true }
 
+[features]
+default = []
+## PNG export through the wgpu renderer (needs a GPU or software adapter at run time).
+png = ["dep:dotloom-render", "dotloom-render/png"]
 
 [dev-dependencies]
 dotloom-io.workspace = true

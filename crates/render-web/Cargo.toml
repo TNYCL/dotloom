@@ -1,0 +1,27 @@
+[package]
+name = "dotloom-render-web"
+description = "Browser binding of the Dotloom renderer (WebGPU and WebGL2 through wgpu)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+dotloom-render.workspace = true
+wgpu = { version = "30.0.1", default-features = false, features = ["wgsl", "std", "webgpu", "webgl"] }
+wasm-bindgen = "=0.2.129"
+wasm-bindgen-futures = "0.4.79"
+js-sys = "0.3.106"
+web-sys = { version = "0.3.106", features = ["HtmlCanvasElement", "OffscreenCanvas"] }
+serde.workspace = true
+serde_json.workspace = true
+console_error_panic_hook = "0.1.7"
+
+[lints]
+workspace = true
