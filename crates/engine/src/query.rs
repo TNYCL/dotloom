@@ -236,7 +236,7 @@ impl Engine {
                         point: a.point,
                         kind,
                         entity: Some(*id),
-                        anchor: Some(a.name.clone()),
+                        anchor: Some(a.name.to_string()),
                         other: None,
                     });
                 }

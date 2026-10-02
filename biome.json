@@ -18,7 +18,8 @@
       "!**/.vitepress/cache",
       "!**/.vitepress/dist",
       "!tests/fixtures",
-      "!bench"
+      "!bench",
+      "!docs/perf"
     ]
   },
   "formatter": {

@@ -119,6 +119,18 @@ type WebRenderer = import('./wasm/render/dotloom_render_web.js').WebRenderer
 
 export const RENDER_PROTOCOL = 1
 
+/** Yield to the event loop for one task (MessageChannel: no timer clamping). */
+function yieldTask(): Promise<void> {
+  return new Promise((resolve) => {
+    const ch = new MessageChannel()
+    ch.port1.onmessage = () => {
+      ch.port1.close()
+      resolve()
+    }
+    ch.port2.postMessage(null)
+  })
+}
+
 let modulePromise: Promise<RenderModule> | null = null
 
 /** Load (once) the renderer WebAssembly module. */
@@ -619,6 +631,30 @@ export class Viewport implements ViewportLike {
         }, 100)
       }
       return null
+    }
+  }
+
+  /**
+   * Renderer memory: WebAssembly linear memory (high-water mark, shared by all
+   * viewports of the page) and GPU buffers/textures of this viewport (last frame).
+   */
+  memoryStats(): { wasmBytes: number; gpuBytes: number } {
+    return { wasmBytes: this.mod.memoryBytes(), gpuBytes: this.lastStats?.gpuBytes ?? 0 }
+  }
+
+  /**
+   * Resolve once the GPU has finished every frame submitted so far (frame-time
+   * measurements: input → GPU done). Rendering never needs it. Resolves early if
+   * the renderer is lost, replaced or disposed, or after `timeoutMs`.
+   */
+  async gpuIdle(timeoutMs = 2000): Promise<void> {
+    const r = this.renderer
+    if (!r || this.lostState || this.disposed) return
+    r.markWork()
+    const t0 = performance.now()
+    while (!r.workDone()) {
+      if (r !== this.renderer || this.lostState || this.disposed || performance.now() - t0 > timeoutMs) return
+      await yieldTask()
     }
   }
 

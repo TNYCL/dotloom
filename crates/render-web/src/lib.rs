@@ -15,6 +15,7 @@
 
 #[cfg(target_arch = "wasm32")]
 mod web {
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
 
     use dotloom_render::scene::Overlay;
@@ -54,6 +55,14 @@ mod web {
         serde_json::to_string(&t).ok()
     }
 
+    /// Size of the renderer's WebAssembly linear memory in bytes (the high-water
+    /// mark: linear memory never shrinks). GPU memory is reported per frame.
+    #[wasm_bindgen(js_name = memoryBytes)]
+    #[must_use]
+    pub fn memory_bytes() -> f64 {
+        core::arch::wasm32::memory_size::<0>() as f64 * 65536.0
+    }
+
     /// Binding protocol version.
     #[wasm_bindgen(js_name = renderProtocol)]
     #[must_use]
@@ -90,6 +99,8 @@ mod web {
         info: serde_json::Value,
         lost: Arc<Mutex<Option<String>>>,
         errors: Arc<Mutex<Vec<String>>>,
+        /// Completion flag of the work tracked by `markWork`.
+        work: Option<Arc<AtomicBool>>,
     }
 
     impl core::fmt::Debug for WebRenderer {
@@ -230,6 +241,7 @@ mod web {
                 info,
                 lost,
                 errors,
+                work: None,
             })
         }
 
@@ -389,6 +401,34 @@ mod web {
                 return None;
             }
             Some(core::mem::take(&mut *v).join("; "))
+        }
+
+        /// Track completion of all GPU work submitted so far; poll with
+        /// [`WebRenderer::work_done`]. Used for frame-time measurements (input → GPU
+        /// done), not needed for rendering.
+        ///
+        /// # Errors
+        /// `disposed` after [`WebRenderer::dispose`].
+        #[wasm_bindgen(js_name = markWork)]
+        pub fn mark_work(&mut self) -> Result<(), JsValue> {
+            let flag = Arc::new(AtomicBool::new(false));
+            let done = Arc::clone(&flag);
+            self.r()?.queue().on_submitted_work_done(move || done.store(true, Ordering::Release));
+            self.work = Some(flag);
+            Ok(())
+        }
+
+        /// Whether the work tracked by [`WebRenderer::mark_work`] has completed. Polls
+        /// the device (WebGL fences); WebGPU completes from the browser event loop, so
+        /// callers yield to it between polls.
+        ///
+        /// # Errors
+        /// `disposed` after [`WebRenderer::dispose`].
+        #[wasm_bindgen(js_name = workDone)]
+        pub fn work_done(&mut self) -> Result<bool, JsValue> {
+            // Poll errors (device lost) surface through `lost()` and `render()`.
+            let _ = self.r()?.device().poll(wgpu::PollType::Poll);
+            Ok(self.work.as_ref().is_none_or(|w| w.load(Ordering::Acquire)))
         }
 
         /// Why the device was lost, if it was.

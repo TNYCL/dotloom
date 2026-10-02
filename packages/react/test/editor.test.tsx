@@ -133,6 +133,31 @@ describe('shelf configurator flow through the inspector', () => {
     expect(screen.getByRole('button', { name: 'Lock value: Left compartment' })).toBeTruthy()
   })
 
+  it('a value arriving while typing does not overwrite the draft; Escape restores', async () => {
+    const { h, id } = await shelfSetup()
+    ui(h, <Inspector />)
+    await settle()
+    const width = (await screen.findByLabelText('Inner width')) as HTMLInputElement
+    expect(width.value).toBe('180')
+    // The user starts typing; meanwhile the width changes elsewhere (another tool,
+    // a collaborator, a late solve).
+    fireEvent.change(width, { target: { value: '15' } })
+    await h.engine.apply([{ op: 'setParams', values: [{ entity: id, param: 'width', value: 1700 }], mode: 'exact' }])
+    await settle()
+    expect(width.value).toBe('15')
+    // Escape discards the draft and shows the engine value.
+    fireEvent.keyDown(width, { key: 'Escape' })
+    await settle()
+    expect(width.value).toBe('170')
+    // After a submit, engine updates show again.
+    fireEvent.change(width, { target: { value: '160' } })
+    fireEvent.keyDown(width, { key: 'Enter' })
+    await settle()
+    await h.engine.apply([{ op: 'setParams', values: [{ entity: id, param: 'width', value: 1500 }], mode: 'exact' }])
+    await settle()
+    await waitFor(() => expect(width.value).toBe('150'))
+  })
+
   it('invalid input shows a message without touching the document; Turkish UI', async () => {
     const { h } = await shelfSetup()
     ui(h, <Inspector />, 'tr')

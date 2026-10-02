@@ -29,4 +29,4 @@ tests/e2e/playwright-report/
 apps/docs/public/api/
 apps/docs/.vitepress/dist/
 apps/docs/.vitepress/cache/
-/bench/*.json
+/bench/

@@ -271,9 +271,8 @@ pub fn read_dotl(bytes: &[u8], limits: &DotlLimits) -> Result<(DotlFile, LoadRep
         return Err(DotlError::FutureFormat { found: manifest.format_version, supported: FORMAT_VERSION });
     }
     let doc_text = get("document.json")?;
-    let doc_value: Value = serde_json::from_slice(&doc_text).map_err(|e| DotlError::Document(e.to_string()))?;
     let (document, migrations) =
-        Document::from_json_value(doc_value, &limits.document).map_err(|e| DotlError::Document(e.to_string()))?;
+        Document::from_json_slice(&doc_text, &limits.document).map_err(|e| DotlError::Document(e.to_string()))?;
     let view = match archive.entry("view.json") {
         Some(e) => Some(
             serde_json::from_slice(&archive.read(e)?).map_err(|x| DotlError::Manifest(format!("view.json: {x}")))?,

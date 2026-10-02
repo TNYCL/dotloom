@@ -1279,7 +1279,7 @@ impl Applier<'_, '_> {
             .filter(|a| {
                 after.anchor(&a.name).is_none_or(|p| p.distance(a.point) > 1e-9 * (1.0 + a.point.to_vector().length()))
             })
-            .map(|a| a.name.clone())
+            .map(|a| a.name.to_string())
             .collect();
         for cid in self.ov.constraint_ids() {
             let Some(c) = self.ov.constraint(cid) else { continue };

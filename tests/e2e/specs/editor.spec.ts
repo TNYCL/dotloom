@@ -158,18 +158,22 @@ test('worker crash is reported and a new engine reopens the saved document', asy
       () => 'ok',
       (e: { code?: string }) => e.code,
     )
-    // Reopen in a fresh engine (new worker).
+    // Reopen in a fresh engine (new worker), twice from the same array: the SDK
+    // copies caller-owned bytes instead of transferring (detaching) them.
     const fresh = await window.dl.sdk.DotloomEngine.create()
+    const size = saved.byteLength
+    await fresh.load(saved)
     await fresh.load(saved)
     const n = (await fresh.documentJson()).entities.length
     fresh.dispose()
-    return { code, message, after, crashed: editor.engine.isCrashed, n }
+    return { code, message, after, crashed: editor.engine.isCrashed, n, kept: saved.byteLength === size && size > 0 }
   })
   expect(r.code).toBe('crashed')
   expect(r.crashed).toBe(true)
   expect(r.after).toBe('crashed')
   expect(r.message.length).toBeGreaterThan(0)
   expect(r.n).toBe(1)
+  expect(r.kept).toBe(true)
 })
 
 test('stale revisions are rejected through the worker', async ({ page }) => {

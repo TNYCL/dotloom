@@ -338,7 +338,7 @@ fn evaluate_plugin(ctx: Ctx<'_>, e: &Entity, def: &CompiledType, depth: usize) -
     let t = e.transform;
     for (name, kind, c) in &def.anchors {
         match eval_point(ctx, e, def, c, depth) {
-            Some(p) => ev.anchors.push(Anchor { name: name.clone(), kind: *kind, point: t.apply(p) }),
+            Some(p) => ev.anchors.push(Anchor { name: name.clone().into(), kind: *kind, point: t.apply(p) }),
             None => ev.error = Some(format!("anchor `{name}` cannot be evaluated")),
         }
     }

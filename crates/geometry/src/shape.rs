@@ -1,6 +1,7 @@
 //! Canonical shape model.
 
 use core::f64::consts::{FRAC_PI_2, TAU};
+use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
 
@@ -371,7 +372,9 @@ pub enum AnchorKind {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Anchor {
     /// Stable name within the shape (`start`, `end`, `mid`, `center`, `v3`, ...).
-    pub name: String,
+    /// Built-in names are static (no allocation per anchor: engines cache the
+    /// anchors of every entity).
+    pub name: Cow<'static, str>,
     /// Kind.
     pub kind: AnchorKind,
     /// Position.
@@ -379,8 +382,68 @@ pub struct Anchor {
 }
 
 impl Anchor {
-    fn new(name: impl Into<String>, kind: AnchorKind, point: Point) -> Self {
+    fn new(name: impl Into<Cow<'static, str>>, kind: AnchorKind, point: Point) -> Self {
         Self { name: name.into(), kind, point }
+    }
+}
+
+/// `prefix{i}` names (`v0`, `m3`, `c1`, …); the first 32 of each are static.
+fn indexed(prefix: char, i: usize) -> Cow<'static, str> {
+    const N: usize = 32;
+    macro_rules! table {
+        ($p:literal) => {
+            [
+                concat!($p, "0"),
+                concat!($p, "1"),
+                concat!($p, "2"),
+                concat!($p, "3"),
+                concat!($p, "4"),
+                concat!($p, "5"),
+                concat!($p, "6"),
+                concat!($p, "7"),
+                concat!($p, "8"),
+                concat!($p, "9"),
+                concat!($p, "10"),
+                concat!($p, "11"),
+                concat!($p, "12"),
+                concat!($p, "13"),
+                concat!($p, "14"),
+                concat!($p, "15"),
+                concat!($p, "16"),
+                concat!($p, "17"),
+                concat!($p, "18"),
+                concat!($p, "19"),
+                concat!($p, "20"),
+                concat!($p, "21"),
+                concat!($p, "22"),
+                concat!($p, "23"),
+                concat!($p, "24"),
+                concat!($p, "25"),
+                concat!($p, "26"),
+                concat!($p, "27"),
+                concat!($p, "28"),
+                concat!($p, "29"),
+                concat!($p, "30"),
+                concat!($p, "31"),
+            ]
+        };
+    }
+    static V: [&str; N] = table!("v");
+    static M: [&str; N] = table!("m");
+    static C: [&str; N] = table!("c");
+    static E: [&str; N] = table!("e");
+    static Q: [&str; N] = table!("q");
+    let table: Option<&[&'static str; N]> = match prefix {
+        'v' => Some(&V),
+        'm' => Some(&M),
+        'c' => Some(&C),
+        'e' => Some(&E),
+        'q' => Some(&Q),
+        _ => None,
+    };
+    match table.and_then(|t| t.get(i)) {
+        Some(name) => Cow::Borrowed(name),
+        None => Cow::Owned(format!("{prefix}{i}")),
     }
 }
 
@@ -769,10 +832,10 @@ impl Shape {
             ],
             Self::Polyline(p) => {
                 let mut v: Vec<Anchor> =
-                    p.points.iter().enumerate().map(|(i, q)| Anchor::new(format!("v{i}"), K::Vertex, *q)).collect();
+                    p.points.iter().enumerate().map(|(i, q)| Anchor::new(indexed('v', i), K::Vertex, *q)).collect();
                 for i in 0..p.segment_count() {
                     if let Some(c) = p.segment(i) {
-                        v.push(Anchor::new(format!("m{i}"), K::Midpoint, c.point_at(0.5)));
+                        v.push(Anchor::new(indexed('m', i), K::Midpoint, c.point_at(0.5)));
                     }
                 }
                 if !p.closed {
@@ -788,9 +851,9 @@ impl Shape {
             Self::Rect(r) => {
                 let c = r.corners();
                 let mut v: Vec<Anchor> =
-                    c.iter().enumerate().map(|(i, q)| Anchor::new(format!("c{i}"), K::Corner, *q)).collect();
+                    c.iter().enumerate().map(|(i, q)| Anchor::new(indexed('c', i), K::Corner, *q)).collect();
                 for i in 0..4 {
-                    v.push(Anchor::new(format!("e{i}"), K::Midpoint, c[i].midpoint(c[(i + 1) % 4])));
+                    v.push(Anchor::new(indexed('e', i), K::Midpoint, c[i].midpoint(c[(i + 1) % 4])));
                 }
                 v.push(Anchor::new("center", K::Center, r.center()));
                 v
@@ -798,7 +861,11 @@ impl Shape {
             Self::Circle(c) => {
                 let mut v = vec![Anchor::new("center", K::Center, c.center)];
                 for i in 0..4u8 {
-                    v.push(Anchor::new(format!("q{i}"), K::Quadrant, c.point_at_angle(f64::from(i) * FRAC_PI_2)));
+                    v.push(Anchor::new(
+                        indexed('q', usize::from(i)),
+                        K::Quadrant,
+                        c.point_at_angle(f64::from(i) * FRAC_PI_2),
+                    ));
                 }
                 v
             }
@@ -811,7 +878,7 @@ impl Shape {
             Self::Path(p) => {
                 let pts = p.on_curve_points();
                 let mut v: Vec<Anchor> =
-                    pts.iter().enumerate().map(|(i, q)| Anchor::new(format!("v{i}"), K::Vertex, *q)).collect();
+                    pts.iter().enumerate().map(|(i, q)| Anchor::new(indexed('v', i), K::Vertex, *q)).collect();
                 if let Some(f) = pts.first() {
                     v.push(Anchor::new("start", K::Endpoint, *f));
                 }
@@ -822,7 +889,7 @@ impl Shape {
             }
             Self::Polygon(p) => {
                 let mut v: Vec<Anchor> =
-                    p.outer.iter().enumerate().map(|(i, q)| Anchor::new(format!("v{i}"), K::Vertex, *q)).collect();
+                    p.outer.iter().enumerate().map(|(i, q)| Anchor::new(indexed('v', i), K::Vertex, *q)).collect();
                 if let Some(c) = ring_centroid(&p.outer) {
                     v.push(Anchor::new("centroid", K::Centroid, c));
                 }

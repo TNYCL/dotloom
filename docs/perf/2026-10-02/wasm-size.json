@@ -1,0 +1,14 @@
+{
+  "engine": {
+    "file": "packages/sdk/dist/wasm/engine/dotloom_wasm_bg.wasm",
+    "rawKiB": 2154.4,
+    "gzipKiB": 655.8,
+    "brotliKiB": 469.4
+  },
+  "renderer": {
+    "file": "packages/sdk/dist/wasm/render/dotloom_render_web_bg.wasm",
+    "rawKiB": 2813.4,
+    "gzipKiB": 1014.3,
+    "brotliKiB": 769.6
+  }
+}
