@@ -203,19 +203,23 @@ WebGL2 (naga), the tessellator and the embedded font subset.
   4 MiB CPU copy in the renderer's WASM memory.
 - Peak memory (WebAssembly linear memory never shrinks, so its size after an
   operation is the operation's high-water mark): opening the 10 000-object file —
-  engine 21.8 MiB, renderer 32.4–34.8 MiB, GPU buffers 2.6 MiB; opening the 100 000
-  object file — engine 199.6 MiB, renderer 102.4–119.7 MiB, GPU 26 MiB.
+  engine 19.4 MiB, renderer 27.1 MiB, GPU buffers 2.6 MiB; opening the 100 000
+  object file — engine 161.3 MiB, renderer 97.2 MiB, GPU 26 MiB (Chrome WebGPU, after
+  the evaluation-cache change below; `docs/perf/2026-10-02/files-chrome-webgpu-after-eval-shrink.json`).
+  Before it: engine 21.8 / 199.6 MiB, renderer 32.4–34.8 / 102.4–119.7 MiB.
 - Native heap profile of opening 100 000 objects
   (`cargo run --release -p dotloom-wasm --example memory_profile`): document 661
-  B/entity, engine state after load 2023 B/entity (document, evaluation cache with
+  B/entity, engine state after load 1495 B/entity (document, evaluation cache with
   world-space anchors and drawables, spatial and dependency indexes), parse peak
-  155 MiB, overall peak 242 MiB (full scene encoding for the renderer).
+  155 MiB, overall peak 192 MiB (full scene encoding for the renderer).
 
 Memory work done while measuring: documents of the current schema are deserialized
 directly instead of through a JSON tree (parse peak 214 → 155 MiB at 100 000
 objects), the WASM binding moves the opened document into the engine instead of
-keeping a second copy (engine peak in the browser 265 → 200 MiB), and built-in anchor
-names are static strings.
+keeping a second copy (engine peak in the browser 265 → 200 MiB), built-in anchor
+names are static strings, and cached evaluations drop the spare `Vec` capacity
+(a single drawable kept room for four): 2023 → 1495 B/entity, browser engine peak
+200 → 161 MiB at 100 000 objects.
 
 ### Incremental linear drags (DL-SOLVE-4)
 

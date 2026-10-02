@@ -562,7 +562,15 @@ pub struct EvalCache {
 impl EvalCache {
     /// Cached or fresh evaluation.
     pub fn get(&mut self, ctx: Ctx<'_>, id: EntityId) -> &Evaluated {
-        self.map.entry(id).or_insert_with(|| evaluate(ctx, id))
+        self.map.entry(id).or_insert_with(|| {
+            // Cached for the document's lifetime: drop the spare capacity that
+            // `Vec` growth leaves behind (a single drawable would otherwise keep room
+            // for four, ~400 bytes per simple entity).
+            let mut ev = evaluate(ctx, id);
+            ev.anchors.shrink_to_fit();
+            ev.drawables.shrink_to_fit();
+            ev
+        })
     }
 
     /// Cached evaluation without computing.
