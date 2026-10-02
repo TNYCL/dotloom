@@ -28,7 +28,16 @@ function run(label, cmd, args, cwd = root) {
 
 if (all || which.includes('rust')) {
   run('cargo fmt --check', 'cargo', ['fmt', '--all', '--', '--check'])
-  run('cargo clippy', 'cargo', ['clippy', '--workspace', '--all-targets', '--locked', '--', '-D', 'warnings'])
+  run('cargo clippy', 'cargo', [
+    'clippy',
+    '--workspace',
+    '--all-targets',
+    '--all-features',
+    '--locked',
+    '--',
+    '-D',
+    'warnings',
+  ])
 }
 
 if (all || which.includes('ts')) {

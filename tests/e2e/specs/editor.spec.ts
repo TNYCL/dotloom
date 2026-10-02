@@ -9,6 +9,9 @@ async function open(page: Page): Promise<void> {
   await page.goto('./')
   const r = (await page.evaluate(() => window.dl.ready)) as { ok: boolean; error?: string }
   expect(r.ok, r.error).toBe(true)
+  // A backend that loses its device right after start (software adapters on CI)
+  // is replaced on a new canvas: interact only once rendering is stable.
+  await page.evaluate(() => window.dl.editor?.viewport.whenStable())
 }
 
 async function count(page: Page): Promise<number> {

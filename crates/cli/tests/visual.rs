@@ -200,7 +200,7 @@ fn compare(name: &str, img: &Image) -> Option<String> {
     }
     let mut diff = vec![0u8; want.len()];
     let mut different = 0usize;
-    for (i, (a, b)) in img.pixels.chunks_exact(4).zip(want.chunks_exact(4)).enumerate() {
+    for (i, (a, b)) in img.pixels.as_chunks::<4>().0.iter().zip(want.as_chunks::<4>().0).enumerate() {
         let d = a.iter().zip(b).map(|(x, y)| x.abs_diff(*y)).max().unwrap_or(0);
         if d > CHANNEL_TOLERANCE {
             different += 1;

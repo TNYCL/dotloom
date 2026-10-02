@@ -1,0 +1,145 @@
+{
+  "anchors": [
+    {
+      "expr": "vec(0mm, 0mm)",
+      "kind": "corner",
+      "name": "origin"
+    },
+    {
+      "expr": "vec(width, height)",
+      "kind": "corner",
+      "name": "topRight"
+    },
+    {
+      "expr": "vec(x1, 0mm)",
+      "kind": "vertex",
+      "name": "divider1"
+    },
+    {
+      "expr": "vec(x2, 0mm)",
+      "kind": "vertex",
+      "name": "divider2"
+    }
+  ],
+  "constraints": [
+    {
+      "label": "compartments fill the inner width",
+      "lhs": "w1 + w2 + w3",
+      "op": "=",
+      "rhs": "width"
+    },
+    {
+      "label": "middle and right compartments are equal",
+      "lhs": "w2",
+      "op": "=",
+      "rhs": "w3"
+    },
+    {
+      "label": "middle compartment at least 40 cm",
+      "lhs": "w2",
+      "op": ">=",
+      "rhs": "40cm"
+    },
+    {
+      "label": "right compartment at least 40 cm",
+      "lhs": "w3",
+      "op": ">=",
+      "rhs": "40cm"
+    }
+  ],
+  "derived": [
+    {
+      "expr": "w1",
+      "name": "x1"
+    },
+    {
+      "expr": "w1 + w2",
+      "name": "x2"
+    }
+  ],
+  "label": "Shelf unit",
+  "primitives": [
+    {
+      "kind": "polygon",
+      "points": ["vec(0mm, 0mm)", "vec(width, 0mm)", "vec(width, height)", "vec(0mm, height)"],
+      "style": {
+        "fill": "#c8a27a40"
+      }
+    },
+    {
+      "from": "vec(x1, 0mm)",
+      "kind": "line",
+      "to": "vec(x1, height)"
+    },
+    {
+      "from": "vec(x2, 0mm)",
+      "kind": "line",
+      "to": "vec(x2, height)"
+    },
+    {
+      "content": "A",
+      "halign": "center",
+      "height": "8cm",
+      "kind": "text",
+      "position": "vec(w1 / 2, height / 2)",
+      "valign": "middle"
+    },
+    {
+      "content": "B",
+      "halign": "center",
+      "height": "8cm",
+      "kind": "text",
+      "position": "vec(x1 + w2 / 2, height / 2)",
+      "valign": "middle"
+    },
+    {
+      "content": "C",
+      "halign": "center",
+      "height": "8cm",
+      "kind": "text",
+      "position": "vec(x2 + w3 / 2, height / 2)",
+      "valign": "middle"
+    }
+  ],
+  "props": {
+    "height": {
+      "default": "200cm",
+      "dim": "length",
+      "label": "Height",
+      "solve": false,
+      "type": "number"
+    },
+    "material": {
+      "default": "oak",
+      "label": "Material",
+      "type": "enum",
+      "values": ["oak", "birch", "white"]
+    },
+    "w1": {
+      "default": "60cm",
+      "dim": "length",
+      "label": "Left compartment",
+      "type": "number"
+    },
+    "w2": {
+      "default": "60cm",
+      "dim": "length",
+      "label": "Middle compartment",
+      "type": "number"
+    },
+    "w3": {
+      "default": "60cm",
+      "dim": "length",
+      "label": "Right compartment",
+      "type": "number"
+    },
+    "width": {
+      "default": "180cm",
+      "dim": "length",
+      "label": "Inner width",
+      "type": "number"
+    }
+  },
+  "typeId": "shelf.unit",
+  "version": 1
+}

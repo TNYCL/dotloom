@@ -11,6 +11,11 @@ test.use({ baseURL: 'http://localhost:5198/', deviceScaleFactor: 1 })
 
 async function ready(page: Page): Promise<void> {
   await page.waitForFunction(() => 'dotloom' in window, null, { timeout: 30_000 })
+  // Wait until rendering runs on a stable backend (see Viewport.whenStable).
+  await page.evaluate(async () => {
+    const v = (window as unknown as { dotloom: { viewport: { whenStable?: () => Promise<void> } } }).dotloom.viewport
+    await v.whenStable?.()
+  })
 }
 
 async function entityCount(page: Page): Promise<number> {

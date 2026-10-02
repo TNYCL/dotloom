@@ -1,0 +1,97 @@
+name: nightly
+
+# Bounded fuzzing with a recorded seed (DL-TEST-10), dependency checks and
+# benchmark artifacts. Not a merge gate: findings become regression fixtures
+# (fuzz/regressions/<target>/) that the normal test suite replays.
+
+on:
+  schedule:
+    - cron: "41 2 * * *"
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: Fuzzing time per target (seconds)
+        default: "120"
+      seed:
+        description: libFuzzer seed (empty = derived from the run id)
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fuzz:
+    name: fuzz (${{ matrix.target }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [dotl, document_json, svg, dxf, transaction, plugin, scene]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install a nightly toolchain (libFuzzer needs sanitizer support)
+        run: rustup toolchain install nightly --profile minimal
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: cargo-fuzz
+      - name: Fuzz for a bounded time with a recorded seed
+        env:
+          TARGET: ${{ matrix.target }}
+          SECONDS_PER_TARGET: ${{ inputs.seconds || '120' }}
+          SEED_INPUT: ${{ inputs.seed }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          seed="${SEED_INPUT:-$(( RUN_ID % 2147483647 ))}"
+          {
+            echo "### fuzz $TARGET"
+            echo "- seed: \`$seed\`, time: ${SECONDS_PER_TARGET}s"
+            echo "- toolchain: \`$(rustc +nightly --version)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p "$RUNNER_TEMP/corpus/$TARGET"
+          cp fuzz/seeds/"$TARGET"/* "$RUNNER_TEMP/corpus/$TARGET/"
+          cargo +nightly fuzz run "$TARGET" "$RUNNER_TEMP/corpus/$TARGET" -- \
+            -max_total_time="$SECONDS_PER_TARGET" -seed="$seed" -rss_limit_mb=2048 -timeout=20
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: fuzz-crash-${{ matrix.target }}
+          path: fuzz/artifacts/${{ matrix.target }}
+          retention-days: 30
+
+  deny:
+    name: dependency licenses, advisories and sources
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: cargo-deny
+      - run: cargo deny --locked check
+
+  bench:
+    name: solver benchmark (artifact, not a gate)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install toolchain from rust-toolchain.toml
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Run the solver corpus natively
+        run: |
+          mkdir -p bench
+          node scripts/bench/solver-corpus.mjs --out bench/solver-corpus.json
+          cargo run --release --locked -p dotloom-engine --example solver_corpus -- bench/solver-corpus.json | tee bench/solver-native.txt
+          echo '```' >> "$GITHUB_STEP_SUMMARY"; cat bench/solver-native.txt >> "$GITHUB_STEP_SUMMARY"; echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bench-solver
+          path: bench
+          retention-days: 30

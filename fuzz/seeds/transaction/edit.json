@@ -1,0 +1,8 @@
+[
+  {
+    "op": "setParams",
+    "values": [{ "entity": 1000, "param": "b.x", "value": 140 }, { "entity": 1005, "param": "width", "value": 1500 }],
+    "mode": "exact"
+  },
+  { "op": "deleteEntity", "id": 1002 }
+]

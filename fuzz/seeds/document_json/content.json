@@ -1,0 +1,131 @@
+{
+  "schema": 1,
+  "meta": {},
+  "settings": {
+    "displayUnit": "millimetre",
+    "grid": {
+      "spacing": 10.0,
+      "majorEvery": 10
+    }
+  },
+  "layers": [
+    {
+      "id": 1,
+      "name": "Layer 1"
+    }
+  ],
+  "entities": [
+    {
+      "id": 1000,
+      "type": "dotloom.line",
+      "layer": 1,
+      "geometry": {
+        "type": "line",
+        "a": [0.0, 0.0],
+        "b": [100.0, 0.0]
+      }
+    },
+    {
+      "id": 1001,
+      "type": "dotloom.line",
+      "layer": 1,
+      "geometry": {
+        "type": "line",
+        "a": [100.0, 0.0],
+        "b": [100.0, 80.0]
+      }
+    },
+    {
+      "id": 1002,
+      "type": "dotloom.circle",
+      "layer": 1,
+      "geometry": {
+        "type": "circle",
+        "center": [50.0, 40.0],
+        "radius": 20.0
+      }
+    },
+    {
+      "id": 1003,
+      "type": "floorplan.wall",
+      "typeVersion": 2,
+      "layer": 1,
+      "props": {
+        "end": [3000.0, 200.0],
+        "start": [0.0, 200.0],
+        "thickness": 200.0
+      }
+    },
+    {
+      "id": 1004,
+      "type": "floorplan.door",
+      "layer": 1,
+      "props": {
+        "host": {
+          "ref": 1003
+        },
+        "offset": 500.0,
+        "width": 900.0
+      }
+    },
+    {
+      "id": 1005,
+      "type": "shelf.unit",
+      "layer": 1,
+      "props": {
+        "height": 2000.0,
+        "material": "oak",
+        "w1": 600.0,
+        "w2": 600.0,
+        "w3": 600.0,
+        "width": 1800.0
+      }
+    }
+  ],
+  "groups": [],
+  "constraints": [
+    {
+      "id": 1006,
+      "rule": {
+        "kind": "coincident",
+        "a": {
+          "entity": 1000,
+          "anchor": "end"
+        },
+        "b": {
+          "entity": 1001,
+          "anchor": "start"
+        }
+      },
+      "source": "user"
+    },
+    {
+      "id": 1007,
+      "rule": {
+        "kind": "length",
+        "line": {
+          "from": {
+            "entity": 1000,
+            "anchor": "start"
+          },
+          "to": {
+            "entity": 1000,
+            "anchor": "end"
+          }
+        },
+        "value": 100.0
+      },
+      "source": "user"
+    },
+    {
+      "id": 1008,
+      "rule": {
+        "kind": "radius",
+        "circle": 1002,
+        "value": 20.0
+      },
+      "source": "user"
+    }
+  ],
+  "nextId": 1009
+}

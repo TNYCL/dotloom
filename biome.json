@@ -19,7 +19,9 @@
       "!**/.vitepress/dist",
       "!tests/fixtures",
       "!bench",
-      "!docs/perf"
+      "!docs/perf",
+      "!fuzz/seeds",
+      "!fuzz/regressions"
     ]
   },
   "formatter": {
