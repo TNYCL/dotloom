@@ -58,6 +58,7 @@ Run what CI runs before you push:
 | Browser tests (Chromium, Firefox, WebKit) | `pnpm run test:e2e` (`DOTLOOM_E2E_BROWSERS=chromium` to limit) |
 | Documentation site | `pnpm run build:site` |
 | Package consumer smoke test | `pnpm run smoke:packages` |
+| Crate consumer smoke test | `pnpm run smoke:crates` |
 
 `pnpm run format` fixes formatting. Build or test one thing at a time: parallel
 Rust builds use a lot of memory (`.cargo/config.toml` caps cargo at four jobs).

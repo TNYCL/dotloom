@@ -103,9 +103,9 @@ jobs:
           pnpm --filter @dotloom/react pack --pack-destination "$PWD/dist/npm"
       - name: Install the tarballs outside the repository, test and build the external plugin
         run: node scripts/smoke-packages.mjs --work "$RUNNER_TEMP/smoke"
-      - name: Crates (packaged and verified against each other)
+      - name: Crates (packaged, verified against each other and used by a consumer)
         run: |
-          cargo package --workspace --locked --exclude dotloom-wasm --exclude dotloom-render-web
+          node scripts/smoke-crates.mjs --work "$RUNNER_TEMP/crates"
           mkdir -p dist/crates
           cp target/package/*.crate dist/crates/
       - name: Release notes from CHANGELOG.md

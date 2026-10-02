@@ -86,6 +86,7 @@ Host / React UI  ->  TypeScript SDK  ->  versioned protocol  ->  Rust/WASM engin
 | Browser E2E | `pnpm run test:e2e` |
 | Docs site build | `pnpm run build:site` |
 | Package smoke | `pnpm run smoke:packages` |
+| Crate smoke | `pnpm run smoke:crates` |
 
 All scripts are Node or cargo based and run on Windows PowerShell, Linux and macOS.
 

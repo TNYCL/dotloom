@@ -119,6 +119,7 @@ Requirements: Rust (version from `rust-toolchain.toml`, plus `wasm32-unknown-unk
 | Browser tests | `pnpm run test:e2e` |
 | Documentation site | `pnpm run build:site` |
 | Package consumer smoke test | `pnpm run smoke:packages` |
+| Crate consumer smoke test | `pnpm run smoke:crates` |
 | Reference-device benchmarks | `pnpm --filter @dotloom/e2e run bench` |
 
 Read [`AGENTS.md`](AGENTS.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md) before
