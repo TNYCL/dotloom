@@ -108,6 +108,11 @@ mod web {
     /// A renderer attached to one canvas.
     #[wasm_bindgen]
     pub struct WebRenderer {
+        // Kept alive for the renderer's lifetime: some browsers (Chromium with the
+        // SwiftShader adapter) lose devices once the adapter/instance objects are
+        // garbage-collected.
+        _instance: wgpu::Instance,
+        _adapter: wgpu::Adapter,
         surface: Option<wgpu::Surface<'static>>,
         config: wgpu::SurfaceConfiguration,
         renderer: Option<Renderer>,
@@ -255,7 +260,17 @@ mod web {
                 "maxTextureDimension2D": limits.max_texture_dimension_2d,
                 "protocol": RENDER_PROTOCOL,
             });
-            Ok(WebRenderer { surface: Some(surface), config, renderer: Some(renderer), backend, info, lost, errors })
+            Ok(WebRenderer {
+                _instance: instance,
+                _adapter: adapter,
+                surface: Some(surface),
+                config,
+                renderer: Some(renderer),
+                backend,
+                info,
+                lost,
+                errors,
+            })
         }
 
         /// Backend in use (`webgpu` or `webgl2`).
