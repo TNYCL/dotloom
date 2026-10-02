@@ -8,8 +8,8 @@ and protocol versions are listed in [`compatibility.json`](compatibility.json).
 
 ## [Unreleased]
 
-First release candidate in preparation (`0.1.0`). Nothing is published to npm or
-crates.io yet.
+The first stable release (`1.0.0`) is in preparation; the workspace still carries
+the preview version `0.1.0`. Nothing is published to npm or crates.io yet.
 
 ### Added
 
@@ -17,8 +17,9 @@ crates.io yet.
   Béziers, polygons with holes, text, dimensions), documents with layers, groups,
   stable IDs and plugin entities, atomic transactions with undo/redo history,
   spatial index, hit-testing, window/crossing selection and snapping.
-- Constraint solving: linear components with Cassowary (kasuari); nonlinear and
-  mixed components with a sparse SQP solver (constraint curvature, approach phase
+- Constraint solving: linear components with Cassowary (kasuari), kept alive
+  between pointer moves while dragging (incremental edit-variable updates);
+  nonlinear and mixed components with a sparse SQP solver (constraint curvature, approach phase
   for typed values and drags, active-set inequalities); hard rules are exact,
   preferences are weighted; diagnostics for conflicts, redundancy and degrees of
   freedom; budgeted, cancellable solving; an independent check before every commit.
@@ -34,12 +35,17 @@ crates.io yet.
   keyboard shortcuts, clipboard, plugin host, storage adapters and autosave with
   recovery, Node entry point.
 - `@dotloom/react`: complete editor with toolbar, layers and objects lists,
-  inspector, rules panel, command palette, dialogs, status bar, light/dark themes,
-  English and Turkish.
+  inspector, rules panel, plugin panels, command palette, dialogs, status bar with
+  autosave state and failures, light/dark/system themes, English and Turkish;
+  checked with axe-core (WCAG 2.1 A/AA).
 - Examples: vanilla, shelf configurator, floor plan, timeline, external plugin
   consumed from package tarballs; playground and documentation site on GitHub
   Pages.
 - Tests: Rust unit/property tests, browser tests in Chromium, Firefox and WebKit on
-  both backends, real Safari smoke test, native/WASM parity digests, visual
-  regression baselines, DXF read-back with ezdxf, fuzz targets with corpus replay,
-  package consumer test; reference-device benchmarks.
+  both backends, released-browser smoke tests (Chrome, Edge and Firefox current and
+  previous major; Safari), native/WASM parity digests, visual regression baselines,
+  DXF read-back with ezdxf, checked-in `.dotl`/SVG fixtures, fuzz targets with
+  corpus replay, npm package and crate consumer tests; reference-device benchmarks.
+- Licensing: MIT OR Apache-2.0 in every package and crate, generated
+  `THIRD-PARTY-NOTICES.md` (Rust crates and the Inter font) shipped with the SDK
+  and the CLI.

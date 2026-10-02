@@ -169,10 +169,72 @@ jobs:
             for i in $(seq 1 60); do curl -sf "$url" > /dev/null && break; sleep 1; done
           done
       - name: Safari smoke test
-        run: node tests/e2e/safari/smoke.mjs
+        run: node tests/e2e/webdriver/smoke.mjs --browser safari
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: safari-smoke
-          path: tests/e2e/results/safari.json
+          path: tests/e2e/results/webdriver-*.json
+          retention-days: 30
+
+  browsers:
+    # Released browsers, not Playwright builds: the current and the previous major of
+    # Chrome (Chrome for Testing), Edge (Microsoft's .deb) and Firefox (Mozilla's
+    # release archive), each driven through its own WebDriver server.
+    name: real browser (${{ matrix.browser }}, ${{ matrix.channel }} major)
+    needs: wasm
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chrome, msedge, firefox]
+        channel: [current, previous]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: compat-sdk-wasm
+          path: packages/sdk/src/wasm
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Build the harness and the playground
+        run: |
+          pnpm --filter @dotloom/e2e run build
+          pnpm --filter @dotloom/playground run build
+      - name: Download the browser and its WebDriver server from the vendor
+        run: node tests/e2e/webdriver/install.mjs "${{ matrix.browser }}" "${{ matrix.channel }}" --dir "$RUNNER_TEMP/browser"
+      - name: Serve the harness and the playground
+        run: |
+          (cd tests/e2e && pnpm run preview > "$RUNNER_TEMP/harness.log" 2>&1 &)
+          (pnpm --filter @dotloom/playground run preview > "$RUNNER_TEMP/playground.log" 2>&1 &)
+          for url in http://localhost:5199/ http://localhost:5198/; do
+            for i in $(seq 1 60); do curl -sf "$url" > /dev/null && break; sleep 1; done
+          done
+      - name: Smoke test
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: |
+          info="$RUNNER_TEMP/browser/browser.json"
+          if [ "$BROWSER" = firefox ]; then
+            # Headed under Xvfb: Mesa's software WebGL (as in the Playwright jobs).
+            xvfb-run -a node tests/e2e/webdriver/smoke.mjs --info "$info"
+          else
+            # No GPU: SwiftShader provides WebGL2 (and Vulkan for WebGPU, which may be lost).
+            node tests/e2e/webdriver/smoke.mjs --info "$info" --headless --arg --no-sandbox \
+              --arg --use-angle=swiftshader --arg --enable-unsafe-swiftshader \
+              --arg --enable-unsafe-webgpu --arg --enable-features=Vulkan --arg --use-webgpu-adapter=swiftshader
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: browser-${{ matrix.browser }}-${{ matrix.channel }}
+          path: tests/e2e/results/webdriver-*.json
           retention-days: 30

@@ -17,6 +17,14 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # TypeScript 7 (native compiler) is not supported by the docs/build toolchain
+      # yet (PR #19 failed type checks, TypeDoc and builds); move deliberately.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      # Node type definitions follow the supported runtime (Node 24), not the newest.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: cargo
     directory: /fuzz
     schedule:
