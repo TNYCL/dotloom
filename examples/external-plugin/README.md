@@ -1,7 +1,7 @@
 # External plugin example
 
 This project is **not** part of the pnpm workspace. It is installed from the packed
-`@dotloom/sdk` and `@dotloom/react` tarballs into a temporary directory outside the
+`@dotloomjs/sdk` and `@dotloomjs/react` tarballs into a temporary directory outside the
 repository by `scripts/smoke-packages.mjs`, then built and tested. It may only use
 public package entry points — no workspace aliases, no engine internals.
 

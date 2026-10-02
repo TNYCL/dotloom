@@ -2,7 +2,7 @@
 
 Resume point for any contributor or agent. Keep it short; never store secrets here.
 
-- Branch: `ci/release-environment` (publishing jobs use the `release` environment)
+- Branch: `feat/npm-scope-dotloomjs` (npm scope `@dotloomjs`, version 1.1.0)
 - Last updated: 2026-10-02
 - Overall: **1.0.0 released on GitHub** (tag `v1.0.0` on `main@36b5e63`,
   https://github.com/TNYCL/dotloom/releases/tag/v1.0.0). Every row of
@@ -67,16 +67,16 @@ conversation resolution required.
 
 | Blocked | Why | What the owner needs to do |
 |---|---|---|
-| npm `@dotloom/sdk`, `@dotloom/react` (issue #10) | not logged in; the `@dotloom` org does not exist | create the npm org `dotloom` (free for public packages), then either add an automation token as the secret `NPM_TOKEN` of the GitHub environment `release` or configure trusted publishing for `TNYCL/dotloom` / `release.yml` / environment `release` |
-| crates.io `dotloom-*` (issue #11) | no crates.io token | create a crates.io API token (scope `publish-new`, `publish-update`) and add it as the secret `CARGO_REGISTRY_TOKEN` of the GitHub environment `release` |
+| npm `@dotloomjs/sdk`, `@dotloomjs/react` (issue #10) | the owner added `NPM_TOKEN` to the `release` environment (2026-10-02); the registry did not list the scope `dotloomjs` yet | make sure the npm organization `dotloomjs` exists (free for public packages), then either add an automation token as the secret `NPM_TOKEN` of the GitHub environment `release` or configure trusted publishing for `TNYCL/dotloom` / `release.yml` / environment `release` |
+| crates.io `dotloom-*` (issue #11) | the owner added the `release` environment secrets (2026-10-02) | create a crates.io API token (scope `publish-new`, `publish-update`) and add it as the secret `CARGO_REGISTRY_TOKEN` of the GitHub environment `release` |
 | Namespace ownership (DL-OSS-4) | names were unclaimed on 2026-10-02 but are owned only after the first publish | covered by the two steps above |
 | Safari 27 (current major) and Safari WebGPU on real Mac hardware (issue #13) | no Mac; hosted runners have Safari 26.6.x without WebGPU | on a Mac with Safari 27: `sudo safaridriver --enable`, serve the harness and playground, `node tests/e2e/webdriver/smoke.mjs --browser safari --webgpu required` |
 
 Once the secrets exist, run the `release` workflow manually with `publish: v1.0.0`:
 it publishes the release's own npm tarballs and the crates (repackaged from the tag
 and compared byte-for-byte with the release's `.crate` files), skips versions that
-are already in a registry and records the result on the release. If the `@dotloom`
-npm scope cannot be obtained, the packages need another scope and a new version.
+are already in a registry and records the result on the release. 1.0.0 was a GitHub-only
+release under `@dotloom/*`; from 1.1.0 the npm scope is `@dotloomjs`.
 
 ## Known issues / decisions to remember
 
@@ -111,7 +111,7 @@ pnpm run build; pnpm run test
 cd tests/e2e; npx playwright test     # $env:DOTLOOM_E2E_BROWSERS = 'chromium' to limit
 pnpm run smoke:packages; pnpm run smoke:crates
 pnpm run verify:release -- v1.0.0     # a published release, from its public URLs
-pnpm --filter @dotloom/e2e run bench  # reference-device benchmarks (headed browsers)
+pnpm --filter @dotloomjs/e2e run bench  # reference-device benchmarks (headed browsers)
 node tests/e2e/webdriver/install.mjs chrome previous --dir browsers/chrome-previous
 node tests/e2e/webdriver/smoke.mjs --info browsers/chrome-previous/browser.json
 ```

@@ -5,8 +5,8 @@
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { builtinTools, EditorCore, type EntityTypeDef, NullViewport, PluginHost } from '@dotloom/sdk'
-import { createNodeEngine } from '@dotloom/sdk/node'
+import { builtinTools, EditorCore, type EntityTypeDef, NullViewport, PluginHost } from '@dotloomjs/sdk'
+import { createNodeEngine } from '@dotloomjs/sdk/node'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { CommandPalette, matchScore } from '../src/components/CommandPalette.js'

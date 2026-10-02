@@ -65,7 +65,7 @@ Visual baselines belong to lavapipe; see `CONTRIBUTING.md`.
 | Environment | Status |
 |---|---|
 | Rust (headless engine, CLI) | Windows, Linux, macOS (CI); minimum Rust 1.89 (checked in CI) |
-| Node.js 24 | `@dotloom/sdk/node` (in-thread engine), tested in CI; other versions not verified |
+| Node.js 24 | `@dotloomjs/sdk/node` (in-thread engine), tested in CI; other versions not verified |
 | Browsers | module Web Workers, WebAssembly, ES2022 |
 | SSR / build tools | importing the packages has no side effects; create engines only in the browser |
 

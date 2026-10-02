@@ -1,6 +1,6 @@
 /** Editor actions shared by the menu bar, command palette and shortcuts. */
 
-import { DOTL_MIME, DotloomError, downloadBytes, fileKind, pickFile } from '@dotloom/sdk'
+import { DOTL_MIME, DotloomError, downloadBytes, fileKind, pickFile } from '@dotloomjs/sdk'
 import type { EditorHandle } from './context.js'
 import type { Translate } from './i18n.js'
 

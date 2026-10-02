@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Package consumer smoke test (DL-PLUGIN-6, DL-TEST-11).
 //
-// 1. Pack @dotloom/sdk and @dotloom/react exactly as they would be published.
+// 1. Pack @dotloomjs/sdk and @dotloomjs/react exactly as they would be published.
 // 2. Copy examples/external-plugin to a temporary directory OUTSIDE the repository.
 // 3. Install the tarballs with npm (no workspace, no source aliases).
 // 4. Check the tarball contents, run the plugin's Node tests, build its browser app.
@@ -53,13 +53,16 @@ for (const pkg of ['sdk', 'react']) {
   run('pnpm', ['pack', '--pack-destination', packs], join(root, 'packages', pkg))
 }
 const tarballs = Object.fromEntries(
-  readdirSync(packs).map((f) => [f.startsWith('dotloom-react') ? '@dotloom/react' : '@dotloom/sdk', join(packs, f)]),
+  readdirSync(packs).map((f) => [
+    f.startsWith('dotloomjs-react') ? '@dotloomjs/react' : '@dotloomjs/sdk',
+    join(packs, f),
+  ]),
 )
 console.log('tarballs:', tarballs)
 
 // Tarball contents: built JS, types, WASM, worker, licenses; no sources of tests.
 // Relative name: GNU tar reads "C:..." as a remote host.
-const sdkTgz = readdirSync(packs).find((f) => f.startsWith('dotloom-sdk')) ?? ''
+const sdkTgz = readdirSync(packs).find((f) => f.startsWith('dotloomjs-sdk')) ?? ''
 const listing = spawnSync('tar', ['-tzf', sdkTgz], { encoding: 'utf8', cwd: packs }).stdout ?? ''
 for (const required of [
   'package/dist/index.js',
@@ -74,12 +77,12 @@ for (const required of [
   'package/README.md',
 ]) {
   if (!listing.includes(required)) {
-    console.error(`✖ @dotloom/sdk tarball lacks ${required}`)
+    console.error(`✖ @dotloomjs/sdk tarball lacks ${required}`)
     process.exit(1)
   }
 }
 if (/package\/test\//.test(listing)) {
-  console.error('✖ @dotloom/sdk tarball contains tests')
+  console.error('✖ @dotloomjs/sdk tarball contains tests')
   process.exit(1)
 }
 
@@ -90,19 +93,22 @@ cpSync(join(root, 'examples', 'external-plugin'), app, {
   filter: (p) => !p.includes('node_modules') && !p.endsWith('dist'),
 })
 
-// 3. Point the dependencies at the tarballs (overrides also cover @dotloom/react's own dependency).
+// 3. Point the dependencies at the tarballs (overrides also cover @dotloomjs/react's own dependency).
 const pkgPath = join(app, 'package.json')
 const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
 for (const [name, file] of Object.entries(tarballs)) pkg.dependencies[name] = `file:${file}`
-pkg.overrides = { '@dotloom/sdk': `file:${tarballs['@dotloom/sdk']}` }
+pkg.overrides = { '@dotloomjs/sdk': `file:${tarballs['@dotloomjs/sdk']}` }
 writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
 run('npm', ['install', '--no-audit', '--no-fund', '--loglevel=error'], app)
 
 // No workspace leaks: installed packages must come from the tarballs.
-const installed = JSON.parse(readFileSync(join(app, 'node_modules', '@dotloom', 'sdk', 'package.json'), 'utf8'))
+const installed = JSON.parse(readFileSync(join(app, 'node_modules', '@dotloomjs', 'sdk', 'package.json'), 'utf8'))
 const expectedVersion = JSON.parse(readFileSync(join(root, 'packages', 'sdk', 'package.json'), 'utf8')).version
-if (installed.version !== expectedVersion || existsSync(join(app, 'node_modules', '@dotloom', 'sdk', 'src', 'wasm'))) {
-  console.error('✖ unexpected @dotloom/sdk installation')
+if (
+  installed.version !== expectedVersion ||
+  existsSync(join(app, 'node_modules', '@dotloomjs', 'sdk', 'src', 'wasm'))
+) {
+  console.error('✖ unexpected @dotloomjs/sdk installation')
   process.exit(1)
 }
 

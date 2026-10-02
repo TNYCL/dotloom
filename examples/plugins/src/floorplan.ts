@@ -13,7 +13,7 @@ import type {
   Tool,
   ToolContext,
   ToolPointer,
-} from '@dotloom/sdk'
+} from '@dotloomjs/sdk'
 import { project } from './common.js'
 
 export const wallType: EntityTypeDef = {

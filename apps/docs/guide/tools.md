@@ -63,7 +63,7 @@ Snapping, grid, units and shortcuts are options of the editor core (and of
 `packages/sdk/test/editor.test.ts` ("configuration").
 
 ```ts
-import { EditorCore } from '@dotloom/sdk'
+import { EditorCore } from '@dotloomjs/sdk'
 
 const core = new EditorCore(engine, viewport, {
   // Snap kinds (all on by default): endpoint, midpoint, center, quadrant,
@@ -86,7 +86,7 @@ gridSpacing }`) are stored in the `.dotl` file; the React inspector edits them u
 ## Your own tools
 
 ```ts
-import type { Tool } from '@dotloom/sdk'
+import type { Tool } from '@dotloomjs/sdk'
 
 const stamp: Tool = {
   id: 'acme.stamp',

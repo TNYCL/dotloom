@@ -18,7 +18,7 @@ import {
   parseDuration,
   parseLength,
   type Transaction,
-} from '@dotloom/sdk'
+} from '@dotloomjs/sdk'
 import { type ReactNode, useEffect, useId, useRef, useState } from 'react'
 import { useDocument, useEditor, useEditorState, useEntityInfo, usePluginTypes } from '../context.js'
 import { type Translate, useT } from '../i18n.js'

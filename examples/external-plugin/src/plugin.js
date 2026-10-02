@@ -1,6 +1,6 @@
 // A third-party plugin written against the published packages only.
 
-/** @type {import('@dotloom/sdk').EntityTypeDef} */
+/** @type {import('@dotloomjs/sdk').EntityTypeDef} */
 export const tableType = {
   typeId: 'acme.table',
   version: 1,
@@ -22,7 +22,7 @@ export const tableType = {
   constraints: [{ lhs: 'width', op: '>=', rhs: 'perSide * 60cm', label: 'every seat gets 60 cm' }],
 }
 
-/** @returns {import('@dotloom/sdk').Tool} */
+/** @returns {import('@dotloomjs/sdk').Tool} */
 function tableTool() {
   return {
     id: 'acme.table',
@@ -38,7 +38,7 @@ function tableTool() {
   }
 }
 
-/** @type {import('@dotloom/sdk').DotloomPlugin} */
+/** @type {import('@dotloomjs/sdk').DotloomPlugin} */
 export const acmePlugin = {
   id: 'acme.furniture',
   version: '1.0.0',

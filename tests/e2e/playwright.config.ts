@@ -74,7 +74,7 @@ export default defineConfig({
           },
           {
             // The reference React editor (apps/playground).
-            command: 'pnpm --filter @dotloom/playground run build && pnpm --filter @dotloom/playground run preview',
+            command: 'pnpm --filter @dotloomjs/playground run build && pnpm --filter @dotloomjs/playground run preview',
             url: 'http://localhost:5198/',
             reuseExistingServer: !process.env.CI,
             timeout: 120_000,

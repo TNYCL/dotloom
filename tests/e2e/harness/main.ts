@@ -1,5 +1,5 @@
 /**
- * E2E harness: a real editor built from the packaged @dotloom/sdk (dist).
+ * E2E harness: a real editor built from the packaged @dotloomjs/sdk (dist).
  *
  * URL parameters:
  *   backend=webgpu|webgl2   use exactly this backend (no fallback)
@@ -15,7 +15,7 @@ import {
   DotloomEngine,
   type FrameStats,
   IndexedDbStorage,
-} from '@dotloom/sdk'
+} from '@dotloomjs/sdk'
 
 interface Harness {
   ready: Promise<{ ok: boolean; backend?: string; info?: unknown; attempts?: unknown; error?: string }>

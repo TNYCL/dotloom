@@ -1,5 +1,5 @@
-/** Version of `@dotloom/sdk` (kept equal to package.json by a test). */
-export const SDK_VERSION = '1.0.0'
+/** Version of `@dotloomjs/sdk` (kept equal to package.json by a test). */
+export const SDK_VERSION = '1.1.0'
 
 function parse(v: string): [number, number, number] | null {
   const m = /^(\d+)\.(\d+)\.(\d+)/.exec(v.trim())

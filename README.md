@@ -22,8 +22,8 @@ a schedule whose blocks keep their order. It is
 [examples](https://tnycl.github.io/dotloom/guide/examples) ·
 [documentation](https://tnycl.github.io/dotloom/)
 
-> **Status:** `1.0.0`, the first stable release. The packages and the CLI are
-> attached to the [GitHub Release](https://github.com/TNYCL/dotloom/releases/tag/v1.0.0);
+> **Status:** `1.1.0` (stable). The packages and the CLI are
+> attached to the [GitHub Release](https://github.com/TNYCL/dotloom/releases/tag/v1.1.0);
 > they are not on the npm and crates.io registries yet. See
 > [`docs/status.md`](docs/status.md) for what is verified and what is open, and
 > [`docs/requirements.md`](docs/requirements.md) for the evidence behind every
@@ -34,7 +34,7 @@ a schedule whose blocks keep their order. It is
 Install the packages from the release (npm, pnpm and yarn accept tarball URLs):
 
 ```sh
-npm install https://github.com/TNYCL/dotloom/releases/download/v1.0.0/dotloom-sdk-1.0.0.tgz https://github.com/TNYCL/dotloom/releases/download/v1.0.0/dotloom-react-1.0.0.tgz
+npm install https://github.com/TNYCL/dotloom/releases/download/v1.1.0/dotloomjs-sdk-1.1.0.tgz https://github.com/TNYCL/dotloom/releases/download/v1.1.0/dotloomjs-react-1.1.0.tgz
 ```
 
 Or build them from this repository (bash or PowerShell):
@@ -45,16 +45,16 @@ cd dotloom
 pnpm install
 pnpm run build:wasm
 pnpm run build
-pnpm --filter @dotloom/sdk pack --pack-destination "$PWD/dist-packages"
-pnpm --filter @dotloom/react pack --pack-destination "$PWD/dist-packages"
+pnpm --filter @dotloomjs/sdk pack --pack-destination "$PWD/dist-packages"
+pnpm --filter @dotloomjs/react pack --pack-destination "$PWD/dist-packages"
 # in your project: install both tarballs in one command
-npm install ../dotloom/dist-packages/dotloom-sdk-1.0.0.tgz ../dotloom/dist-packages/dotloom-react-1.0.0.tgz
+npm install ../dotloom/dist-packages/dotloomjs-sdk-1.1.0.tgz ../dotloom/dist-packages/dotloomjs-react-1.1.0.tgz
 ```
 
 A complete editor without a framework:
 
 ```ts
-import { createEditor } from '@dotloom/sdk'
+import { createEditor } from '@dotloomjs/sdk'
 
 const editor = await createEditor(document.getElementById('editor')!)
 await editor.engine.apply([
@@ -67,8 +67,8 @@ editor.core.setTool('line')
 The React editor:
 
 ```tsx
-import { DotloomEditor } from '@dotloom/react'
-import '@dotloom/react/styles.css'
+import { DotloomEditor } from '@dotloomjs/react'
+import '@dotloomjs/react/styles.css'
 
 export const App = () => <div style={{ height: '100vh' }}><DotloomEditor theme="system" locale="tr" /></div>
 ```
@@ -77,7 +77,7 @@ Your own object types are plugins — typed properties, anchors, drawing recipes
 rules written as expressions:
 
 ```ts
-import { PluginHost } from '@dotloom/sdk'
+import { PluginHost } from '@dotloomjs/sdk'
 
 const plugins = new PluginHost(editor.engine, editor.core)
 await plugins.register({
@@ -103,7 +103,7 @@ from the packed tarballs outside this repository in CI.
 |---|---|
 | `crates/geometry`, `document`, `constraints`, `scene`, `engine`, `io` | headless Rust core (no DOM, window or GPU dependency — checked in CI) |
 | `crates/render`, `render-web`, `wasm`, `cli` | wgpu renderer, browser bindings, WebAssembly engine binding, `dotloom` CLI |
-| `packages/sdk`, `packages/react` | `@dotloom/sdk`, `@dotloom/react` |
+| `packages/sdk`, `packages/react` | `@dotloomjs/sdk`, `@dotloomjs/react` |
 | `apps/docs`, `apps/playground` | documentation site (VitePress, TypeDoc, rustdoc) and the reference editor |
 | `examples/` | vanilla, shelf configurator, floor plan, timeline, external plugin |
 | `tests/e2e`, `tests/fixtures`, `fuzz` | browser tests and benchmarks, fixtures and baselines, fuzz targets |
@@ -126,7 +126,7 @@ Requirements: Rust (version from `rust-toolchain.toml`, plus `wasm32-unknown-unk
 | Documentation site | `pnpm run build:site` |
 | Package consumer smoke test | `pnpm run smoke:packages` |
 | Crate consumer smoke test | `pnpm run smoke:crates` |
-| Reference-device benchmarks | `pnpm --filter @dotloom/e2e run bench` |
+| Reference-device benchmarks | `pnpm --filter @dotloomjs/e2e run bench` |
 
 Read [`AGENTS.md`](AGENTS.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md) before
 changing code.

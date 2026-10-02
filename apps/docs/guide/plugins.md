@@ -11,12 +11,12 @@ A plugin has two layers:
    panels, importers/exporters, storage adapters and rule templates.
 
 ```ts
-import { type DotloomPlugin, PluginHost } from '@dotloom/sdk'
+import { type DotloomPlugin, PluginHost } from '@dotloomjs/sdk'
 
 const shelves: DotloomPlugin = {
   id: 'acme.shelves',        // namespaced plugin ID
   version: '1.2.0',
-  sdk: '^1.0.0',             // supported @dotloom/sdk range
+  sdk: '^1.0.0',             // supported @dotloomjs/sdk range
   types: [shelfType],        // EntityTypeDef[]; type IDs use the plugin namespace (acme.*)
   tools: [() => placeShelfTool],
   commands: { addShelf: { label: 'Add shelf', run: (api, width) => ({ commands: [/* … */] }) } },
@@ -111,6 +111,6 @@ and a rebuild — the model language is intentionally closed.
 ## External plugins
 
 The repository contains `examples/external-plugin`, a project **outside** the
-workspace that installs the packed `@dotloom/sdk` and `@dotloom/react` tarballs and
+workspace that installs the packed `@dotloomjs/sdk` and `@dotloomjs/react` tarballs and
 defines its own entity type and tool using only public package entry points. CI
 builds and tests it on every change; it is the reference for third-party plugins.

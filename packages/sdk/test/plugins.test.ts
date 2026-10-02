@@ -259,7 +259,7 @@ describe('plugin lifecycle', () => {
     await host.register({ id: 'acme.one', version: '1.0.0' })
     await expect(host.register({ id: 'acme.one', version: '1.0.1' })).rejects.toThrow(/already registered/)
     await expect(host.register({ id: 'acme.two', version: '1.0.0', sdk: '^2.0.0' })).rejects.toThrow(
-      /requires @dotloom\/sdk/,
+      /requires @dotloomjs\/sdk/,
     )
     await expect(host.register({ id: 'acme.three', version: '1.0.0', types: [shelf] })).rejects.toThrow(/namespace/)
     await host.register({ id: 'shelf.a', version: '1.0.0', types: [shelf] })

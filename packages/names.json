@@ -1,5 +1,5 @@
 {
-  "$comment": "Single source of the public npm package names (ADR-0008). Change the scope here if @dotloom is not available.",
-  "sdk": "@dotloom/sdk",
-  "react": "@dotloom/react"
+  "$comment": "Single source of the public npm package names (ADR-0008); checked against every package manifest by scripts/check.mjs. The scope is @dotloomjs (the owner's npm organization).",
+  "sdk": "@dotloomjs/sdk",
+  "react": "@dotloomjs/react"
 }

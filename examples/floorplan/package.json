@@ -1,6 +1,6 @@
 {
-  "name": "@dotloom/example-floorplan",
-  "version": "1.0.0",
+  "name": "@dotloomjs/example-floorplan",
+  "version": "1.1.0",
   "private": true,
   "license": "MIT OR Apache-2.0",
   "type": "module",
@@ -11,9 +11,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@dotloom/sdk": "workspace:^",
-    "@dotloom/example-plugins": "workspace:^",
-    "@dotloom/react": "workspace:^",
+    "@dotloomjs/sdk": "workspace:^",
+    "@dotloomjs/example-plugins": "workspace:^",
+    "@dotloomjs/react": "workspace:^",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

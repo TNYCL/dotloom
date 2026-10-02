@@ -1,4 +1,4 @@
-import type { Point, Tool, ToolContext, ToolPointer } from '@dotloom/sdk'
+import type { Point, Tool, ToolContext, ToolPointer } from '@dotloomjs/sdk'
 
 /** A tool that places one entity of a plugin type at the clicked point. */
 export function placeTool(id: string, label: string, typeId: string, shortcut?: string): () => Tool {

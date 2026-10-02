@@ -21,7 +21,7 @@ import type {
   SolveStatus,
   Viewport,
   ViewportLike,
-} from '@dotloom/sdk'
+} from '@dotloomjs/sdk'
 import { createContext, type ReactNode, useContext, useEffect, useState, useSyncExternalStore } from 'react'
 
 export interface EditorHandle {

@@ -2,8 +2,8 @@
  * Example domains on the real engine (DL-EXAMPLE-1/2/3).
  */
 
-import { builtinTools, type DotloomEngine, EditorCore, NullViewport, PluginHost } from '@dotloom/sdk'
-import { createNodeEngine } from '@dotloom/sdk/node'
+import { builtinTools, type DotloomEngine, EditorCore, NullViewport, PluginHost } from '@dotloomjs/sdk'
+import { createNodeEngine } from '@dotloomjs/sdk/node'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   floorplanPlugin,

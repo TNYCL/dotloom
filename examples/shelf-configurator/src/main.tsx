@@ -4,7 +4,7 @@
  * page never recomputes compartments itself.
  */
 
-import { loadShelfExample, shelfPlugin } from '@dotloom/example-plugins'
+import { loadShelfExample, shelfPlugin } from '@dotloomjs/example-plugins'
 import {
   type EditorHandle,
   EditorProvider,
@@ -12,8 +12,8 @@ import {
   useEditor,
   useEditorState,
   useEntityInfo,
-} from '@dotloom/react'
-import { createEditor, DotloomError, PluginHost } from '@dotloom/sdk'
+} from '@dotloomjs/react'
+import { createEditor, DotloomError, PluginHost } from '@dotloomjs/sdk'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 

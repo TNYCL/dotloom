@@ -1,5 +1,5 @@
 {
-  "name": "@dotloom/e2e",
+  "name": "@dotloomjs/e2e",
   "private": true,
   "license": "MIT OR Apache-2.0",
   "type": "module",
@@ -10,7 +10,7 @@
     "bench": "playwright test -c playwright.bench.config.ts"
   },
   "dependencies": {
-    "@dotloom/sdk": "workspace:*"
+    "@dotloomjs/sdk": "workspace:*"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",

@@ -14,7 +14,7 @@
 ## The canvas stays empty
 
 - The container must have a size (`height: 100%` needs sized parents).
-- With Vite, exclude `@dotloom/sdk` (and `@dotloom/react`) from `optimizeDeps`;
+- With Vite, exclude `@dotloomjs/sdk` (and `@dotloomjs/react`) from `optimizeDeps`;
   pre-bundling breaks the `new URL(…, import.meta.url)` asset paths.
 - When serving under a sub-path, build with the right `base` or pass explicit
   `workerUrl`, `engineWasmUrl` and `renderWasmUrl`.

@@ -3,7 +3,7 @@
  * Placeholders use `{name}`.
  */
 
-import { TOOL_MESSAGES_EN, TOOL_MESSAGES_TR } from '@dotloom/sdk'
+import { TOOL_MESSAGES_EN, TOOL_MESSAGES_TR } from '@dotloomjs/sdk'
 import { createContext, type ReactNode, useContext, useMemo } from 'react'
 
 export const en = {

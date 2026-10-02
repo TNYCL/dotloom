@@ -1,4 +1,4 @@
-import type { StoredMeta } from '@dotloom/sdk'
+import type { StoredMeta } from '@dotloomjs/sdk'
 import { type ReactNode, useEffect, useRef } from 'react'
 import { useEditor, useEditorState } from '../context.js'
 import { useT } from '../i18n.js'

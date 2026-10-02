@@ -1,5 +1,5 @@
 /**
- * Reference-device benchmarks (DL-PERF-2…8), built from the packaged @dotloom/sdk
+ * Reference-device benchmarks (DL-PERF-2…8), built from the packaged @dotloomjs/sdk
  * like an application.
  *
  * Fixture: `count` simple shapes (40 % lines, 20 % rectangles, 20 % circles, 10 %
@@ -17,7 +17,7 @@ import {
   type DotloomEditor,
   DotloomError,
   type Point,
-} from '@dotloom/sdk'
+} from '@dotloomjs/sdk'
 
 interface FrameSample {
   /** Input (camera change) → frame encoded, submitted and finished on the GPU. */

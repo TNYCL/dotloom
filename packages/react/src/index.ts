@@ -1,9 +1,9 @@
 /**
- * `@dotloom/react` — optional React editor for Dotloom.
+ * `@dotloomjs/react` — optional React editor for Dotloom.
  *
  * Use `<DotloomEditor>` for the complete reference editor, or compose your own
  * UI from the panels and hooks inside an `EditorProvider`. Import the styles once:
- * `import '@dotloom/react/styles.css'`.
+ * `import '@dotloomjs/react/styles.css'`.
  */
 
 export { type Action, buildActions, type FileHooks, openFileAction } from './actions.js'

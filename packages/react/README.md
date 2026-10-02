@@ -1,13 +1,13 @@
-# @dotloom/react
+# @dotloomjs/react
 
 Optional React editor for [Dotloom](https://github.com/TNYCL/dotloom), the
 open-source framework for constraint-driven 2D editors. It builds on
-[`@dotloom/sdk`](../sdk/README.md): the Rust engine runs in a Web Worker and the
+[`@dotloomjs/sdk`](../sdk/README.md): the Rust engine runs in a Web Worker and the
 wgpu renderer draws with WebGPU or WebGL2.
 
 ```tsx
-import { DotloomEditor } from '@dotloom/react'
-import '@dotloom/react/styles.css'
+import { DotloomEditor } from '@dotloomjs/react'
+import '@dotloomjs/react/styles.css'
 
 export function App() {
   return <DotloomEditor plugins={[]} locale="en" theme="system" style={{ height: '100vh' }} />

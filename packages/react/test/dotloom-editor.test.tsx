@@ -16,8 +16,8 @@ import {
   TOOL_MESSAGES_EN,
   TOOL_MESSAGES_TR,
   toolText,
-} from '@dotloom/sdk'
-import { createNodeEngine } from '@dotloom/sdk/node'
+} from '@dotloomjs/sdk'
+import { createNodeEngine } from '@dotloomjs/sdk/node'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { initSync, WasmEngine } from '../../sdk/src/wasm/engine/dotloom_wasm.js'

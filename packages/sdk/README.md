@@ -1,4 +1,4 @@
-# @dotloom/sdk
+# @dotloomjs/sdk
 
 Framework-agnostic TypeScript SDK for [Dotloom](https://github.com/TNYCL/dotloom),
 the open-source framework for constraint-driven 2D editors.
@@ -8,7 +8,7 @@ and the `.dotl` file format. In browsers it runs in a dedicated Web Worker; this
 package talks to it through a small versioned message protocol.
 
 ```ts
-import { DotloomEngine } from '@dotloom/sdk'
+import { DotloomEngine } from '@dotloomjs/sdk'
 
 const engine = await DotloomEngine.create()
 const report = await engine.apply([
@@ -20,7 +20,7 @@ const file = await engine.save() // Uint8Array (.dotl)
 In Node.js (tests, tools, servers) the engine runs in the calling thread:
 
 ```ts
-import { createNodeEngine } from '@dotloom/sdk/node'
+import { createNodeEngine } from '@dotloomjs/sdk/node'
 
 const engine = await createNodeEngine()
 ```

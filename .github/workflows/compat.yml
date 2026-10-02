@@ -157,12 +157,12 @@ jobs:
       - run: pnpm build
       - name: Build the harness and the playground
         run: |
-          pnpm --filter @dotloom/e2e run build
-          pnpm --filter @dotloom/playground run build
+          pnpm --filter @dotloomjs/e2e run build
+          pnpm --filter @dotloomjs/playground run build
       - name: Serve them and start safaridriver
         run: |
           (cd tests/e2e && pnpm run preview > "$RUNNER_TEMP/harness.log" 2>&1 &)
-          (pnpm --filter @dotloom/playground run preview > "$RUNNER_TEMP/playground.log" 2>&1 &)
+          (pnpm --filter @dotloomjs/playground run preview > "$RUNNER_TEMP/playground.log" 2>&1 &)
           sudo safaridriver --enable
           (safaridriver -p 4444 > "$RUNNER_TEMP/safaridriver.log" 2>&1 &)
           for url in http://localhost:5199/ http://localhost:5198/ http://localhost:4444/status; do
@@ -207,14 +207,14 @@ jobs:
       - run: pnpm build
       - name: Build the harness and the playground
         run: |
-          pnpm --filter @dotloom/e2e run build
-          pnpm --filter @dotloom/playground run build
+          pnpm --filter @dotloomjs/e2e run build
+          pnpm --filter @dotloomjs/playground run build
       - name: Download the browser and its WebDriver server from the vendor
         run: node tests/e2e/webdriver/install.mjs "${{ matrix.browser }}" "${{ matrix.channel }}" --dir "$RUNNER_TEMP/browser"
       - name: Serve the harness and the playground
         run: |
           (cd tests/e2e && pnpm run preview > "$RUNNER_TEMP/harness.log" 2>&1 &)
-          (pnpm --filter @dotloom/playground run preview > "$RUNNER_TEMP/playground.log" 2>&1 &)
+          (pnpm --filter @dotloomjs/playground run preview > "$RUNNER_TEMP/playground.log" 2>&1 &)
           for url in http://localhost:5199/ http://localhost:5198/; do
             for i in $(seq 1 60); do curl -sf "$url" > /dev/null && break; sleep 1; done
           done

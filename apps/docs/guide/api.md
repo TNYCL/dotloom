@@ -1,6 +1,6 @@
 # API reference
 
-- [TypeScript API (`@dotloom/sdk`, `@dotloom/react`)](/api/ts/index.html) — generated
+- [TypeScript API (`@dotloomjs/sdk`, `@dotloomjs/react`)](/api/ts/index.html) — generated
   with TypeDoc from the published type declarations.
 - [Rust API](/api/rust/dotloom_engine/index.html) — rustdoc of the published crates:
   [`dotloom_geometry`](/api/rust/dotloom_geometry/index.html),
@@ -17,14 +17,14 @@
 |---|---|
 | `createEditor(container, options)` | engine + viewport + tools + input in one call |
 | `DotloomEngine` | asynchronous engine client (Worker): transactions, undo/redo, files, queries, drags, plugins |
-| `createNodeEngine()` (`@dotloom/sdk/node`) | in-thread engine for Node.js |
+| `createNodeEngine()` (`@dotloomjs/sdk/node`) | in-thread engine for Node.js |
 | `Viewport` | wgpu canvas: camera, overlays, themes, grid, PNG export, loss recovery |
 | `EditorCore`, `bindDom` | DOM-free tool/selection/snapping/shortcut logic and its DOM binding |
 | `PluginHost`, `DotloomPlugin` | plugin lifecycle and extension points |
 | `Autosave`, `IndexedDbStorage`, `MemoryStorage`, `StorageAdapter` | storage |
 | `decodeSceneDelta`, `SceneStore` | the scene contract for custom renderers |
 | `formatLength`, `parseLength`, `formatDuration`, … | display units |
-| `DotloomEditor`, panels, hooks (`@dotloom/react`) | the reference editor |
+| `DotloomEditor`, panels, hooks (`@dotloomjs/react`) | the reference editor |
 
 ## Versions
 

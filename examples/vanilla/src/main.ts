@@ -4,7 +4,7 @@
  * the page builds its own toolbar, file buttons and status line.
  */
 
-import { createEditor, DOTL_MIME, DotloomError, downloadBytes, pickFile, toolText } from '@dotloom/sdk'
+import { createEditor, DOTL_MIME, DotloomError, downloadBytes, pickFile, toolText } from '@dotloomjs/sdk'
 
 const root = document.getElementById('root') as HTMLDivElement
 root.innerHTML = `

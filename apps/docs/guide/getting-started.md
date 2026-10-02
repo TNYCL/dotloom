@@ -4,9 +4,9 @@ Dotloom has three layers you can use separately:
 
 | Layer | Package | Runs in |
 |---|---|---|
-| Engine (geometry, documents, rules, files) | Rust crates `dotloom-*`, compiled to WebAssembly inside `@dotloom/sdk` | Rust programs, Node.js, a Web Worker |
-| SDK (protocol, renderer, tools, storage, plugins) | `@dotloom/sdk` | browsers, Node.js |
-| Reference editor | `@dotloom/react` | React 19 |
+| Engine (geometry, documents, rules, files) | Rust crates `dotloom-*`, compiled to WebAssembly inside `@dotloomjs/sdk` | Rust programs, Node.js, a Web Worker |
+| SDK (protocol, renderer, tools, storage, plugins) | `@dotloomjs/sdk` | browsers, Node.js |
+| Reference editor | `@dotloomjs/react` | React 19 |
 
 Units are always **millimetres**, **radians** and **seconds** in the model. Display
 units (cm, m, in, ft) only change how values are shown and typed.
@@ -14,11 +14,11 @@ units (cm, m, in, ft) only change how values are shown and typed.
 ## Install
 
 ::: warning Not on npm yet
-Dotloom `1.0.0` is attached to the [GitHub Release](https://github.com/TNYCL/dotloom/releases/tag/v1.0.0)
+Dotloom `1.1.0` is attached to the [GitHub Release](https://github.com/TNYCL/dotloom/releases/tag/v1.1.0)
 and is not on the npm and crates.io registries yet. Install it from the release:
 
 ```sh
-npm install https://github.com/TNYCL/dotloom/releases/download/v1.0.0/dotloom-sdk-1.0.0.tgz https://github.com/TNYCL/dotloom/releases/download/v1.0.0/dotloom-react-1.0.0.tgz
+npm install https://github.com/TNYCL/dotloom/releases/download/v1.1.0/dotloomjs-sdk-1.1.0.tgz https://github.com/TNYCL/dotloom/releases/download/v1.1.0/dotloomjs-react-1.1.0.tgz
 ```
 
 Or build the packages from the repository and install the tarballs:
@@ -29,25 +29,25 @@ cd dotloom
 pnpm install
 pnpm run build:wasm
 pnpm run build
-pnpm --filter @dotloom/sdk pack --pack-destination "$PWD/dist-packages"
-pnpm --filter @dotloom/react pack --pack-destination "$PWD/dist-packages"
+pnpm --filter @dotloomjs/sdk pack --pack-destination "$PWD/dist-packages"
+pnpm --filter @dotloomjs/react pack --pack-destination "$PWD/dist-packages"
 ```
 
 In your project, install both tarballs in one command (React is optional):
 
 ```sh
-npm install ../dotloom/dist-packages/dotloom-sdk-1.0.0.tgz ../dotloom/dist-packages/dotloom-react-1.0.0.tgz
-npm install react react-dom   # only for @dotloom/react
+npm install ../dotloom/dist-packages/dotloomjs-sdk-1.1.0.tgz ../dotloom/dist-packages/dotloomjs-react-1.1.0.tgz
+npm install react react-dom   # only for @dotloomjs/react
 ```
 :::
 
-Once published, the packages will be `@dotloom/sdk` and `@dotloom/react`
+Once published, the packages will be `@dotloomjs/sdk` and `@dotloomjs/react`
 (names are defined in one place, `packages/names.json`).
 
 ## A complete editor without React
 
 ```ts
-import { createEditor } from '@dotloom/sdk'
+import { createEditor } from '@dotloomjs/sdk'
 
 const editor = await createEditor(document.getElementById('editor')!)
 
@@ -71,8 +71,8 @@ See the [vanilla example](/examples/vanilla/) for a page that builds its own too
 ## The React editor
 
 ```tsx
-import { DotloomEditor } from '@dotloom/react'
-import '@dotloom/react/styles.css'
+import { DotloomEditor } from '@dotloomjs/react'
+import '@dotloomjs/react/styles.css'
 
 export function App() {
   return (
@@ -91,7 +91,7 @@ messages. See [React editor](./react.md).
 ## Headless (Node.js)
 
 ```ts
-import { createNodeEngine } from '@dotloom/sdk/node'
+import { createNodeEngine } from '@dotloomjs/sdk/node'
 
 const engine = await createNodeEngine()
 await engine.apply([{ op: 'createEntity', entity: { geometry: { type: 'line', a: [0, 0], b: [100, 0] } } }])
@@ -112,7 +112,7 @@ package:
 // vite.config.ts
 export default defineConfig({
   worker: { format: 'es' },
-  optimizeDeps: { exclude: ['@dotloom/sdk', '@dotloom/react'] },
+  optimizeDeps: { exclude: ['@dotloomjs/sdk', '@dotloomjs/react'] },
 })
 ```
 
@@ -120,5 +120,5 @@ If you serve the files elsewhere (a CDN, a sub-path), pass explicit URLs:
 `DotloomEngine.create({ workerUrl, engineWasmUrl })` and
 `Viewport.create(container, engine, { renderWasmUrl })`.
 
-Importing `@dotloom/sdk` has no side effects and touches no browser globals, so it
+Importing `@dotloomjs/sdk` has no side effects and touches no browser globals, so it
 is safe in server-side rendering; create engines and viewports only in the browser.
