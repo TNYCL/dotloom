@@ -11,6 +11,12 @@ type Ready = { ok: boolean; backend?: string; error?: string; info?: Record<stri
 const BACKENDS = ['webgpu', 'webgl2'] as const
 
 async function open(page: Page, backend: string, browserName: string): Promise<Ready> {
+  let probe: { ok: boolean; reason: string } | null = null
+  if (backend === 'webgpu') {
+    // Probe plain WebGPU on a page without Dotloom first.
+    await page.goto('./probe.html')
+    probe = await rawWebgpu(page)
+  }
   await page.goto(`./?backend=${backend}`)
   const r = (await page.evaluate(() => window.dl.ready)) as Ready
   if (r.ok && backend === 'webgl2') {
@@ -18,11 +24,13 @@ async function open(page: Page, backend: string, browserName: string): Promise<R
     test.info().annotations.push({ type: 'webgl2-probe', description: problem ?? 'ok' })
     test.skip(problem !== null, `${browserName}: ${problem} (environment, reproduced with plain WebGL)`)
   }
-  if (r.ok && backend === 'webgpu') {
-    // Environment check: does plain WebGPU keep a device and show a frame here?
-    const probe = await rawWebgpu(page)
+  if (probe) {
     test.info().annotations.push({ type: 'webgpu-probe', description: probe.ok ? 'ok' : probe.reason })
-    test.skip(!probe.ok, `${browserName}: ${probe.reason} (environment, reproduced without Dotloom)`)
+    // Only skip when plain WebGPU fails too; otherwise a Dotloom failure is a real failure.
+    test.skip(
+      !probe.ok && backend === 'webgpu',
+      `${browserName}: ${probe.reason} (environment, reproduced without Dotloom)`,
+    )
   }
   if (!r.ok) {
     // WebGPU is optional outside Chromium: report as skipped with the reason.

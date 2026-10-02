@@ -52,7 +52,7 @@ interface ProbeDevice {
   queue: { submit(buffers: unknown[]): void }
 }
 interface ProbeGpu {
-  requestAdapter(): Promise<{ requestDevice(): Promise<ProbeDevice> } | null>
+  requestAdapter(options?: unknown): Promise<{ requestDevice(): Promise<ProbeDevice> } | null>
   getPreferredCanvasFormat(): string
 }
 interface ProbeContext {
@@ -69,8 +69,12 @@ export async function rawWebgpu(page: Page): Promise<{ ok: boolean; reason: stri
   const r = await page.evaluate(async () => {
     const gpu = (navigator as unknown as { gpu?: ProbeGpu }).gpu
     if (!gpu) return { lost: 'no navigator.gpu' }
-    const adapter = await gpu.requestAdapter()
-    if (!adapter) return { lost: 'no adapter' }
+    let adapter: Awaited<ReturnType<ProbeGpu['requestAdapter']>> = null
+    for (const opts of [{ powerPreference: 'high-performance' }, {}, { forceFallbackAdapter: true }]) {
+      adapter = await gpu.requestAdapter(opts)
+      if (adapter) break
+    }
+    if (!adapter) return { lost: 'no adapter (high-performance, default and fallback requests)' }
     const device = await adapter.requestDevice()
     let lost: string | null = null
     device.lost.then((i) => {
@@ -105,7 +109,7 @@ export async function rawWebgpu(page: Page): Promise<{ ok: boolean; reason: stri
     await new Promise((res) => setTimeout(res, 100))
     return { lost }
   })
-  if (r.lost) return { ok: false, reason: `plain WebGPU device lost: ${r.lost}` }
+  if (r.lost) return { ok: false, reason: `plain WebGPU: ${r.lost}` }
   const img = decodePng(await page.locator('#probe-gpu').screenshot())
   await page.evaluate(() => document.getElementById('probe-gpu')?.remove())
   return isRed(img.at(10, 10)) ? { ok: true, reason: '' } : { ok: false, reason: 'plain WebGPU frame not displayed' }
