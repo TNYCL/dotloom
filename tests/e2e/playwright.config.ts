@@ -23,45 +23,55 @@ if (process.platform === 'linux' || process.env.DOTLOOM_E2E_SWIFTSHADER === '1')
 // DOTLOOM_SITE_URL points them at a deployed site.
 const siteMode = process.env.DOTLOOM_E2E_SITE === '1'
 const siteUrl = process.env.DOTLOOM_SITE_URL ?? 'http://localhost:5200/dotloom/'
+// DOTLOOM_E2E_EXTERNAL=<dist dir> runs the external plugin app check.
+const externalDir = process.env.DOTLOOM_E2E_EXTERNAL
 
 export default defineConfig({
-  testDir: siteMode ? './site' : './specs',
+  testDir: externalDir ? './external' : siteMode ? './site' : './specs',
   timeout: 60_000,
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['json', { outputFile: 'results/e2e.json' }]],
   use: {
-    baseURL: siteMode ? siteUrl : 'http://localhost:5199/',
+    baseURL: externalDir ? 'http://localhost:5201/' : siteMode ? siteUrl : 'http://localhost:5199/',
     trace: 'retain-on-failure',
     // CI runs Firefox headed under Xvfb so it gets Mesa's software WebGL.
     headless: process.env.DOTLOOM_E2E_HEADED !== '1',
   },
-  webServer: siteMode
-    ? process.env.DOTLOOM_SITE_URL
-      ? []
+  webServer: externalDir
+    ? [
+        {
+          command: `node ../../scripts/serve-site.mjs --root "${externalDir}" --base / --port 5201`,
+          url: 'http://localhost:5201/',
+          reuseExistingServer: false,
+        },
+      ]
+    : siteMode
+      ? process.env.DOTLOOM_SITE_URL
+        ? []
+        : [
+            {
+              command: 'node ../../scripts/serve-site.mjs --port 5200',
+              url: siteUrl,
+              reuseExistingServer: !process.env.CI,
+            },
+          ]
       : [
           {
-            command: 'node ../../scripts/serve-site.mjs --port 5200',
-            url: siteUrl,
+            command: 'pnpm run build && pnpm run preview',
+            url: 'http://localhost:5199/',
             reuseExistingServer: !process.env.CI,
+            timeout: 120_000,
           },
-        ]
-    : [
-        {
-          command: 'pnpm run build && pnpm run preview',
-          url: 'http://localhost:5199/',
-          reuseExistingServer: !process.env.CI,
-          timeout: 120_000,
-        },
-        {
-          // The reference React editor (apps/playground).
-          command: 'pnpm --filter @dotloom/playground run build && pnpm --filter @dotloom/playground run preview',
-          url: 'http://localhost:5198/',
-          reuseExistingServer: !process.env.CI,
-          timeout: 120_000,
-        },
-      ],
+          {
+            // The reference React editor (apps/playground).
+            command: 'pnpm --filter @dotloom/playground run build && pnpm --filter @dotloom/playground run preview',
+            url: 'http://localhost:5198/',
+            reuseExistingServer: !process.env.CI,
+            timeout: 120_000,
+          },
+        ],
   projects: [
     {
       name: 'chromium',

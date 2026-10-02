@@ -1,0 +1,19 @@
+{
+  "name": "dotloom-external-plugin-example",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@dotloom/react": "0.1.0",
+    "@dotloom/sdk": "0.1.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "vite": "8.3.2"
+  }
+}

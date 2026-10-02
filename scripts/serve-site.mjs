@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 // Serve site/ under a sub-path the way GitHub Pages does (for local checks and E2E).
 //
-//   node scripts/serve-site.mjs [--port 5200] [--base /dotloom/]
+//   node scripts/serve-site.mjs [--port 5200] [--base /dotloom/] [--root site]
 
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { dirname, extname, join, normalize, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'site')
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(name)
   return i >= 0 ? process.argv[i + 1] : fallback
 }
+const root = arg('--root', join(dirname(fileURLToPath(import.meta.url)), '..', 'site'))
 const port = Number(arg('--port', '5200'))
 const base = arg('--base', '/dotloom/')
 
@@ -45,7 +45,7 @@ function resolve(urlPath) {
 
 createServer((req, res) => {
   const url = req.url ?? '/'
-  if (url === '/' || url === base.slice(0, -1)) {
+  if (base !== '/' && (url === '/' || url === base.slice(0, -1))) {
     res.writeHead(302, { location: base })
     res.end()
     return

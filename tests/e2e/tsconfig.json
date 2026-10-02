@@ -5,5 +5,5 @@
     "types": ["node"],
     "paths": { "@dotloom/sdk": ["../../packages/sdk/src/index.ts"] }
   },
-  "include": ["harness", "specs", "site", "playwright.config.ts", "vite.config.ts"]
+  "include": ["harness", "specs", "site", "external", "playwright.config.ts", "vite.config.ts"]
 }
