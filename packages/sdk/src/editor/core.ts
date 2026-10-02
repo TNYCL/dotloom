@@ -109,6 +109,9 @@ export class EditorCore {
       busy: false,
       error: null,
       lastCommit: null,
+      activeLayer: null,
+      toolsVersion: 0,
+      gridVisible: viewport.grid.visible,
     })
     this.pointer = new Store<PointerState>({ world: null, snap: null })
     this.ctx = this.makeContext()
@@ -137,11 +140,17 @@ export class EditorCore {
       throw new DotloomError({ code: 'plugin', message: `tool "${tool.id}" is already registered` })
     }
     this.tools.set(tool.id, tool)
+    this.bumpTools()
     return () => {
       if (this.tools.get(tool.id) !== tool) return
       if (this.active === tool) this.setTool('select')
       this.tools.delete(tool.id)
+      this.bumpTools()
     }
+  }
+
+  private bumpTools(): void {
+    this.state.set({ toolsVersion: this.state.getSnapshot().toolsVersion + 1 })
   }
 
   /** Registered tools. */
@@ -238,19 +247,65 @@ export class EditorCore {
     this.state.set({ error: null })
   }
 
-  /** Apply a transaction, tracking busy/error state. Returns `null` on failure. */
+  private pending: AbortController | null = null
+
+  /**
+   * Apply a transaction, tracking busy/error state. Returns `null` on failure.
+   * New entities without a layer go to the active layer.
+   */
   async apply(tx: Transaction): Promise<CommitReport | null> {
-    this.state.set({ busy: true })
     try {
-      const r = await this.engine.apply(tx)
-      this.state.set({ lastCommit: r, error: null })
+      const r = await this.applyOrThrow(tx)
+      this.state.set({ error: null })
       return r
     } catch (e) {
       this.report(e)
       return null
-    } finally {
-      this.state.set({ busy: false })
     }
+  }
+
+  /**
+   * Like `apply`, but failures are thrown to the caller (e.g. a form field that
+   * shows the error next to itself) instead of being reported in the state.
+   */
+  async applyOrThrow(tx: Transaction): Promise<CommitReport> {
+    const layer = this.state.getSnapshot().activeLayer
+    const t: Transaction =
+      layer === null
+        ? tx
+        : {
+            ...tx,
+            commands: tx.commands.map((c) =>
+              c.op === 'createEntity' && c.entity.layer === undefined ? { ...c, entity: { ...c.entity, layer } } : c,
+            ),
+          }
+    const ctrl = new AbortController()
+    this.pending = ctrl
+    this.state.set({ busy: true })
+    try {
+      const r = await this.engine.apply(t, { signal: ctrl.signal })
+      this.state.set({ lastCommit: r })
+      return r
+    } finally {
+      if (this.pending === ctrl) this.pending = null
+      this.state.set({ busy: this.pending !== null })
+    }
+  }
+
+  /** Cancel the running solve (the document stays unchanged). */
+  cancelSolve(): void {
+    this.pending?.abort()
+  }
+
+  /** Show or hide the grid (kept in the state for UIs). */
+  setGridVisible(visible: boolean): void {
+    this.viewport.setGrid({ visible })
+    this.state.set({ gridVisible: visible })
+  }
+
+  /** Layer for new entities (`null` = the engine's default layer). */
+  setActiveLayer(layer: number | null): void {
+    this.state.set({ activeLayer: layer })
   }
 
   // --- event queue ---------------------------------------------------------
@@ -526,7 +581,7 @@ export class EditorCore {
         await this.viewport.fit()
         return
       case 'toggleGrid':
-        this.viewport.setGrid({ visible: !this.viewport.grid.visible })
+        this.setGridVisible(!this.viewport.grid.visible)
         return
       case 'toggleSnap':
         this.state.set({ snapEnabled: !this.state.getSnapshot().snapEnabled })

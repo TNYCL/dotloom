@@ -88,6 +88,12 @@ async function shot(page: Page): Promise<Rgba> {
     v.frame()
     return v.canvas.toDataURL('image/png')
   })
+  const diag = await page.evaluate(() => ({
+    events: window.dl.events,
+    stats: window.dl.editor?.viewport.lastStats,
+    info: window.dl.editor?.viewport.info,
+  }))
+  await test.info().attach('viewport.json', { body: JSON.stringify(diag, null, 2), contentType: 'application/json' })
   if (dataUrl.startsWith('data:image/png;base64,')) {
     await test.info().attach('canvas-readback.png', {
       body: Buffer.from(dataUrl.slice('data:image/png;base64,'.length), 'base64'),

@@ -622,6 +622,31 @@ export class Viewport implements ViewportLike {
     }
   }
 
+  /**
+   * Export the current view as PNG (device-pixel resolution). The frame is
+   * rendered and read back in the same task, so it does not depend on the
+   * compositor. Hide the grid with `grid: false`.
+   */
+  async exportPng(opts: { grid?: boolean } = {}): Promise<Blob> {
+    const r = this.renderer
+    if (!r || this.lostState) throw new DotloomError({ code: 'render', message: 'renderer not available' })
+    const grid = this.gridSettings
+    if (opts.grid === false) r.setGrid(JSON.stringify({ ...grid, visible: false }))
+    const overlay = this.overlayJson
+    r.setOverlay('{}')
+    try {
+      this.dirty = true
+      this.frame()
+      const blob = await new Promise<Blob | null>((resolve) => this.canvas.toBlob(resolve, 'image/png'))
+      if (!blob) throw new DotloomError({ code: 'render', message: 'canvas readback failed' })
+      return blob
+    } finally {
+      r.setGrid(JSON.stringify(grid))
+      r.setOverlay(overlay)
+      this.requestRender()
+    }
+  }
+
   /** Remove the canvas and release GPU resources and listeners. */
   dispose(): void {
     if (this.disposed) return

@@ -125,6 +125,11 @@ export interface EditorState {
   busy: boolean
   error: EditorErrorState | null
   lastCommit: CommitReport | null
+  /** Layer that receives new entities (`null` = default layer). */
+  activeLayer: number | null
+  /** Incremented when tools are registered or removed. */
+  toolsVersion: number
+  gridVisible: boolean
 }
 
 /** Pointer feedback (changes on every move). */

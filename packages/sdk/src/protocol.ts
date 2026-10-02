@@ -67,6 +67,7 @@ export type ErrorCode =
   | 'disposed'
   | 'timeout'
   | 'init'
+  | 'render'
 
 export interface ErrorPayload {
   code: ErrorCode

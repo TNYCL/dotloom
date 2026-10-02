@@ -9,7 +9,7 @@ import { defineConfig, devices } from '@playwright/test'
 const wanted = (process.env.DOTLOOM_E2E_BROWSERS ?? 'chromium,firefox,webkit').split(',')
 
 const chromiumArgs = ['--enable-unsafe-webgpu', '--ignore-gpu-blocklist']
-if (process.platform === 'linux') {
+if (process.platform === 'linux' || process.env.DOTLOOM_E2E_SWIFTSHADER === '1') {
   // No GPU on CI runners: SwiftShader provides Vulkan for WebGPU and GL for WebGL2.
   chromiumArgs.push(
     '--enable-features=Vulkan',
@@ -26,7 +26,12 @@ export default defineConfig({
   workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['json', { outputFile: 'results/e2e.json' }]],
-  use: { baseURL: 'http://localhost:5199/', trace: 'retain-on-failure' },
+  use: {
+    baseURL: 'http://localhost:5199/',
+    trace: 'retain-on-failure',
+    // CI runs Firefox headed under Xvfb so it gets Mesa's software WebGL.
+    headless: process.env.DOTLOOM_E2E_HEADED !== '1',
+  },
   webServer: {
     command: 'pnpm run build && pnpm run preview',
     url: 'http://localhost:5199/',

@@ -84,6 +84,7 @@ export {
   type StoredMeta,
 } from './storage.js'
 export { InlineTransport, type Transport, WorkerTransport } from './transport.js'
+export { formatAngle, formatLength, LENGTH_UNITS, parseAngle, parseLength, type UnitInfo } from './units.js'
 export type * from './types.js'
 export { SDK_VERSION, satisfies } from './version.js'
 export {

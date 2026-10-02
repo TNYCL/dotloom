@@ -256,3 +256,21 @@ describe('storage and autosave', () => {
     expect(satisfies('x', '*')).toBe(false)
   })
 })
+
+describe('units', async () => {
+  const { formatLength, parseLength, parseAngle, formatAngle } = await import('../src/units.js')
+  it('formats and parses display units (incl. decimal comma)', () => {
+    expect(formatLength(1600, 'centimetre')).toBe('160 cm')
+    expect(formatLength(1234.6, 'metre')).toBe('1.235 m')
+    expect(formatLength(25.4, 'inch')).toBe('1 in')
+    expect(parseLength('160', 'centimetre')).toBe(1600)
+    expect(parseLength('1,2 m', 'millimetre')).toBe(1200)
+    expect(parseLength(' -5mm ', 'metre')).toBe(-5)
+    expect(parseLength('2 ft', 'metre')).toBeCloseTo(609.6, 9)
+    expect(parseLength('1+1', 'metre')).toBeNull()
+    expect(parseLength('12 parsec', 'metre')).toBeNull()
+    expect(parseAngle('90°')).toBeCloseTo(Math.PI / 2, 12)
+    expect(parseAngle('0,5 rad')).toBe(0.5)
+    expect(formatAngle(Math.PI)).toBe('180°')
+  })
+})

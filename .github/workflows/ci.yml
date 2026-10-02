@@ -129,9 +129,10 @@ jobs:
         run: npx playwright install --with-deps ${{ matrix.browser }}
       - name: Run browser tests
         working-directory: tests/e2e
-        run: npx playwright test
+        run: xvfb-run -a npx playwright test
         env:
           DOTLOOM_E2E_BROWSERS: ${{ matrix.browser }}
+          DOTLOOM_E2E_HEADED: ${{ matrix.browser == 'firefox' && '1' || '0' }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
