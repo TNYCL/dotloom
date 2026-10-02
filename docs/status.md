@@ -2,7 +2,7 @@
 
 Resume point for any contributor or agent. Keep it short; never store secrets here.
 
-- Branch: `docs/after-1.0.0` (release verification script and job, status after 1.0.0)
+- Branch: `main` (no open work branch)
 - Last updated: 2026-10-02
 - Overall: **1.0.0 released on GitHub** (tag `v1.0.0` on `main@36b5e63`,
   https://github.com/TNYCL/dotloom/releases/tag/v1.0.0). Every row of
@@ -26,6 +26,10 @@ Resume point for any contributor or agent. Keep it short; never store secrets he
 | #21 | released-browser matrix (Chrome, Edge, Firefox current and previous major; Safari) through WebDriver; requirement evidence for every row |
 | #22 | load-error title, technical details disclosure, unmount test, released-browser support table |
 | #24 | release 1.0.0: lockstep version, CHANGELOG, install from the GitHub Release, `publish` mode for partial releases |
+| #25 | release verification from public URLs (`scripts/verify-release.mjs`, job in `release.yml`), status after 1.0.0 |
+| #26 | pair kerning shared by renderer and engine (checked against HarfBuzz); outlines via `read-fonts` and an own rasterizer; fontdue/ttf-parser removed (closed #15, #16) |
+| #27 | engine memory −26 % per object (cached evaluations drop spare capacity; part of #14) |
+| #23 | `@types/node` 24.9.2 → 24.19.0 (Dependabot) |
 
 ## Verified evidence (latest runs)
 
