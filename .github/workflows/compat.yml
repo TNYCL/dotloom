@@ -147,12 +147,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # No canvas can be read back in the macOS 27 runner's Safari (a plain 2D
+          # canvas included): the smoke test checks the drawn pixels with WebGL
+          # readPixels there and records PNG export as not verifiable.
           - channel: current
             runner: xcode-27
             major: 27
+            readback: optional
           - channel: previous
             runner: macos-15
             major: 26
+            readback: required
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -189,7 +194,9 @@ jobs:
             for i in $(seq 1 60); do curl -sf "$url" > /dev/null && break; sleep 1; done
           done
       - name: Safari smoke test
-        run: node tests/e2e/webdriver/smoke.mjs --browser safari
+        env:
+          READBACK: ${{ matrix.readback }}
+        run: node tests/e2e/webdriver/smoke.mjs --browser safari --canvas-readback "$READBACK"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
