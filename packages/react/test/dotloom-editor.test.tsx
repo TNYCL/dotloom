@@ -243,6 +243,40 @@ describe('plugin contributions in the editor', () => {
   })
 })
 
+describe('host storage', () => {
+  it('a host-supplied adapter receives autosaves; its failures are shown and recover', async () => {
+    class FlakyStorage extends MemoryStorage {
+      fail: Error | null = new DOMException('The quota has been exceeded.', 'QuotaExceededError')
+      override async write(key: string, bytes: Uint8Array, meta: StoredMeta): Promise<void> {
+        if (this.fail) throw this.fail
+        await super.write(key, bytes, meta)
+      }
+    }
+    const store = new FlakyStorage()
+    const h = await editor({ autosave: { key: 'host', storage: store } })
+    const line = (y: number) => ({
+      label: 'Line',
+      commands: [{ op: 'createEntity' as const, entity: { geometry: { type: 'line' as const, a: [0, y], b: [10, y] } } }],
+    })
+    await act(async () => {
+      await h.core.apply(line(0))
+    })
+    expect(await screen.findByText('Autosave failed: The quota has been exceeded.', {}, { timeout: 5000 })).toBeTruthy()
+    // Not stuck in "Saving…": the changes are reported as unsaved.
+    expect(screen.queryByText('Saving…')).toBeNull()
+    expect(screen.getByText('Unsaved changes')).toBeTruthy()
+    // The document itself is untouched by the storage failure.
+    expect((await h.engine.documentJson()).entities).toHaveLength(1)
+    store.fail = null
+    await act(async () => {
+      await h.core.apply(line(10))
+    })
+    await waitFor(() => expect(screen.queryByText(/Autosave failed/)).toBeNull(), { timeout: 5000 })
+    expect((await store.list()).map((f) => f.key)).toEqual(['host'])
+    expect((await store.meta('host'))?.clean).toBe(false)
+  })
+})
+
 describe('themes and messages', () => {
   it('the system theme follows the OS preference and its changes', async () => {
     let dark = true

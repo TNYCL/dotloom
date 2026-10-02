@@ -170,27 +170,29 @@ function Shell(props: {
   }, [props.root])
   return (
     <>
-      <header className="dl-topbar" role="menubar" aria-label={t('menu.file')}>
-        <button type="button" className="dl-btn" role="menuitem" onClick={() => run('file.new')}>
-          {t('menu.new')}
-        </button>
-        <button type="button" className="dl-btn" role="menuitem" onClick={() => run('file.open')}>
-          {t('menu.open')}
-        </button>
-        <button type="button" className="dl-btn" role="menuitem" onClick={() => run('file.save')}>
-          {t('menu.save')}
-        </button>
-        <button type="button" className="dl-btn" role="menuitem" onClick={() => run('file.exportSvg')}>
-          {t('menu.exportSvg')}
-        </button>
-        <button type="button" className="dl-btn" role="menuitem" onClick={() => run('file.exportDxf')}>
-          {t('menu.exportDxf')}
-        </button>
-        {h.canvas && (
-          <button type="button" className="dl-btn" role="menuitem" onClick={() => run('file.exportPng')}>
-            {t('menu.exportPng')}
+      <header className="dl-topbar">
+        <div className="dl-row" role="group" aria-label={t('menu.file')}>
+          <button type="button" className="dl-btn" onClick={() => run('file.new')}>
+            {t('menu.new')}
           </button>
-        )}
+          <button type="button" className="dl-btn" onClick={() => run('file.open')}>
+            {t('menu.open')}
+          </button>
+          <button type="button" className="dl-btn" onClick={() => run('file.save')}>
+            {t('menu.save')}
+          </button>
+          <button type="button" className="dl-btn" onClick={() => run('file.exportSvg')}>
+            {t('menu.exportSvg')}
+          </button>
+          <button type="button" className="dl-btn" onClick={() => run('file.exportDxf')}>
+            {t('menu.exportDxf')}
+          </button>
+          {h.canvas && (
+            <button type="button" className="dl-btn" onClick={() => run('file.exportPng')}>
+              {t('menu.exportPng')}
+            </button>
+          )}
+        </div>
         <span className="dl-muted" data-testid="document-name">
           {props.name}
         </span>
