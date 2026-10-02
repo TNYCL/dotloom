@@ -235,8 +235,65 @@ fn run(cli: Cli) -> Result<serde_json::Value, Failure> {
     }
 }
 
+#[cfg(not(feature = "png"))]
 fn png(_: &mut Engine, _: u32, _: Option<&str>) -> Result<(Vec<u8>, Option<ConversionReport>), Failure> {
     Err(Failure::Capability("PNG export needs a build with the `png` feature (GPU renderer)".into()))
+}
+
+/// Raster export through the wgpu renderer (needs a GPU or software adapter).
+#[cfg(feature = "png")]
+fn png(
+    engine: &mut Engine,
+    width: u32,
+    background: Option<&str>,
+) -> Result<(Vec<u8>, Option<ConversionReport>), Failure> {
+    use dotloom_io::{Loss, LossKind};
+    use dotloom_render::{Grid, Headless, RendererOptions, Theme, View, color::parse_hex};
+
+    const MARGIN: f64 = 24.0;
+    let delta = engine.full_scene();
+    let bounds = delta
+        .upserts
+        .iter()
+        .map(|i| i.bbox)
+        .filter(|b| !b.is_empty() && b.min.is_finite() && b.max.is_finite())
+        .fold(dotloom_engine::geometry::Aabb::EMPTY, dotloom_engine::geometry::Aabb::union);
+    if bounds.is_empty() {
+        return Err(Failure::Invalid("the document has nothing to draw".into(), None));
+    }
+    let mut theme = Theme::light();
+    theme.background = match background {
+        Some(b) => parse_hex(b).ok_or_else(|| Failure::Invalid(format!("invalid --background color `{b}`"), None))?,
+        None => 0,
+    };
+    let width = width.clamp(16, 8192);
+    let inner_w = f64::from(width) - 2.0 * MARGIN;
+    let aspect = (bounds.height() / bounds.width().max(1e-9)).clamp(1e-3, 1e3);
+    let height = (inner_w * aspect + 2.0 * MARGIN).round().clamp(16.0, 8192.0);
+    let view = View { center: [0.0, 0.0], scale: 1.0, width: f64::from(width), height, dpr: 1.0 }.fit(bounds, MARGIN);
+    let mut h = Headless::new(RendererOptions::default()).map_err(|e| Failure::Capability(e.to_string()))?;
+    let adapter = h.adapter().clone();
+    let entities = delta.upserts.len();
+    let r = h.renderer();
+    r.set_theme(theme);
+    r.set_grid(Grid { visible: false, ..Grid::default() });
+    r.set_view(view).map_err(|e| Failure::Invalid(e.to_string(), None))?;
+    r.apply_delta(delta);
+    let (img, _) = h.render().map_err(|e| Failure::Capability(e.to_string()))?;
+    let bytes = img.to_png().map_err(|e| Failure::Io(e.to_string()))?;
+    let report = ConversionReport {
+        entities,
+        losses: vec![Loss {
+            kind: LossKind::Constraints,
+            what: "raster image keeps no editable data".into(),
+            count: 1,
+        }],
+        notes: vec![format!(
+            "rendered {}x{} px on {} ({}, {})",
+            img.width, img.height, adapter.name, adapter.backend, adapter.device_type
+        )],
+    };
+    Ok((bytes, Some(report)))
 }
 
 fn main() -> ExitCode {

@@ -115,8 +115,40 @@ fn exit_codes() {
     assert_eq!(bin().args(["validate"]).arg(&bad).output().unwrap().status.code(), Some(1));
     assert_eq!(bin().args(["validate", "does-not-exist.dotl"]).output().unwrap().status.code(), Some(3));
     assert_eq!(bin().args(["frobnicate"]).output().unwrap().status.code(), Some(2));
-    let png = tmp("x.png");
-    let out = bin().args(["--json", "convert"]).arg(fixtures().join("dxf/r12_basic.dxf")).arg(&png).output().unwrap();
-    assert_eq!(out.status.code(), Some(4), "PNG without the png feature is a capability error");
-    assert_eq!(json(&out)["error"]["code"], 4);
+    #[cfg(not(feature = "png"))]
+    {
+        let png = tmp("x.png");
+        let out =
+            bin().args(["--json", "convert"]).arg(fixtures().join("dxf/r12_basic.dxf")).arg(&png).output().unwrap();
+        assert_eq!(out.status.code(), Some(4), "PNG without the png feature is a capability error");
+        assert_eq!(json(&out)["error"]["code"], 4);
+    }
+}
+
+/// PNG export through the GPU renderer (needs an adapter; CI uses Mesa lavapipe).
+#[cfg(feature = "png")]
+#[test]
+fn png_export_renders_the_drawing() {
+    let png = tmp("drawing.png");
+    let out = bin()
+        .args(["--json", "convert"])
+        .arg(fixtures().join("dxf/r2018_mm.dxf"))
+        .arg(&png)
+        .args(["--width", "640", "--background", "#ffffff"])
+        .output()
+        .unwrap();
+    if out.status.code() == Some(4) && std::env::var("DOTLOOM_ALLOW_NO_GPU").as_deref() == Ok("1") {
+        eprintln!("SKIPPED (no GPU adapter): {}", String::from_utf8_lossy(&out.stdout));
+        return;
+    }
+    assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stdout));
+    let bytes = std::fs::read(&png).unwrap();
+    assert_eq!(&bytes[..4], &[0x89, b'P', b'N', b'G'][..]);
+    let v = json(&out);
+    assert_eq!(v["export"]["losses"][0]["kind"], "constraints");
+    // Empty documents have nothing to draw.
+    let empty = tmp("empty.svg");
+    std::fs::write(&empty, r#"<svg xmlns="http://www.w3.org/2000/svg"></svg>"#).unwrap();
+    let out = bin().args(["--json", "convert"]).arg(&empty).arg(tmp("empty.png")).output().unwrap();
+    assert_eq!(out.status.code(), Some(1));
 }

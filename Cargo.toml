@@ -9,6 +9,8 @@ members = [
     "crates/io",
     "crates/cli",
     "crates/wasm",
+    "crates/render",
+    "crates/render-web",
 ]
 
 [workspace.package]
@@ -31,6 +33,7 @@ dotloom-constraints = { path = "crates/constraints", version = "0.1.0" }
 dotloom-scene = { path = "crates/scene", version = "0.1.0" }
 dotloom-engine = { path = "crates/engine", version = "0.1.0" }
 dotloom-io = { path = "crates/io", version = "0.1.0" }
+dotloom-render = { path = "crates/render", version = "0.1.0" }
 
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
