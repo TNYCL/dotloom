@@ -8,10 +8,16 @@
 //! * `end_drag(true)` commits the last valid preview as one history entry;
 //!   `end_drag(false)` (Escape, pointer cancel, focus loss) restores the committed
 //!   scene.
+//!
+//! When every component of a drag attempt is linear, the first accepted full solve
+//! seeds a [`LinearSession`] (Cassowary edit variables on the drag target); later
+//! pointer moves re-solve incrementally and fall back to a full solve for anything
+//! the session cannot decide (DL-SOLVE-4). Every preview, incremental or not, goes
+//! through the same independent check before it is shown.
 
 use std::collections::BTreeSet;
 
-use dotloom_constraints::{SolveJob, SolveOptions, Status};
+use dotloom_constraints::{LinearSession, Problem, Solution, SolveJob, SolveOptions, Status};
 use dotloom_document::EntityId;
 use dotloom_geometry::{Affine, Point, TransformPolicy};
 use dotloom_scene::SceneDelta;
@@ -19,6 +25,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Command, DocView, Engine, Overlay,
+    build::RuleOrigin,
     command::{Applier, ApplyNotes},
     engine::CommitReport,
     error::{DiagnosticReport, EngineError},
@@ -57,6 +64,51 @@ pub struct DragPreview {
     pub status: Status,
     /// Diagnostics when not accepted.
     pub diagnostics: Vec<DiagnosticReport>,
+    /// Whether the preview was solved incrementally by a linear session.
+    #[serde(default)]
+    pub incremental: bool,
+}
+
+/// Incremental solver state for one drag attempt kind.
+#[derive(Debug, Default)]
+enum SessionSlot {
+    /// No session yet (built after the next accepted full solve).
+    #[default]
+    Untried,
+    /// A live session.
+    Active(Box<LinearSession>),
+    /// The attempt has a nonlinear component: always solve fully.
+    Unavailable,
+}
+
+/// Solve one attempt, incrementally when a session can answer.
+fn solve_attempt(
+    slot: Option<&mut SessionSlot>,
+    problem: &Problem,
+    plan: &solve::Plan,
+    opts: SolveOptions,
+) -> (Solution, bool) {
+    let Some(slot) = slot else {
+        return (SolveJob::new(problem.clone(), opts).into_solution(), false);
+    };
+    if let SessionSlot::Active(session) = slot {
+        if let Some(sol) = session.resolve(problem) {
+            return (sol, true);
+        }
+        if session.is_broken() {
+            *slot = SessionSlot::Untried;
+        }
+    }
+    let sol = SolveJob::new(problem.clone(), opts).into_solution();
+    // Seed a session only from an accepted solve: then a failed build means a
+    // nonlinear component, not a position where hard rules happen to conflict.
+    if matches!(slot, SessionSlot::Untried) && sol.accepted() {
+        let moving: Vec<usize> =
+            plan.origins.iter().enumerate().filter(|(_, o)| matches!(o, RuleOrigin::Drag)).map(|(i, _)| i).collect();
+        *slot = LinearSession::new(problem, &moving, opts)
+            .map_or(SessionSlot::Unavailable, |s| SessionSlot::Active(Box::new(s)));
+    }
+    (sol, false)
 }
 
 /// An active drag.
@@ -66,6 +118,7 @@ pub(crate) struct DragSession {
     base_revision: u64,
     last: Option<(OverlayData, ApplyNotes)>,
     shown: BTreeSet<EntityId>,
+    sessions: [SessionSlot; 3],
 }
 
 /// Solver options for interactive previews.
@@ -101,7 +154,13 @@ impl Engine {
                 });
             }
         }
-        self.drag = Some(DragSession { spec, base_revision: self.revision, last: None, shown: BTreeSet::new() });
+        self.drag = Some(DragSession {
+            spec,
+            base_revision: self.revision,
+            last: None,
+            shown: BTreeSet::new(),
+            sessions: Default::default(),
+        });
         Ok(())
     }
 
@@ -161,22 +220,24 @@ impl Engine {
             let Some((problem, plan)) = solve::plan_with(&ov, &self.deps, &self.registry, &notes, true, attempt) else {
                 break;
             };
-            let sol = SolveJob::new(problem.clone(), opts).into_solution();
+            let slot = self.drag.as_mut().and_then(|s| s.sessions.get_mut(i));
+            let (sol, incremental) = solve_attempt(slot, &problem, &plan, opts);
             let good = sol.accepted() && solve::targets_met(&problem, &plan, &sol);
             let last = i + 1 == attempts.len();
             if good || last {
                 if sol.accepted() || chosen.is_none() {
-                    chosen = Some((sol, problem, plan));
+                    chosen = Some((sol, problem, plan, incremental));
                 }
                 break;
             }
             if sol.accepted() && chosen.is_none() {
-                chosen = Some((sol, problem, plan));
+                chosen = Some((sol, problem, plan, incremental));
             }
         }
+        let incremental = chosen.as_ref().is_some_and(|c| c.3);
         let (accepted, status, diagnostics) = match chosen {
             None => (true, Status::Solved, Vec::new()),
-            Some((sol, problem, plan)) => {
+            Some((sol, problem, plan, _)) => {
                 match solve::finish(&mut ov, &self.registry, &problem, &plan, &sol, &mut notes) {
                     Ok(()) => (true, sol.status, Vec::new()),
                     Err(EngineError::Solve { failure }) => (false, failure.status, failure.diagnostics),
@@ -206,7 +267,7 @@ impl Engine {
                 s.last = Some((data, notes));
             }
         }
-        Ok((DragPreview { accepted, status, diagnostics }, delta))
+        Ok((DragPreview { accepted, status, diagnostics, incremental }, delta))
     }
 
     /// Finish the drag: commit the last valid preview as one history entry, or

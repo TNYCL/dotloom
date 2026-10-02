@@ -2,6 +2,7 @@
   "name": "@dotloom/example-timeline",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT OR Apache-2.0",
   "type": "module",
   "description": "Timeline: blocks with ordering, equal durations, gaps and locked times",
   "scripts": {

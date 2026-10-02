@@ -139,7 +139,12 @@ impl SolveJob {
             let Some(comp) = self.comps.get(self.next).cloned() else { break };
             match comp.backend {
                 Backend::Trivial => {
-                    self.solve_trivial(&comp);
+                    // An unsupported rule has no rows, so it always lands here.
+                    if let Some(unsupported) = self.unsupported(&comp) {
+                        self.push_unsupported(&comp, unsupported);
+                    } else {
+                        self.solve_trivial(&comp);
+                    }
                     self.next += 1;
                 }
                 Backend::Linear => {
@@ -214,58 +219,9 @@ impl SolveJob {
     }
 
     fn solve_trivial(&mut self, comp: &Component) {
-        if comp.rules.is_empty() {
-            // Free variables without rules: follow the strongest target.
-            for v in &comp.vars {
-                let best = self
-                    .problem
-                    .targets
-                    .iter()
-                    .filter(|t| t.var == *v)
-                    .max_by_key(|t| if t.strength == Strength::Required { Strength::Strong } else { t.strength });
-                if let (Some(t), Some(slot)) = (best, self.x.get_mut(v.index())) {
-                    *slot = t.value;
-                }
-            }
-            let dof = comp.vars.len();
-            let status = if dof == 0 { Status::Solved } else { Status::Underconstrained { dof } };
-            self.reports.push(self.report(comp, Backend::Trivial, status, 0, 0.0));
-            return;
-        }
-        // Rules whose variables are all fixed: verify only.
-        let cols = Columns::new(&self.problem, &[]);
-        let rows = eval_rows(&self.problem, &comp.rules, &cols, &self.x);
-        let hard: Vec<_> =
-            rows.iter().filter(|r| self.problem.rules.get(r.rule).is_some_and(crate::Rule::is_hard)).cloned().collect();
-        let max_hard = max_violation(&hard);
-        if max_hard > self.opts.tolerance {
-            let msg = "rule depends only on fixed values and is violated".to_owned();
-            let residual = hard.iter().map(|r| r.value.abs()).fold(0.0, f64::max);
-            self.diagnostics.push(conflict_diagnostic(
-                &self.problem,
-                &comp.rules,
-                Certainty::Certain,
-                Some(residual),
-                msg,
-            ));
-            self.reports.push(self.report(comp, Backend::Trivial, Status::Conflicting, 0, max_hard));
-        } else {
-            let soft_unmet = rows.iter().any(|r| {
-                self.problem.rules.get(r.rule).is_some_and(|x| !x.is_hard()) && r.violation() > self.opts.tolerance
-            });
-            if soft_unmet {
-                let mut d = conflict_diagnostic(
-                    &self.problem,
-                    &comp.rules,
-                    Certainty::Certain,
-                    None,
-                    "preference cannot be met: all its variables are fixed".into(),
-                );
-                d.kind = DiagnosticKind::PreferenceUnmet;
-                self.diagnostics.push(d);
-            }
-            self.reports.push(self.report(comp, Backend::Trivial, Status::Solved, 0, max_hard));
-        }
+        let (status, diagnostics, max_hard) = solve_trivial(&self.problem, comp, &mut self.x, &self.opts);
+        self.diagnostics.extend(diagnostics);
+        self.reports.push(self.report(comp, Backend::Trivial, status, 0, max_hard));
     }
 
     fn finish_numeric(&mut self, comp: &Component, s: &NumericSolver) {
@@ -397,4 +353,54 @@ impl SolveJob {
 #[must_use]
 pub fn solve(problem: &Problem, opts: &SolveOptions) -> Solution {
     SolveJob::new(problem.clone(), *opts).into_solution()
+}
+
+/// Solve a [`Backend::Trivial`] component: free variables without rules follow their
+/// strongest target; rules without free variables are only verified.
+pub(crate) fn solve_trivial(
+    p: &Problem,
+    comp: &Component,
+    x: &mut [f64],
+    opts: &SolveOptions,
+) -> (Status, Vec<Diagnostic>, f64) {
+    if comp.rules.is_empty() {
+        for v in &comp.vars {
+            let best = p
+                .targets
+                .iter()
+                .filter(|t| t.var == *v)
+                .max_by_key(|t| if t.strength == Strength::Required { Strength::Strong } else { t.strength });
+            if let (Some(t), Some(slot)) = (best, x.get_mut(v.index())) {
+                *slot = t.value;
+            }
+        }
+        let dof = comp.vars.len();
+        let status = if dof == 0 { Status::Solved } else { Status::Underconstrained { dof } };
+        return (status, Vec::new(), 0.0);
+    }
+    let cols = Columns::new(p, &[]);
+    let rows = eval_rows(p, &comp.rules, &cols, x);
+    let hard: Vec<_> = rows.iter().filter(|r| p.rules.get(r.rule).is_some_and(crate::Rule::is_hard)).cloned().collect();
+    let max_hard = max_violation(&hard);
+    if max_hard > opts.tolerance {
+        let msg = "rule depends only on fixed values and is violated".to_owned();
+        let residual = hard.iter().map(|r| r.value.abs()).fold(0.0, f64::max);
+        let d = conflict_diagnostic(p, &comp.rules, Certainty::Certain, Some(residual), msg);
+        return (Status::Conflicting, vec![d], max_hard);
+    }
+    let soft_unmet =
+        rows.iter().any(|r| p.rules.get(r.rule).is_some_and(|x| !x.is_hard()) && r.violation() > opts.tolerance);
+    let mut diagnostics = Vec::new();
+    if soft_unmet {
+        let mut d = conflict_diagnostic(
+            p,
+            &comp.rules,
+            Certainty::Certain,
+            None,
+            "preference cannot be met: all its variables are fixed".into(),
+        );
+        d.kind = DiagnosticKind::PreferenceUnmet;
+        diagnostics.push(d);
+    }
+    (Status::Solved, diagnostics, max_hard)
 }

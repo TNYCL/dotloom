@@ -106,3 +106,20 @@ phase; see `docs/performance.md`)
       attempt (nothing pinned) runs, falling back to the pinned result if the relaxed
       one fails. This gives lexicographic priority without extreme weights.
     - locked entities (UI lock) and `solve: false` properties are constants.
+12. **Incremental linear drags** (`crates/constraints/src/session.rs`, added
+    2026-10-02): a drag re-solves the same problem for every pointer move. When all
+    components of a drag attempt are linear, the first accepted full solve seeds a
+    `LinearSession` that keeps one kasuari solver per component alive. The drag
+    target's rows are bound to Cassowary edit variables (`suggest_value`, i.e. a
+    dual-simplex re-optimization from the previous basis); any other row,
+    preference or stay whose coefficients changed (moved entities, new reference
+    values) is removed and re-added; unchanged ones stay. A required target is held
+    by a strong edit variable: when the verified result meets it, the result is an
+    optimum of the full problem as well, because the strong error term is zero and
+    the remaining objective is identical. Every result is verified against all hard
+    rows independently of kasuari, and the engine's independent check runs as for
+    any preview. Structural changes, an unmet hard row, a nonlinear component or a
+    violated constant rule return `None` and the engine runs a full `SolveJob`,
+    which also produces exact diagnostics. Each drag attempt (pinned/unpinned,
+    hard/soft target) has its own session. Measured speed-up on a 50–200 box chain:
+    15–67× at identical results (`docs/performance.md`).

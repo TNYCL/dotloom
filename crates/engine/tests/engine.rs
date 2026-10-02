@@ -343,6 +343,258 @@ fn pending_solve_can_be_cancelled_without_changes() {
 }
 
 // ---------------------------------------------------------------------------
+// Rule classes and anchors (DL-SOLVE-2, DL-SOLVE-3, DL-DOC-4)
+
+#[test]
+fn rules_on_the_wrong_geometry_class_or_missing_anchors_are_rejected_before_commit() {
+    let mut e = Engine::default();
+    for d in floorplan_defs() {
+        e.register_type(d, "floorplan").unwrap();
+    }
+    let a = line(&mut e, (0.0, 0.0), (100.0, 0.0));
+    let b = line(&mut e, (0.0, 50.0), (100.0, 50.0));
+    let c = create(
+        &mut e,
+        NewEntity {
+            geometry: Some(Shape::Circle(
+                dotloom_engine::geometry::Circle::new(Point::new(50.0, 100.0), 20.0).unwrap(),
+            )),
+            ..NewEntity::default()
+        },
+    );
+    let wall = create(
+        &mut e,
+        NewEntity {
+            type_id: Some(TypeId::new("floorplan.wall").unwrap()),
+            props: [
+                ("start".to_owned(), PropValue::Point(Point::ORIGIN)),
+                ("end".to_owned(), PropValue::Point(Point::new(4000.0, 0.0))),
+            ]
+            .into(),
+            ..NewEntity::default()
+        },
+    );
+    let rev = e.revision();
+    let hash = e.document().content_hash().unwrap();
+    let rejected = |e: &mut Engine, rule: RuleSpec, why: &str| {
+        let err = add_constraint(e, rule.clone()).expect_err(why);
+        let EngineError::Solve { failure } = &err else { panic!("{why}: expected a solve failure, got {err:?}") };
+        assert_eq!(failure.status, Status::Unsupported, "{why}: {failure:?}");
+        let d = failure.diagnostics.iter().find(|d| d.kind == DiagnosticKind::Unsupported).expect(why);
+        assert!(d.message.contains(why), "{why}: {}", d.message);
+    };
+    // A line is not a circle: tangency, concentricity and radius need circles or arcs.
+    rejected(
+        &mut e,
+        RuleSpec::TangentLineCircle { line: LineRef::of(a), circle: b, side: 1.0 },
+        "is not a circle or arc",
+    );
+    rejected(&mut e, RuleSpec::Concentric { a: c, b: a }, "is not a circle or arc");
+    rejected(&mut e, RuleSpec::Radius { circle: wall, value: 10.0 }, "has no circle interpretation");
+    // Anchors that the entity does not have (built-in and plugin) are rejected while
+    // the command is validated, before anything is solved.
+    for (id, anchor) in [(a, "center"), (wall, "hinge")] {
+        let err = add_constraint(&mut e, RuleSpec::FixPoint { a: AnchorRef::new(id, anchor), at: Point::ORIGIN })
+            .expect_err(anchor);
+        let EngineError::Command { error: dotloom_engine::CommandError::Invalid { reason, .. } } = &err else {
+            panic!("{anchor}: expected an invalid command, got {err:?}")
+        };
+        assert!(reason.contains(&format!("has no anchor `{anchor}`")), "{reason}");
+    }
+    // Nothing was committed.
+    assert_eq!(e.revision(), rev);
+    assert_eq!(e.document().content_hash().unwrap(), hash);
+    // The same rules on the right classes and anchors are accepted.
+    add_constraint(&mut e, RuleSpec::TangentLineCircle { line: LineRef::of(b), circle: c, side: 1.0 }).unwrap();
+    add_constraint(&mut e, RuleSpec::FixPoint { a: AnchorRef::new(wall, "start"), at: Point::ORIGIN }).unwrap();
+    let center = e.evaluate(c).unwrap().anchor("center").unwrap();
+    let (p0, p1) = (e.evaluate(b).unwrap().anchor("start").unwrap(), e.evaluate(b).unwrap().anchor("end").unwrap());
+    let dist = ((p1 - p0).cross(center - p0) / p0.distance(p1)).abs();
+    assert!(close(dist, p(&e, c, "r")), "tangent: distance {dist} vs radius {}", p(&e, c, "r"));
+}
+
+#[test]
+fn shape_breaking_transforms_keep_rules_and_dimensions_meaningful() {
+    // DL-GEO-13: a circle cannot take a non-uniform scale and stay a circle. Strict
+    // transforms fail with a capability error; `Convert` turns it into a path
+    // explicitly and reports what that breaks. Similarities keep everything.
+    let mut e = Engine::default();
+    let c = create(
+        &mut e,
+        NewEntity {
+            geometry: Some(Shape::Circle(dotloom_engine::geometry::Circle::new(Point::new(0.0, 0.0), 50.0).unwrap())),
+            ..NewEntity::default()
+        },
+    );
+    let l = line(&mut e, (100.0, 0.0), (300.0, 0.0));
+    add_constraint(&mut e, RuleSpec::Radius { circle: c, value: 50.0 }).unwrap();
+    let dim = |e: &mut Engine, props: Vec<(&str, PropValue)>| {
+        create(
+            e,
+            NewEntity {
+                type_id: Some(TypeId::new("dotloom.dimension").unwrap()),
+                props: props.into_iter().map(|(k, v)| (k.to_owned(), v)).collect(),
+                ..NewEntity::default()
+            },
+        )
+    };
+    let radial = dim(
+        &mut e,
+        vec![("kind", PropValue::Text("radial".into())), ("circle", PropValue::Ref(RefValue { entity: c }))],
+    );
+    let linear = dim(
+        &mut e,
+        vec![
+            ("kind", PropValue::Text("linear".into())),
+            ("a", PropValue::Anchor(AnchorRef::new(l, "start"))),
+            ("b", PropValue::Anchor(AnchorRef::new(l, "end"))),
+        ],
+    );
+    let measure = |e: &mut Engine, id| e.evaluate(id).unwrap().measured.expect("dimension value");
+    assert!(close(measure(&mut e, radial), 50.0));
+    assert!(close(measure(&mut e, linear), 200.0));
+    let transform = |ids: Vec<EntityId>, t: Affine, policy| Command::Transform { ids, transform: t, policy };
+
+    // 1. Strict non-uniform scale of the circle: capability error, nothing changes.
+    let rev = e.revision();
+    let err = apply(&mut e, vec![transform(vec![c], Affine::scale(2.0, 1.0), Default::default())]).unwrap_err();
+    assert!(format!("{err:?}").contains("unsupported transform for circle"), "{err:?}");
+    assert_eq!(e.revision(), rev);
+
+    // 2. A uniform scale is a similarity: the radius rule and the dimension follow
+    //    (the radius rule is then re-solved: the scaled circle must keep r = 50).
+    let r = apply(&mut e, vec![transform(vec![c], Affine::scale(2.0, 2.0), Default::default())]);
+    assert!(r.is_err(), "the hard radius rule forbids growing the circle: {r:?}");
+    let r = apply(&mut e, vec![transform(vec![c], Affine::translate(Vector::new(10.0, 0.0)), Default::default())]);
+    assert!(r.is_ok());
+    assert!(close(measure(&mut e, radial), 50.0));
+
+    // 3. Non-uniform scale of a line is exact: the linear dimension measures the new length.
+    apply(&mut e, vec![transform(vec![l], Affine::scale(1.5, 3.0), Default::default())]).unwrap();
+    assert!(close(measure(&mut e, linear), 300.0), "{}", measure(&mut e, linear));
+
+    // 4. Explicit conversion: the circle becomes a path, its radius rule is removed and
+    //    the radial dimension is reported as no longer resolving. Undo restores all.
+    let report = apply(
+        &mut e,
+        vec![transform(vec![c], Affine::scale(2.0, 1.0), dotloom_engine::geometry::TransformPolicy::Convert)],
+    )
+    .unwrap();
+    assert_eq!(e.document().entity(c).unwrap().type_id.as_str(), "dotloom.path");
+    assert_eq!(report.removed_constraints.len(), 1, "{report:?}");
+    assert!(
+        report.notes.iter().any(|n| n.contains("changed shape kind") && n.contains(&c.to_string())),
+        "{:?}",
+        report.notes
+    );
+    assert!(report.notes.iter().any(|n| n.contains(&format!("{radial} no longer resolves"))), "{:?}", report.notes);
+    assert!(e.evaluate(radial).unwrap().error.is_some());
+    // The path really is the stretched circle: 100 mm wide, 50 mm tall around (10, 0).
+    let bb = e.evaluate(c).unwrap().bbox;
+    assert!((bb.size().x - 200.0).abs() < 0.2 && (bb.size().y - 100.0).abs() < 0.2, "{bb:?}");
+    e.undo(ApplyOptions::default()).unwrap();
+    assert_eq!(e.document().entity(c).unwrap().type_id.as_str(), "dotloom.circle");
+    assert_eq!(e.document().constraints().count(), 1);
+    assert!(close(measure(&mut e, radial), 50.0));
+}
+
+// ---------------------------------------------------------------------------
+// Independent commit validation (DL-TEST-3, DL-SOLVE-10)
+
+#[test]
+fn the_independent_checker_rejects_what_a_loose_solver_accepts() {
+    // A solver configured with a uselessly loose tolerance (10 % of the drawing size)
+    // reports "solved" for a line 50 mm short of its length rule. The commit is still
+    // refused: every hard rule is re-measured on the final geometry with the
+    // checker's own tolerance, independently of the solver.
+    let opts = EngineOptions {
+        solve: dotloom_engine::constraints::SolveOptions {
+            tolerance: 0.1,
+            ..dotloom_engine::constraints::SolveOptions::default()
+        },
+        ..EngineOptions::default()
+    };
+    let mut e = Engine::new(opts);
+    let a = line(&mut e, (0.0, 0.0), (950.0, 0.0));
+    let rev = e.revision();
+    let err = add_constraint(&mut e, RuleSpec::Length { line: LineRef::of(a), value: 1000.0 }).unwrap_err();
+    let EngineError::Validation { residual, tolerance, .. } = err else { panic!("expected validation, got {err:?}") };
+    assert!((residual - 50.0).abs() < 1e-9, "residual {residual}");
+    assert!(tolerance < 1e-3, "checker tolerance {tolerance}");
+    assert_eq!(e.revision(), rev);
+    assert!(e.document().constraints().next().is_none());
+    // With the default tolerance the same rule is solved and passes the checker.
+    let mut ok = Engine::default();
+    let b = line(&mut ok, (0.0, 0.0), (950.0, 0.0));
+    add_constraint(&mut ok, RuleSpec::Length { line: LineRef::of(b), value: 1000.0 }).unwrap();
+    assert!(ok.verify().is_empty());
+    let end = ok.evaluate(b).unwrap().anchor("end").unwrap();
+    assert!((end.distance(ok.evaluate(b).unwrap().anchor("start").unwrap()) - 1000.0).abs() < 1e-6);
+}
+
+#[test]
+fn verify_measures_rules_of_an_opened_file_independently() {
+    // Files are opened without solving; `verify` reports each violated hard rule
+    // with its residual and tolerance.
+    let j = serde_json::json!({
+        "schema": 1, "layers": [{"id": 1, "name": "L"}], "nextId": 10,
+        "entities": [
+            {"id": 2, "type": "dotloom.line", "layer": 1, "geometry": {"type": "line", "a": [0, 0], "b": [300, 400]}},
+            {"id": 3, "type": "dotloom.line", "layer": 1, "geometry": {"type": "line", "a": [0, 0], "b": [100, 0]}}
+        ],
+        "constraints": [
+            {"id": 4, "rule": {"kind": "length", "line": {"from": {"entity": 2, "anchor": "start"}, "to": {"entity": 2, "anchor": "end"}}, "value": 500}},
+            {"id": 5, "rule": {"kind": "length", "line": {"from": {"entity": 3, "anchor": "start"}, "to": {"entity": 3, "anchor": "end"}}, "value": 120}}
+        ]
+    });
+    let (doc, _) = Document::from_json_value(j, &Default::default()).unwrap();
+    let mut e = Engine::default();
+    e.load(doc).unwrap();
+    let v = e.verify();
+    assert_eq!(v.len(), 1, "{v:?}");
+    assert!(v[0].0.contains('5') && (v[0].1 - 20.0).abs() < 1e-9, "{v:?}");
+}
+
+#[test]
+fn an_exhausted_iteration_budget_rejects_the_change_and_keeps_the_document() {
+    // Two iterations cannot bring a far nonlinear edit to tolerance: the result is
+    // `notConverged`, not a commit of a half-solved state.
+    let opts = EngineOptions {
+        solve: dotloom_engine::constraints::SolveOptions {
+            max_iterations: 2,
+            ..dotloom_engine::constraints::SolveOptions::default()
+        },
+        ..EngineOptions::default()
+    };
+    let mut e = Engine::new(opts);
+    let mut ids = Vec::new();
+    for i in 0..8 {
+        ids.push(line(&mut e, (f64::from(i) * 10.0, 0.0), (f64::from(i) * 10.0 + 10.0, 0.0)));
+    }
+    for w in ids.windows(2) {
+        add_constraint(
+            &mut e,
+            RuleSpec::Coincident { a: AnchorRef::new(w[0], "end"), b: AnchorRef::new(w[1], "start") },
+        )
+        .unwrap();
+    }
+    for id in &ids {
+        add_constraint(&mut e, RuleSpec::Length { line: LineRef::of(*id), value: 10.0 }).unwrap();
+    }
+    add_constraint(&mut e, RuleSpec::FixPoint { a: AnchorRef::new(ids[0], "start"), at: Point::ORIGIN }).unwrap();
+    let hash = e.document().content_hash().unwrap();
+    let rev = e.revision();
+    let last = *ids.last().unwrap();
+    let err = set(&mut e, last, "b.y", 55.0, EditMode::Exact).unwrap_err();
+    let EngineError::Solve { failure } = &err else { panic!("expected a solve failure, got {err:?}") };
+    assert!(matches!(failure.status, Status::NotConverged { .. }), "{:?}", failure.status);
+    assert!(!failure.diagnostics.is_empty());
+    assert_eq!(e.revision(), rev);
+    assert_eq!(e.document().content_hash().unwrap(), hash);
+    assert!(e.verify().is_empty());
+}
+
+// ---------------------------------------------------------------------------
 // Drag (DL-CMD-4/5)
 
 #[test]
@@ -381,6 +633,97 @@ fn drag_previews_then_commits_one_entry_or_cancels() {
     // Preview items are re-emitted from the committed state.
     let delta = e.take_scene_delta();
     assert!(delta.upserts.iter().any(|i| i.id == a.0 && i.flags & dotloom_engine::scene::flags::PREVIEW == 0));
+}
+
+/// Three timeline blocks with 30-minute gaps; a's start is locked. Returns the
+/// engine and the blocks.
+fn timeline_chain() -> (Engine, [EntityId; 3]) {
+    let mut e = Engine::default();
+    e.register_type(timeline_def(), "timeline").unwrap();
+    apply(
+        &mut e,
+        vec![Command::SetSettings {
+            patch: dotloom_engine::SettingsPatch {
+                time_axis: Some(TimeAxis::new(0.0, 0.1).unwrap()),
+                ..Default::default()
+            },
+        }],
+    )
+    .unwrap();
+    let mut blocks = Vec::new();
+    for (start_h, dur_h) in [(0.0, 2.0), (3.0, 1.0), (5.0, 1.0)] {
+        blocks.push(create(
+            &mut e,
+            NewEntity {
+                type_id: Some(TypeId::new("timeline.block").unwrap()),
+                props: [
+                    ("start".to_owned(), PropValue::Number(start_h * 3600.0)),
+                    ("duration".to_owned(), PropValue::Number(dur_h * 3600.0)),
+                ]
+                .into_iter()
+                .collect(),
+                ..NewEntity::default()
+            },
+        ));
+    }
+    for w in blocks.windows(2) {
+        add_constraint(
+            &mut e,
+            RuleSpec::Linear {
+                terms: vec![
+                    Term { coef: 1.0, param: ParamRef::prop(w[1], "start") },
+                    Term { coef: -1.0, param: ParamRef::prop(w[0], "start") },
+                    Term { coef: -1.0, param: ParamRef::prop(w[0], "duration") },
+                ],
+                op: Cmp::Ge,
+                rhs: 1800.0,
+            },
+        )
+        .unwrap();
+    }
+    add_constraint(&mut e, RuleSpec::Fix { param: ParamRef::prop(blocks[0], "start"), value: 0.0 }).unwrap();
+    (e, [blocks[0], blocks[1], blocks[2]])
+}
+
+#[test]
+fn linear_drags_are_solved_incrementally_and_match_fresh_drags() {
+    // Drag the end of the first block (0.1 mm per second: 1 h = 360 mm). The pushes
+    // through the gap rules are linear, so every move after the first one is
+    // answered by the incremental session (DL-SOLVE-4).
+    let path = [800.0, 1000.0, 1300.0, 1100.0, 500.0, 1700.0, 60.0];
+    let params = |e: &Engine, b: &[EntityId; 3]| {
+        b.iter().flat_map(|id| [p(e, *id, "start"), p(e, *id, "duration")]).collect::<Vec<f64>>()
+    };
+    for k in 1..=path.len() {
+        let (mut inc, blocks) = timeline_chain();
+        inc.begin_drag(DragSpec::Anchor { entity: blocks[0], anchor: "finish".into() }).unwrap();
+        for (i, x) in path[..k].iter().enumerate() {
+            let (pre, delta) = inc.drag_to(Point::new(*x, 0.0)).unwrap();
+            assert!(pre.accepted, "{x}: {pre:?}");
+            assert_eq!(pre.incremental, i > 0, "move {i} to {x}");
+            assert!(!delta.upserts.is_empty());
+        }
+        inc.end_drag(true).unwrap().unwrap();
+
+        let (mut fresh, blocks2) = timeline_chain();
+        fresh.begin_drag(DragSpec::Anchor { entity: blocks2[0], anchor: "finish".into() }).unwrap();
+        let (pre, _) = fresh.drag_to(Point::new(path[k - 1], 0.0)).unwrap();
+        assert!(pre.accepted && !pre.incremental);
+        fresh.end_drag(true).unwrap().unwrap();
+
+        let (a, b) = (params(&inc, &blocks), params(&fresh, &blocks2));
+        for (x, y) in a.iter().zip(&b) {
+            assert!((x - y).abs() < 1e-6, "after {k} moves: incremental {a:?} vs fresh {b:?}");
+        }
+        // Independent check of the committed result: a ends at the pointer (5 min
+        // minimum duration), the gaps hold.
+        let a_end = p(&inc, blocks[0], "start") + p(&inc, blocks[0], "duration");
+        assert!(close(a_end, (path[k - 1] / 0.1).max(300.0)), "{a_end}");
+        for w in blocks.windows(2) {
+            let gap = p(&inc, w[1], "start") - p(&inc, w[0], "start") - p(&inc, w[0], "duration");
+            assert!(gap >= 1800.0 - 1e-6, "gap {gap}");
+        }
+    }
 }
 
 #[test]
@@ -505,6 +848,35 @@ fn old_wall_versions_are_migrated_on_load() {
     assert_eq!(w.type_version, 2);
     assert_eq!(w.props.get("thickness"), Some(&PropValue::Number(150.0)));
     assert!(!w.props.contains_key("thick"));
+}
+
+#[test]
+fn entities_from_a_newer_plugin_version_open_read_only() {
+    // DL-PLUGIN-2/4: a document written by wall v3 opened with wall v2 registered.
+    let mut e = Engine::default();
+    for d in floorplan_defs() {
+        e.register_type(d, "floorplan").unwrap();
+    }
+    let j = serde_json::json!({
+        "schema": 1, "layers": [{"id": 1, "name": "L"}], "nextId": 3,
+        "entities": [{"id": 2, "type": "floorplan.wall", "typeVersion": 3, "layer": 1,
+            "props": {"start": [0, 0], "end": [1000, 0], "thickness": 150.0, "finish": "oak"}}]
+    });
+    let (doc, _) = Document::from_json_value(j, &Default::default()).unwrap();
+    e.load(doc).unwrap();
+    let wall = EntityId(2);
+    let ev = e.evaluate(wall).unwrap();
+    assert!(
+        matches!(&ev.read_only, Some(dotloom_engine::eval::ReadOnly::NewerVersion { found: 3, supported: 2, .. })),
+        "{:?}",
+        ev.read_only
+    );
+    let err = set(&mut e, wall, "thickness", 300.0, EditMode::Exact).unwrap_err();
+    assert!(format!("{err:?}").contains("ReadOnly"), "{err:?}");
+    // Nothing is migrated down or dropped: the newer payload survives a save.
+    let w = e.document().entity(wall).unwrap();
+    assert_eq!(w.type_version, 3);
+    assert_eq!(w.props.get("finish"), Some(&PropValue::Text("oak".into())));
 }
 
 // ---------------------------------------------------------------------------

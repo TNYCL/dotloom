@@ -32,5 +32,5 @@ if (existsSync(wasm)) {
 }
 const css = join(pkg, 'src', 'styles.css')
 if (existsSync(css)) cpSync(css, join(dist, 'styles.css'))
-for (const f of ['LICENSE-MIT', 'LICENSE-APACHE']) cpSync(join(root, f), join(pkg, f))
+for (const f of ['LICENSE-MIT', 'LICENSE-APACHE', 'THIRD-PARTY-NOTICES.md']) cpSync(join(root, f), join(pkg, f))
 console.log(`built packages/${name}`)

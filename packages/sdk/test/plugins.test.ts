@@ -177,6 +177,82 @@ describe('plugin lifecycle', () => {
     expect((await e2.documentJson()).entities.find((e) => e.id === id)?.props?.width).toBe(900)
   })
 
+  it('lists tools, runs onDispose and listener cleanups, mounts panels once, dispose() releases everything', async () => {
+    const { engine, core, host } = await setup()
+    const log: string[] = []
+    let commits = 0
+    const store = new MemoryStorage()
+    const plugin: DotloomPlugin = {
+      ...shelfPlugin(log),
+      storage: [store],
+      panels: [
+        {
+          id: 'info',
+          title: 'Shelf',
+          forTypes: ['shelf.unit'],
+          mount(el, api) {
+            el.textContent = `selected ${api.selection().length}`
+            log.push('mount')
+            return () => {
+              el.textContent = ''
+              log.push('unmount')
+            }
+          },
+        },
+      ],
+      activate(api) {
+        api.on('committed', () => {
+          commits++
+        })
+        // What a plugin with its own GPU buffers, DOM nodes or timers registers.
+        api.onDispose(() => log.push('release'))
+        return () => log.push('cleanup')
+      },
+    }
+    await host.register(plugin)
+    expect(host.list()[0]).toMatchObject({ tools: ['shelf.place'], commands: ['add'], enabled: true })
+    expect(host.storageAdapters()).toEqual([store])
+
+    // Panels get the live selection; unmounting twice is harmless.
+    const el = { textContent: '' } as unknown as HTMLElement
+    const off = host.mountPanel('shelf.configurator', 'info', el)
+    expect(el.textContent).toBe('selected 0')
+    off()
+    off()
+    expect(log.filter((x) => x === 'unmount')).toHaveLength(1)
+
+    // Disabling unmounts open panels and runs every cleanup exactly once.
+    host.mountPanel('shelf.configurator', 'info', el)
+    await engine.apply([{ op: 'createEntity', entity: { geometry: { type: 'point', at: [0, 0] } } }])
+    expect(commits).toBe(1)
+    await host.disable('shelf.configurator')
+    expect(log.filter((x) => x === 'unmount')).toHaveLength(2)
+    expect(log.filter((x) => x === 'release')).toHaveLength(1)
+    expect(log.filter((x) => x === 'cleanup')).toHaveLength(1)
+    expect(host.list()[0]).toMatchObject({ tools: [], enabled: false })
+    expect(host.storageAdapters()).toEqual([])
+    expect(() => host.mountPanel('shelf.configurator', 'info', el)).toThrow(/disabled/)
+    await engine.apply([{ op: 'createEntity', entity: { geometry: { type: 'point', at: [1, 1] } } }])
+    expect(commits).toBe(1)
+
+    // dispose(): every plugin unregistered, cleanups run, registry subscribers dropped.
+    await host.enable('shelf.configurator')
+    host.mountPanel('shelf.configurator', 'info', el)
+    let changes = 0
+    host.subscribe(() => {
+      changes++
+    })
+    await host.dispose()
+    expect(host.list()).toEqual([])
+    expect(log.filter((x) => x === 'release')).toHaveLength(2)
+    expect(log.filter((x) => x === 'unmount')).toHaveLength(3)
+    expect(core.listTools().some((t) => t.id === 'shelf.place')).toBe(false)
+    expect((await engine.pluginTypes()).map((t) => t.typeId)).not.toContain('shelf.unit')
+    const seen = changes
+    await host.register({ id: 'acme.after', version: '1.0.0' })
+    expect(changes).toBe(seen)
+  })
+
   it('rejects invalid ids, duplicates, incompatible SDK ranges, foreign namespaces and type conflicts', async () => {
     const { host, core } = await setup()
     await expect(host.register({ id: 'Bad Id', version: '1.0.0' })).rejects.toMatchObject({ code: 'plugin' })

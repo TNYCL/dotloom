@@ -24,6 +24,28 @@ pnpm run build
 
 Every command works in Windows PowerShell, Linux and macOS shells.
 
+### Windows
+
+- Rust needs the MSVC toolchain: install "Desktop development with C++" from the
+  Visual Studio Build Tools before `rustup`.
+- Use PowerShell 5.1 or 7. Environment variables are set differently from POSIX
+  shells (the tables below use the POSIX form):
+
+  | POSIX shells | PowerShell |
+  |---|---|
+  | `DOTLOOM_E2E_BROWSERS=chromium pnpm run test:e2e` | `$env:DOTLOOM_E2E_BROWSERS = 'chromium'; pnpm run test:e2e` |
+  | `DOTLOOM_UPDATE_PARITY=1 cargo test -p dotloom-wasm --test parity` | `$env:DOTLOOM_UPDATE_PARITY = '1'; cargo test -p dotloom-wasm --test parity` |
+
+  Remove a variable afterwards with `Remove-Item Env:DOTLOOM_E2E_BROWSERS`.
+- GPU tests (`crates/render/tests/headless.rs`) use Direct3D 12 or Vulkan. Without
+  a GPU adapter they fail; set `DOTLOOM_ALLOW_NO_GPU=1` to skip them explicitly
+  (they print `SKIPPED`, never a pass).
+- `npx playwright install` downloads Chromium, Firefox and WebKit for Windows.
+  Playwright's WebKit on Windows cannot composite resized WebGL2 canvases, so those
+  tests skip with that reason; WebKit is fully covered on macOS in `compat.yml`.
+- Benchmarks (`pnpm --filter @dotloom/e2e run bench`) open headed browser windows;
+  keep the machine otherwise idle while they run.
+
 ## Checks
 
 Run what CI runs before you push:
@@ -36,6 +58,7 @@ Run what CI runs before you push:
 | Browser tests (Chromium, Firefox, WebKit) | `pnpm run test:e2e` (`DOTLOOM_E2E_BROWSERS=chromium` to limit) |
 | Documentation site | `pnpm run build:site` |
 | Package consumer smoke test | `pnpm run smoke:packages` |
+| Crate consumer smoke test | `pnpm run smoke:crates` |
 
 `pnpm run format` fixes formatting. Build or test one thing at a time: parallel
 Rust builds use a lot of memory (`.cargo/config.toml` caps cargo at four jobs).

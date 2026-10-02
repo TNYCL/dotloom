@@ -37,6 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0
       - id: v
@@ -81,6 +82,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           ref: ${{ needs.verify.outputs.sha }}
       - name: Install toolchain from rust-toolchain.toml
         run: rustup show active-toolchain || rustup toolchain install
@@ -101,9 +103,9 @@ jobs:
           pnpm --filter @dotloom/react pack --pack-destination "$PWD/dist/npm"
       - name: Install the tarballs outside the repository, test and build the external plugin
         run: node scripts/smoke-packages.mjs --work "$RUNNER_TEMP/smoke"
-      - name: Crates (packaged and verified against each other)
+      - name: Crates (packaged, verified against each other and used by a consumer)
         run: |
-          cargo package --workspace --locked --exclude dotloom-wasm --exclude dotloom-render-web
+          node scripts/smoke-crates.mjs --work "$RUNNER_TEMP/crates"
           mkdir -p dist/crates
           cp target/package/*.crate dist/crates/
       - name: Release notes from CHANGELOG.md
@@ -134,6 +136,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           ref: ${{ needs.verify.outputs.sha }}
       - name: Install toolchain from rust-toolchain.toml
         run: rustup show active-toolchain || rustup toolchain install
@@ -150,7 +153,7 @@ jobs:
           mkdir -p dist
           name="dotloom-$VERSION-$TARGET"
           mkdir "$name"
-          cp "target/release/$EXE" LICENSE-MIT LICENSE-APACHE README.md "$name/"
+          cp "target/release/$EXE" LICENSE-MIT LICENSE-APACHE THIRD-PARTY-NOTICES.md README.md "$name/"
           if [ "${RUNNER_OS}" = Windows ]; then 7z a "dist/$name.zip" "$name" > /dev/null; else tar czf "dist/$name.tar.gz" "$name"; fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -253,6 +256,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           ref: ${{ needs.verify.outputs.sha }}
       - name: Install toolchain from rust-toolchain.toml
         run: rustup show active-toolchain || rustup toolchain install

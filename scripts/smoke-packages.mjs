@@ -70,6 +70,8 @@ for (const required of [
   'package/dist/wasm/render/dotloom_render_web_bg.wasm',
   'package/LICENSE-MIT',
   'package/LICENSE-APACHE',
+  'package/THIRD-PARTY-NOTICES.md',
+  'package/README.md',
 ]) {
   if (!listing.includes(required)) {
     console.error(`✖ @dotloom/sdk tarball lacks ${required}`)
@@ -98,7 +100,8 @@ run('npm', ['install', '--no-audit', '--no-fund', '--loglevel=error'], app)
 
 // No workspace leaks: installed packages must come from the tarballs.
 const installed = JSON.parse(readFileSync(join(app, 'node_modules', '@dotloom', 'sdk', 'package.json'), 'utf8'))
-if (installed.version !== '0.1.0' || existsSync(join(app, 'node_modules', '@dotloom', 'sdk', 'src', 'wasm'))) {
+const expectedVersion = JSON.parse(readFileSync(join(root, 'packages', 'sdk', 'package.json'), 'utf8')).version
+if (installed.version !== expectedVersion || existsSync(join(app, 'node_modules', '@dotloom', 'sdk', 'src', 'wasm'))) {
   console.error('✖ unexpected @dotloom/sdk installation')
   process.exit(1)
 }
@@ -106,6 +109,9 @@ if (installed.version !== '0.1.0' || existsSync(join(app, 'node_modules', '@dotl
 // 4. Test and build.
 run('npm', ['test'], app)
 run('npm', ['run', 'build'], app)
+// The same app built for an absolute sub-path (GitHub Pages style): worker, WASM and
+// font assets must resolve under /dotloom/ too (DL-SDK-10).
+run('npx', ['vite', 'build', '--base', '/dotloom/', '--outDir', 'dist-subpath'], app)
 console.log(`\n✓ external plugin built and tested from packed tarballs in ${app}`)
 
 if (serveAt) {

@@ -19,12 +19,11 @@ Rust crates (`crates/*`, published as `dotloom-*`):
 | `dotloom-constraints` | geometry, kasuari, nalgebra | document, GPU, DOM |
 | `dotloom-scene` | geometry | GPU, DOM |
 | `dotloom-engine` | geometry, document, constraints, scene | GPU, DOM |
-| `dotloom-io` | engine (and `dotloom-render` behind the `png` feature) | DOM |
+| `dotloom-io` | engine | GPU, DOM |
 | `dotloom-render` | scene, wgpu, lyon, fontdue | document, engine |
 | `dotloom-wasm` | engine, io (no `png`) | render |
 | `dotloom-render-web` | render (WebGPU + WebGL backends) | engine, document |
-| `dotloom-cli` | io (with `png`) | DOM |
-| `dotloom` | facade re-exporting engine + io for Rust users | GPU by default |
+| `dotloom-cli` | io (and `dotloom-render` behind its `png` feature) | DOM |
 
 Two additions to the brief's sketch keep the boundaries enforceable:
 
@@ -34,6 +33,11 @@ Two additions to the brief's sketch keep the boundaries enforceable:
 - `dotloom-render-web` is a separate `cdylib` for the main-thread renderer instance.
   The engine WASM in the Worker never links wgpu, and the renderer instance never owns
   a document or solver.
+
+Amended 2026-10-02 to match the implementation: PNG export lives in the CLI's
+`png` feature (so `dotloom-io` stays GPU-free and is covered by the boundary check),
+and there is no `dotloom` facade crate — Rust users depend on `dotloom-engine` and
+`dotloom-io` directly.
 
 TypeScript packages: `packages/sdk` (no React) and `packages/react`. Apps:
 `apps/playground`, `apps/docs`. Examples live in `examples/*` and are built in CI.

@@ -30,17 +30,16 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install toolchain from rust-toolchain.toml
         run: rustup show active-toolchain || rustup toolchain install
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           shared-key: lint
-      - run: cargo fmt --all -- --check
-      - name: Dependency boundaries (core crates have no DOM/window/GPU deps)
-        run: node scripts/check-boundaries.mjs
-      - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-      - name: clippy (wasm32 bindings)
-        run: cargo clippy -p dotloom-wasm -p dotloom-render-web --target wasm32-unknown-unknown --locked -- -D warnings
+      # Same entry point as `pnpm run check -- rust`: fmt, dependency boundaries (core
+      # crates have no DOM/window/GPU deps), clippy, wasm32 clippy, core wasm32 build.
+      - run: node scripts/check.mjs rust
 
   rust-test:
     name: rust test (${{ matrix.os }})
@@ -52,6 +51,8 @@ jobs:
         os: [ubuntu-24.04]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install toolchain from rust-toolchain.toml
         run: rustup show active-toolchain || rustup toolchain install
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -83,6 +84,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install toolchain from rust-toolchain.toml
         run: rustup show active-toolchain || rustup toolchain install
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -102,6 +105,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install toolchain from rust-toolchain.toml
         run: rustup show active-toolchain || rustup toolchain install
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -128,6 +133,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: sdk-wasm
@@ -153,6 +160,8 @@ jobs:
         browser: [chromium, firefox, webkit]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: sdk-wasm
@@ -189,6 +198,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: sdk-wasm
@@ -206,14 +217,27 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: node scripts/build-site.mjs --base /dotloom/
+      # The same checks pages.yml runs before deploying, on every PR: docs, API
+      # references, playground and every example (incl. the vanilla UI) under /dotloom/.
+      - name: Install Chromium
+        working-directory: tests/e2e
+        run: npx playwright install --with-deps chromium
+      - name: Check the built site under /dotloom/
+        working-directory: tests/e2e
+        run: npx playwright test
+        env:
+          DOTLOOM_E2E_SITE: "1"
+          DOTLOOM_E2E_BROWSERS: chromium
 
   packages:
     name: package consumer (external plugin from tarballs)
     needs: wasm
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: sdk-wasm
@@ -236,3 +260,10 @@ jobs:
         env:
           DOTLOOM_E2E_EXTERNAL: ${{ runner.temp }}/smoke/external-plugin/dist
           DOTLOOM_E2E_BROWSERS: chromium
+      - name: Install toolchain from rust-toolchain.toml
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: crates
+      - name: Package the crates and use them from a consumer outside the repository
+        run: node scripts/smoke-crates.mjs --work "${{ runner.temp }}/crates"

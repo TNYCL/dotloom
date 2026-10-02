@@ -56,7 +56,32 @@ so typing in a panel cannot delete drawing content.
 | Grid / snap | F7 / F3 |
 | Command palette (React editor) | Ctrl+K |
 
-All shortcuts are configurable: `new EditorCore(engine, viewport, { shortcuts: { undo: ['Mod+u'] } })`.
+## Configuration
+
+Snapping, grid, units and shortcuts are options of the editor core (and of
+`<DotloomEditor core={...}>` in React). Everything below is covered by tests in
+`packages/sdk/test/editor.test.ts` ("configuration").
+
+```ts
+import { EditorCore } from '@dotloom/sdk'
+
+const core = new EditorCore(engine, viewport, {
+  // Snap kinds (all on by default): endpoint, midpoint, center, quadrant,
+  // intersection, anchor, nearest, grid.
+  snap: { nearest: false, quadrant: false },
+  snapRadiusPx: 6, // search radius in CSS pixels (default 10)
+  snapEnabled: true, // F3 toggles it at run time
+  // Replace the keys of an action; `Mod` is Ctrl on Windows/Linux and ⌘ on macOS.
+  shortcuts: { delete: ['Delete'], undo: ['Mod+z'], redo: ['Mod+Shift+z'] },
+  unitScale: 10, // typed values are centimetres (model units are millimetres)
+})
+
+viewport.setGrid({ spacing: 25, majorEvery: 4 }) // grid snapping uses this spacing
+```
+
+The document's display unit and grid spacing (`setSettings { displayUnit,
+gridSpacing }`) are stored in the `.dotl` file; the React inspector edits them under
+"Document". Holding Alt while pointing disables snapping for that move.
 
 ## Your own tools
 

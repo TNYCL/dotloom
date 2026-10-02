@@ -13,6 +13,7 @@
     "test": "pnpm -r --filter \"./packages/**\" --filter \"./examples/**\" run test",
     "test:e2e": "pnpm --filter @dotloom/e2e exec playwright test",
     "smoke:packages": "node scripts/smoke-packages.mjs",
+    "smoke:crates": "node scripts/smoke-crates.mjs",
     "format": "biome format --write .",
     "build:site": "node scripts/build-site.mjs",
     "serve:site": "node scripts/serve-site.mjs"

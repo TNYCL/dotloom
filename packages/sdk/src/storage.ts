@@ -327,7 +327,10 @@ export class Autosave {
           error: null,
         })
       } catch (e) {
-        this.state.set({ saving: false, error: e instanceof Error ? e.message : String(e) })
+        // Nothing is pending any more: the changes stay unsaved (dirty) and the error
+        // is shown until a later save succeeds.
+        const message = typeof e === 'object' && e !== null && 'message' in e ? String(e.message) : String(e)
+        this.state.set({ saving: false, pending: false, error: message })
       }
     })
     return this.chain

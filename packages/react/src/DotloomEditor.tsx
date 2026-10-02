@@ -43,6 +43,7 @@ import { Inspector } from './components/Inspector.js'
 import { Icon } from './components/icons.js'
 import { LayersPanel } from './components/LayersPanel.js'
 import { ObjectsPanel } from './components/ObjectsPanel.js'
+import { PluginPanels } from './components/PluginPanels.js'
 import { StatusBar } from './components/StatusBar.js'
 import { Toolbar } from './components/Toolbar.js'
 import { type EditorHandle, EditorProvider, useDocument, useEditor, useEditorState } from './context.js'
@@ -55,7 +56,11 @@ export interface DotloomEditorProps {
   locale?: string
   messages?: Partial<Record<string, string>>
   theme?: ThemeMode
-  /** Autosave to IndexedDB (default) or a custom adapter; `false` disables it. */
+  /**
+   * Autosave target: a custom adapter, else the first storage adapter contributed by
+   * an enabled plugin, else IndexedDB (memory where IndexedDB is unavailable).
+   * `false` disables autosave.
+   */
   autosave?: boolean | { key?: string; storage?: StorageAdapter }
   /** Initial `.dotl` bytes. */
   document?: Uint8Array
@@ -165,27 +170,30 @@ function Shell(props: {
   }, [props.root])
   return (
     <>
-      <header className="dl-topbar" role="menubar" aria-label={t('menu.file')}>
-        <button type="button" className="dl-btn" role="menuitem" onClick={() => run('file.new')}>
-          {t('menu.new')}
-        </button>
-        <button type="button" className="dl-btn" role="menuitem" onClick={() => run('file.open')}>
-          {t('menu.open')}
-        </button>
-        <button type="button" className="dl-btn" role="menuitem" onClick={() => run('file.save')}>
-          {t('menu.save')}
-        </button>
-        <button type="button" className="dl-btn" role="menuitem" onClick={() => run('file.exportSvg')}>
-          {t('menu.exportSvg')}
-        </button>
-        <button type="button" className="dl-btn" role="menuitem" onClick={() => run('file.exportDxf')}>
-          {t('menu.exportDxf')}
-        </button>
-        {h.canvas && (
-          <button type="button" className="dl-btn" role="menuitem" onClick={() => run('file.exportPng')}>
-            {t('menu.exportPng')}
+      <header className="dl-topbar">
+        <fieldset className="dl-row dl-plain-fieldset">
+          <legend className="dl-visually-hidden">{t('menu.file')}</legend>
+          <button type="button" className="dl-btn" onClick={() => run('file.new')}>
+            {t('menu.new')}
           </button>
-        )}
+          <button type="button" className="dl-btn" onClick={() => run('file.open')}>
+            {t('menu.open')}
+          </button>
+          <button type="button" className="dl-btn" onClick={() => run('file.save')}>
+            {t('menu.save')}
+          </button>
+          <button type="button" className="dl-btn" onClick={() => run('file.exportSvg')}>
+            {t('menu.exportSvg')}
+          </button>
+          <button type="button" className="dl-btn" onClick={() => run('file.exportDxf')}>
+            {t('menu.exportDxf')}
+          </button>
+          {h.canvas && (
+            <button type="button" className="dl-btn" onClick={() => run('file.exportPng')}>
+              {t('menu.exportPng')}
+            </button>
+          )}
+        </fieldset>
         <span className="dl-muted" data-testid="document-name">
           {props.name}
         </span>
@@ -254,6 +262,7 @@ function Shell(props: {
         <ConstraintsPanel />
         <LayersPanel />
         <ObjectsPanel />
+        <PluginPanels />
         {props.children}
       </aside>
       <StatusBar unit={unit} />
@@ -341,7 +350,10 @@ export function DotloomEditor(props: DotloomEditorProps): ReactNode {
       let autosave: Autosave | null = null
       if (p.autosave !== false) {
         const opt = typeof p.autosave === 'object' ? p.autosave : {}
-        const storage = opt.storage ?? (typeof indexedDB === 'undefined' ? new MemoryStorage() : new IndexedDbStorage())
+        const storage =
+          opt.storage ??
+          plugins.storageAdapters()[0] ??
+          (typeof indexedDB === 'undefined' ? new MemoryStorage() : new IndexedDbStorage())
         const a = new Autosave(engine, storage, {
           ...(opt.key ? { key: opt.key } : {}),
           name: p.name ?? 'untitled.dotl',

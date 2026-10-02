@@ -32,7 +32,7 @@ Host / React UI  ->  TypeScript SDK  ->  versioned protocol  ->  Rust/WASM engin
 ```
 
 - `dotloom-geometry`, `dotloom-document`, `dotloom-constraints`, `dotloom-engine`,
-  `dotloom-scene` and `dotloom-io` (without the `png` feature) must build without DOM,
+  `dotloom-scene` and `dotloom-io` must build without DOM,
   window, GPU or wgpu. CI checks this with `cargo tree`.
 - The Rust engine owns the only editable copy of a document. TypeScript, React and the
   renderer hold derived views keyed by revision.
@@ -80,12 +80,13 @@ Host / React UI  ->  TypeScript SDK  ->  versioned protocol  ->  Rust/WASM engin
 | Purpose | Command |
 |---|---|
 | Format + lint + typecheck | `pnpm run check` |
-| Rust tests | `cargo test --workspace` |
+| Rust tests | `cargo test --workspace --all-features` |
 | WASM build | `pnpm run build:wasm` |
 | SDK/React unit tests | `pnpm run test` |
 | Browser E2E | `pnpm run test:e2e` |
-| Docs build | `pnpm run build:docs` |
+| Docs site build | `pnpm run build:site` |
 | Package smoke | `pnpm run smoke:packages` |
+| Crate smoke | `pnpm run smoke:crates` |
 
 All scripts are Node or cargo based and run on Windows PowerShell, Linux and macOS.
 

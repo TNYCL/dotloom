@@ -58,7 +58,10 @@ impl<'a> Checker<'a> {
     fn circle(&mut self, id: EntityId) -> Result<(Point, f64), String> {
         let ctx = self.ctx;
         let e = ctx.view.entity(id).ok_or_else(|| format!("{id} does not exist"))?;
-        if is_builtin(&e.type_id) && matches!(e.type_id.as_str(), types::CIRCLE | types::ARC) {
+        if is_builtin(&e.type_id) && !matches!(e.type_id.as_str(), types::CIRCLE | types::ARC) {
+            return Err(format!("{id} is not a circle or arc"));
+        }
+        if is_builtin(&e.type_id) {
             return self
                 .ev(id)
                 .drawables

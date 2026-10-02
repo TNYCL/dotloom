@@ -2,6 +2,7 @@
   "name": "@dotloom/example-vanilla",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT OR Apache-2.0",
   "type": "module",
   "description": "Dotloom without React: plain DOM toolbar and the SDK editor",
   "scripts": {

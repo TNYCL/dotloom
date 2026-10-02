@@ -11,6 +11,8 @@
 //!   `notConverged` (with or without a suspected conflict), `cancelled` and
 //!   `unsupported`, and carry structured [`Diagnostic`]s.
 //! * [`SolveJob`] runs in budgeted steps so hosts can cancel between steps.
+//! * [`LinearSession`] re-solves a linear problem incrementally while a drag moves
+//!   its target (Cassowary edit variables), verified like a full solve.
 //!
 //! This crate has no document, DOM or GPU dependency.
 //!
@@ -43,6 +45,7 @@ mod linear;
 mod numeric;
 mod problem;
 pub mod rules;
+mod session;
 mod solution;
 mod sparse;
 
@@ -50,4 +53,5 @@ pub use expr::{Dual, Expr, LinearForm, PointExpr, VarId};
 pub use graph::{Component, components};
 pub use job::{Progress, SolveJob, solve};
 pub use problem::{Problem, Relation, Row, Rule, STAY_WEIGHT, SolveOptions, Strength, Target, Variable, stay_factor};
+pub use session::LinearSession;
 pub use solution::{Backend, Certainty, ComponentReport, Diagnostic, DiagnosticKind, Solution, Status};

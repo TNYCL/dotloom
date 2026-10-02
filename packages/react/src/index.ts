@@ -14,6 +14,7 @@ export { formatValue, Inspector, parseValue } from './components/Inspector.js'
 export { Icon } from './components/icons.js'
 export { LayersPanel } from './components/LayersPanel.js'
 export { ObjectsPanel } from './components/ObjectsPanel.js'
+export { PluginPanels } from './components/PluginPanels.js'
 export { StatusBar } from './components/StatusBar.js'
 export { Toolbar } from './components/Toolbar.js'
 export {

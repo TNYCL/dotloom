@@ -66,6 +66,11 @@ export function StatusBar(props: { unit: LengthUnit }): ReactNode {
         <input type="checkbox" checked={grid} onChange={() => void core.run('toggleGrid')} /> {t('status.grid')}
       </label>
       <Zoom />
+      {save?.error && (
+        <span role="alert" className="dl-error">
+          {t('status.autosaveFailed', { message: save.error })}
+        </span>
+      )}
       {save && (
         <span>
           {save.saving || save.pending

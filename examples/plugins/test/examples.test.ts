@@ -169,6 +169,73 @@ describe('room planner', () => {
   })
 })
 
+describe('room planner: snapping and layers', () => {
+  it('the wall tool closes the room on the first wall end by snapping', async () => {
+    const { engine, core } = await setup()
+    await engine.newDocument()
+    const vp = core.viewport
+    const pointer = (x: number, y: number, buttons: number) => {
+      const [sx, sy] = vp.worldToScreen([x, y])
+      return {
+        x: sx,
+        y: sy,
+        button: 0,
+        buttons,
+        shift: false,
+        mod: false,
+        alt: false,
+        pointerId: 1,
+        pointerType: 'mouse' as const,
+      }
+    }
+    const click = async (x: number, y: number): Promise<void> => {
+      void core.pointerMove(pointer(x, y, 0))
+      void core.pointerDown(pointer(x, y, 1))
+      void core.pointerUp(pointer(x, y, 0))
+      await core.idle()
+    }
+    vp.setCamera({ center: [2000, 1500], scale: 0.1 }) // 1 px = 10 mm
+    core.setTool('floorplan.wall')
+    await click(0, 0)
+    await click(4000, 0)
+    await click(4000, 3000)
+    // 4.4 px from the first corner: the endpoint snap wins over the grid.
+    void core.pointerMove(pointer(37, -24, 0))
+    await core.idle()
+    expect(core.pointer.getSnapshot().snap?.kind).toBe('endpoint')
+    await click(37, -24)
+    const doc = await engine.documentJson()
+    const walls = doc.entities.filter((e) => e.type === 'floorplan.wall')
+    expect(walls).toHaveLength(3)
+    expect(walls[2]?.props?.end).toEqual([0, 0])
+    // Each joint, including the closing one, is a coincidence rule.
+    expect(doc.constraints).toHaveLength(3)
+    expect(await engine.verify()).toEqual([])
+  })
+
+  it('walls and dimensions live on their layers; a locked layer protects its walls', async () => {
+    const { engine } = await setup()
+    const { walls, dimension } = await loadFloorplanExample(engine)
+    const doc = await engine.documentJson()
+    const layer = (name: string) => doc.layers.find((l) => l.name === name)?.id
+    const wallsLayer = layer('Walls')
+    const dimsLayer = layer('Dimensions')
+    expect(wallsLayer).toBeDefined()
+    expect(dimsLayer).toBeDefined()
+    for (const id of walls) expect(doc.entities.find((e) => e.id === id)?.layer).toBe(wallsLayer)
+    expect(doc.entities.find((e) => e.id === dimension)?.layer).toBe(dimsLayer)
+    await engine.apply([{ op: 'updateLayer', id: wallsLayer as number, patch: { locked: true } }])
+    const w = walls[0] as number
+    const err = await engine
+      .apply([{ op: 'setParams', values: [{ entity: w, param: 'thickness', value: 300 }] }])
+      .catch((e) => e)
+    expect(err.code).toBe('command')
+    await engine.apply([{ op: 'updateLayer', id: wallsLayer as number, patch: { locked: false } }])
+    await engine.apply([{ op: 'setParams', values: [{ entity: w, param: 'thickness', value: 300 }] }])
+    expect(await param(engine, w, 'thickness')).toBeCloseTo(300, 9)
+  })
+})
+
 describe('timeline', () => {
   it('moving a block pushes the following blocks; the locked release time holds', async () => {
     const { engine } = await setup()
@@ -187,6 +254,19 @@ describe('timeline', () => {
     expect(await param(engine, ids.build, 'start')).toBeGreaterThanOrEqual(11.5 * H - 1e-3)
     expect(await param(engine, ids.release, 'start')).toBeCloseTo(16 * H, 6)
     expect(await engine.verify()).toEqual([])
+    // The 30-minute gap between "Build" and "Review" holds exactly where it binds.
+    const buildEnd = (await param(engine, ids.build, 'start')) + (await param(engine, ids.build, 'duration'))
+    expect((await param(engine, ids.review, 'start')) - buildEnd).toBeGreaterThanOrEqual(30 * 60 - 1e-3)
+    // Typing a "Review" start only 10 minutes after the current end of "Build": the
+    // solver makes room earlier in the plan (free starts and durations) instead of
+    // breaking the gap.
+    const reviewStart = buildEnd + 10 * 60
+    await engine.apply([{ op: 'setParams', values: [{ entity: ids.review, param: 'start', value: reviewStart }] }])
+    expect(await param(engine, ids.review, 'start')).toBeCloseTo(reviewStart, 6)
+    const newBuildEnd = (await param(engine, ids.build, 'start')) + (await param(engine, ids.build, 'duration'))
+    expect(reviewStart - newBuildEnd).toBeGreaterThanOrEqual(30 * 60 - 1e-3)
+    expect(await engine.verify()).toEqual([])
+    await engine.undo()
     // Dragging "Review" past the locked release stops at the nearest allowed time.
     const rb = (await engine.entityInfo(ids.review)).anchors.find((a) => a.name === 'begin')?.point as [number, number]
     await engine.beginDrag({ kind: 'anchor', entity: ids.review, anchor: 'begin' })

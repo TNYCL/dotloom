@@ -253,6 +253,13 @@
   margin-bottom: 6px;
 }
 
+.dl-plain-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
 .dl-row {
   display: flex;
   align-items: center;

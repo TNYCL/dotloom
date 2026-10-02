@@ -2,11 +2,11 @@
 // One entry point for formatting, linting and type checking — used locally and in CI.
 //
 //   pnpm run check            # everything
-//   pnpm run check -- rust    # only Rust (fmt + clippy)
+//   pnpm run check -- rust    # only Rust (fmt, dependency boundaries, clippy, wasm32)
 //   pnpm run check -- ts      # only TypeScript (biome + tsc)
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -15,6 +15,14 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const which = process.argv.slice(2).filter((a) => a !== '--')
 const all = which.length === 0
 const require = createRequire(join(root, 'package.json'))
+const CORE_CRATES = [
+  'dotloom-geometry',
+  'dotloom-constraints',
+  'dotloom-document',
+  'dotloom-scene',
+  'dotloom-engine',
+  'dotloom-io',
+]
 
 let failed = false
 function run(label, cmd, args, cwd = root) {
@@ -28,6 +36,21 @@ function run(label, cmd, args, cwd = root) {
 
 if (all || which.includes('rust')) {
   run('cargo fmt --check', 'cargo', ['fmt', '--all', '--', '--check'])
+  run('dependency boundaries', process.execPath, [join(root, 'scripts', 'check-boundaries.mjs')])
+  run('third-party notices', process.execPath, [join(root, 'scripts', 'third-party-notices.mjs'), '--check'])
+  // Published crates carry the license texts (crates.io packages cannot reach the root).
+  console.log('\n▶ crate license files')
+  for (const name of readdirSync(join(root, 'crates'))) {
+    const manifest = readFileSync(join(root, 'crates', name, 'Cargo.toml'), 'utf8')
+    if (/^publish\s*=\s*false/m.test(manifest)) continue
+    for (const lic of ['LICENSE-MIT', 'LICENSE-APACHE']) {
+      const copy = join(root, 'crates', name, lic)
+      if (!existsSync(copy) || readFileSync(copy, 'utf8') !== readFileSync(join(root, lic), 'utf8')) {
+        console.error(`✖ crates/${name}/${lic} is missing or differs from the root copy`)
+        failed = true
+      }
+    }
+  }
   run('cargo clippy', 'cargo', [
     'clippy',
     '--workspace',
@@ -37,6 +60,27 @@ if (all || which.includes('rust')) {
     '--',
     '-D',
     'warnings',
+  ])
+  run('cargo clippy (wasm32 bindings)', 'cargo', [
+    'clippy',
+    '-p',
+    'dotloom-wasm',
+    '-p',
+    'dotloom-render-web',
+    '--target',
+    'wasm32-unknown-unknown',
+    '--locked',
+    '--',
+    '-D',
+    'warnings',
+  ])
+  // The core crates also build for a target without OS, window or GPU (DL-CORE-1).
+  run('cargo check (core crates, wasm32 without bindings)', 'cargo', [
+    'check',
+    ...CORE_CRATES.flatMap((c) => ['-p', c]),
+    '--target',
+    'wasm32-unknown-unknown',
+    '--locked',
   ])
 }
 

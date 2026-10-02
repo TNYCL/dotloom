@@ -405,6 +405,26 @@ fn unsupported_rule_reports_unsupported() {
 }
 
 #[test]
+fn unsupported_rules_without_rows_are_reported_not_skipped() {
+    // The engine builds a rule it cannot express without rows; such a rule has no
+    // variables and lands in a trivial component. Hard or soft, it must not pass.
+    for strength in [Strength::Required, Strength::Weak] {
+        let mut p = Problem::default();
+        let a = var(&mut p, 0.0);
+        rule(&mut p, 1, rules::fix(v(a), 1.0, L));
+        let mut r = Rule::new(2, Vec::new(), strength);
+        r.unsupported = Some("e7 is not a circle or arc".into());
+        p.rules.push(r);
+        let sol = solve(&p, &opts());
+        assert_eq!(sol.status, Status::Unsupported, "{strength:?}");
+        let d = sol.diagnostics.iter().find(|d| d.kind == DiagnosticKind::Unsupported).unwrap();
+        assert_eq!(d.rules, vec![2]);
+        assert!(d.message.contains("not a circle"));
+        assert_eq!(at(&sol.values, a), 0.0, "rejected solves keep the input values");
+    }
+}
+
+#[test]
 fn invalid_problem_is_rejected_without_panic() {
     let mut p = Problem::default();
     let a = var(&mut p, f64::NAN);

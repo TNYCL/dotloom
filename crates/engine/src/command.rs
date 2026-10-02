@@ -1036,13 +1036,26 @@ impl Applier<'_, '_> {
         Ok(())
     }
 
-    /// Remove constraints that reference an entity whose kind changed.
+    /// Remove constraints that reference an entity whose kind changed. Entities that
+    /// reference it (dimensions, plugin references) are user content and stay; the
+    /// ones that no longer resolve are reported.
     fn drop_anchor_constraints(&mut self, id: EntityId) {
         for cid in self.ov.constraint_ids() {
             if self.ov.constraint(cid).is_some_and(|c| c.rule.entities().contains(&id)) {
                 self.ov.delete_constraint(cid);
                 self.notes.removed_constraints.push(cid);
                 self.notes.notes.push(format!("{cid} removed: {id} changed shape kind"));
+            }
+        }
+        let referrers: Vec<EntityId> = self
+            .ov
+            .entity_ids()
+            .into_iter()
+            .filter(|o| self.ov.entity(*o).is_some_and(|x| x.referenced_entities().any(|t| t == id)))
+            .collect();
+        for o in referrers {
+            if evaluate(self.ctx(), o).error.is_some() {
+                self.notes.notes.push(format!("{o} no longer resolves: {id} changed shape kind"));
             }
         }
     }

@@ -15,7 +15,7 @@ use crate::{
 };
 
 /// Base kasuari strength of stay preferences (weak = 1.0).
-const STAY_BASE: f64 = 0.01;
+pub(crate) const STAY_BASE: f64 = 0.01;
 
 pub(crate) struct LinearOutcome {
     pub status: Status,
@@ -23,7 +23,7 @@ pub(crate) struct LinearOutcome {
     pub max_hard: f64,
 }
 
-fn kstrength(s: Strength) -> KStrength {
+pub(crate) fn kstrength(s: Strength) -> KStrength {
     match s {
         Strength::Required => KStrength::REQUIRED,
         Strength::Strong => KStrength::STRONG,
@@ -33,7 +33,7 @@ fn kstrength(s: Strength) -> KStrength {
 }
 
 /// kasuari constraints for one rule, scaled.
-fn rule_constraints(
+pub(crate) fn rule_constraints(
     p: &Problem,
     rule_idx: usize,
     cols: &Columns,
@@ -214,18 +214,38 @@ pub(crate) fn solve_linear(
     }
 
     // 4. Read back and verify independently.
+    read_back(&solver, &cols, &kvars, x);
+    verify_linear(p, comp, &cols, x, &x_in, opts)
+}
+
+/// Copy kasuari's values into `x` (unscaled).
+pub(crate) fn read_back(solver: &Solver, cols: &Columns, kvars: &[KVar], x: &mut [f64]) {
     for (col, var) in cols.vars.iter().enumerate() {
         let (Some(kv), Some(s)) = (kvars.get(col), cols.scales.get(col)) else { continue };
         if let Some(slot) = x.get_mut(var.index()) {
             *slot = solver.get_value(*kv) * s;
         }
     }
-    let rows = eval_rows(p, &comp.rules, &cols, x);
+}
+
+/// Verify a linear component's values against every hard row (independently of
+/// kasuari) and, with `opts.analyze`, count degrees of freedom and redundant rules.
+/// On failure `x` is restored from `x_in`.
+pub(crate) fn verify_linear(
+    p: &Problem,
+    comp: &Component,
+    cols: &Columns,
+    x: &mut [f64],
+    x_in: &[f64],
+    opts: &SolveOptions,
+) -> LinearOutcome {
+    let n = cols.n();
+    let rows = eval_rows(p, &comp.rules, cols, x);
     let hard: Vec<_> = rows.iter().filter(|r| p.rules.get(r.rule).is_some_and(crate::Rule::is_hard)).collect();
     let hard_owned: Vec<_> = hard.iter().map(|r| (*r).clone()).collect();
     let max_hard = max_violation(&hard_owned);
     if max_hard > opts.tolerance {
-        x.copy_from_slice(&x_in);
+        x.copy_from_slice(x_in);
         return LinearOutcome {
             status: Status::NotConverged { suspected_conflict: false },
             diagnostics: vec![Diagnostic {
