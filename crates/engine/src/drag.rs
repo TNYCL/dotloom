@@ -228,7 +228,7 @@ impl Engine {
         let id = self.start_pending(data, notes, label.into(), "drag", true)?;
         loop {
             match self.step_pending(u32::MAX)? {
-                crate::engine::PendingState::Done(r) => return r.map(Some),
+                crate::engine::PendingState::Done(r) => return (*r).map(Some),
                 crate::engine::PendingState::Running { id: pid } if pid == id => {}
                 crate::engine::PendingState::Running { .. } => {
                     return Err(EngineError::Busy { reason: "unexpected pending request".into() });

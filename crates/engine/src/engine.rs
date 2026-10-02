@@ -72,6 +72,25 @@ pub struct CommitReport {
     pub notes: Vec<String>,
     /// Whether the change can be undone (false if it exceeded the history budget).
     pub undo_available: bool,
+    /// Solver statistics, when rules were solved.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub solver: Option<SolverStats>,
+}
+
+/// What the solver did for a commit (diagnostics and performance work).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SolverStats {
+    /// Iterations of the chosen attempt.
+    pub iterations: u32,
+    /// Solve attempts run (pinned, exact, relaxed).
+    pub attempts: u32,
+    /// Solver variables of the chosen attempt.
+    pub variables: u32,
+    /// Rules of the chosen attempt.
+    pub rules: u32,
+    /// Connected components solved.
+    pub components: u32,
 }
 
 /// Engine event, emitted after state changes (never during a commit).
@@ -152,6 +171,8 @@ pub(crate) struct Pending {
     pub first: Option<(dotloom_constraints::Solution, dotloom_constraints::Problem, Plan)>,
     /// The attempt chosen for committing.
     pub chosen: Option<(dotloom_constraints::Solution, dotloom_constraints::Problem, Plan)>,
+    /// Attempts started so far.
+    pub attempts: u32,
 }
 
 /// Progress of a pending commit.
@@ -162,8 +183,8 @@ pub enum PendingState {
         /// Request.
         id: u64,
     },
-    /// Finished.
-    Done(Result<CommitReport, EngineError>),
+    /// Finished (boxed: the report is much larger than the running state).
+    Done(Box<Result<CommitReport, EngineError>>),
 }
 
 /// The Dotloom engine.
@@ -372,7 +393,7 @@ impl Engine {
         let id = self.begin_apply(tx, opts)?;
         loop {
             match self.step_pending(u32::MAX)? {
-                PendingState::Done(r) => return r,
+                PendingState::Done(r) => return *r,
                 PendingState::Running { id: pid } if pid == id => {}
                 PendingState::Running { .. } => {
                     return Err(EngineError::Busy { reason: "unexpected pending request".into() });
@@ -451,6 +472,7 @@ impl Engine {
             notes,
             label,
             cause,
+            attempts: u32::from(job.is_some()),
             job,
             fallbacks: plans,
             first: None,
@@ -474,7 +496,7 @@ impl Engine {
         if p.base_revision != self.revision {
             let expected = p.base_revision;
             self.pending = None;
-            return Ok(PendingState::Done(Err(EngineError::Stale { expected, actual: self.revision })));
+            return Ok(PendingState::Done(Box::new(Err(EngineError::Stale { expected, actual: self.revision }))));
         }
         if let Some((job, _, _)) = p.job.as_mut()
             && job.step(budget) != Progress::Finished
@@ -493,6 +515,7 @@ impl Engine {
                         p.first = Some((sol, problem, plan));
                     }
                     p.job = Some((SolveJob::new(next.clone(), self.options.solve), next, next_plan));
+                    p.attempts += 1;
                     return Ok(PendingState::Running { id });
                 }
                 _ => {
@@ -506,7 +529,7 @@ impl Engine {
         let Some(p) = self.pending.take() else {
             return Err(EngineError::NotActive { what: "pending transaction".into() });
         };
-        Ok(PendingState::Done(self.finish_pending(p)))
+        Ok(PendingState::Done(Box::new(self.finish_pending(p))))
     }
 
     /// Cancel the pending commit (the document is unchanged).
@@ -515,10 +538,17 @@ impl Engine {
     }
 
     fn finish_pending(&mut self, p: Pending) -> Result<CommitReport, EngineError> {
-        let Pending { data, mut notes, label, cause, chosen, .. } = p;
+        let Pending { data, mut notes, label, cause, chosen, attempts, .. } = p;
         let mut ov = Overlay::from_data(&self.doc, data);
         let mut status = Status::Solved;
         let mut diagnostics = Vec::new();
+        let solver = chosen.as_ref().map(|(sol, problem, _)| SolverStats {
+            iterations: sol.iterations,
+            attempts,
+            variables: u32::try_from(problem.vars.len()).unwrap_or(u32::MAX),
+            rules: u32::try_from(problem.rules.len()).unwrap_or(u32::MAX),
+            components: u32::try_from(sol.components.len()).unwrap_or(u32::MAX),
+        });
         if let Some((sol, problem, plan)) = chosen {
             status = sol.status;
             if let Err(err) = solve::finish(&mut ov, &self.registry, &problem, &plan, &sol, &mut notes) {
@@ -534,7 +564,9 @@ impl Engine {
             diagnostics = solve::reports(&problem, &plan, &sol);
         }
         let data = ov.into_data();
-        Ok(self.commit(data, notes, label, cause, status, diagnostics))
+        let mut report = self.commit(data, notes, label, cause, status, diagnostics);
+        report.solver = solver;
+        Ok(report)
     }
 
     fn commit(
@@ -583,6 +615,7 @@ impl Engine {
             changed: changed_entities,
             notes: notes.notes,
             undo_available,
+            solver: None,
         }
     }
 

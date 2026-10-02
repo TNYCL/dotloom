@@ -44,6 +44,7 @@ mod numeric;
 mod problem;
 pub mod rules;
 mod solution;
+mod sparse;
 
 pub use expr::{Dual, Expr, LinearForm, PointExpr, VarId};
 pub use graph::{Component, components};

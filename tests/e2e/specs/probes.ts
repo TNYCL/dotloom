@@ -105,7 +105,13 @@ export async function rawWebgpu(page: Page): Promise<{ ok: boolean; reason: stri
     }
     draw()
     await new Promise((res) => setTimeout(res, 300))
-    if (!lost) await new Promise<void>((res) => requestAnimationFrame(() => (draw(), res())))
+    if (!lost)
+      await new Promise<void>((res) =>
+        requestAnimationFrame(() => {
+          draw()
+          res()
+        }),
+      )
     await new Promise((res) => setTimeout(res, 100))
     return { lost }
   })

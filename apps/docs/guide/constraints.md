@@ -35,8 +35,15 @@ component affected by a change:
 
 - purely linear components use an incremental Cassowary solver (`kasuari`) with
   scaled rows and deterministic tie-breaking;
-- nonlinear components use a Newton/KKT solver with analytic derivatives, damping,
-  presolve elimination and an active set for inequalities.
+- nonlinear components use a sequential quadratic programming (SQP) solver with
+  exact gradients, constraint curvature, sparse linear algebra, presolve elimination
+  and an active set for inequalities. A typed value or hard drag target far from the
+  current geometry is first approached along the constraint manifold and then
+  enforced exactly, so linkages move continuously instead of flipping to another
+  branch.
+
+Every commit reports what the solver did in `CommitReport.solver` (iterations,
+attempts, variables, rules, components).
 
 Hard rules are constraints, not penalties. After solving, an independent checker
 re-evaluates every hard rule on the values that would be stored; only then is the

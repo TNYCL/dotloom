@@ -317,6 +317,16 @@ export interface CommitReport {
   changed: EntityId[]
   notes: string[]
   undoAvailable: boolean
+  /** Solver statistics when rules were solved. */
+  solver?: SolverStats
+}
+
+export interface SolverStats {
+  iterations: number
+  attempts: number
+  variables: number
+  rules: number
+  components: number
 }
 
 export interface Hit {

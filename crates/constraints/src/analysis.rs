@@ -88,6 +88,27 @@ pub(crate) fn eval_rows(p: &Problem, rules: &[usize], cols: &Columns, x: &[f64])
     out
 }
 
+/// Rows of the given rules evaluated without gradients (`grad` empty): line-search
+/// trial points only need residuals.
+pub(crate) fn eval_values(p: &Problem, rules: &[usize], x: &[f64]) -> Vec<EvalRow> {
+    let mut out = Vec::new();
+    for &ri in rules {
+        let Some(rule) = p.rules.get(ri) else { continue };
+        for (k, row) in rule.rows.iter().enumerate() {
+            let scale = if row.scale.is_finite() && row.scale > 0.0 { row.scale } else { 1.0 };
+            out.push(EvalRow {
+                rule: ri,
+                row: k,
+                relation: row.relation,
+                value: row.expr.eval(x),
+                scale,
+                grad: Vec::new(),
+            });
+        }
+    }
+    out
+}
+
 /// Largest hard violation among `rows` (relative to row scale); NaN counts as ∞.
 pub(crate) fn max_violation(rows: &[EvalRow]) -> f64 {
     rows.iter().map(|r| if r.value.is_finite() { r.violation() } else { f64::INFINITY }).fold(0.0, f64::max)

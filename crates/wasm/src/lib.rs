@@ -200,8 +200,10 @@ impl WasmEngine {
     pub fn step(&mut self, budget: u32) -> String {
         match self.engine.step_pending(budget) {
             Ok(PendingState::Running { id }) => json!({ "state": "running", "id": id }).to_string(),
-            Ok(PendingState::Done(Ok(report))) => json!({ "state": "done", "ok": true, "report": report }).to_string(),
-            Ok(PendingState::Done(Err(e))) => json!({ "state": "done", "ok": false, "error": { "code": e.code(), "message": e.to_string(), "details": e } }).to_string(),
+            Ok(PendingState::Done(r)) => match *r {
+                Ok(report) => json!({ "state": "done", "ok": true, "report": report }).to_string(),
+                Err(e) => json!({ "state": "done", "ok": false, "error": { "code": e.code(), "message": e.to_string(), "details": e } }).to_string(),
+            },
             Err(e) => json!({ "state": "done", "ok": false, "error": { "code": e.code(), "message": e.to_string(), "details": e } }).to_string(),
         }
     }
