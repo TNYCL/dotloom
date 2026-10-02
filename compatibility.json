@@ -1,0 +1,22 @@
+{
+  "$comment": "Compatibility manifest (DL-OSS). Engine, SDK and React are released in lockstep; the protocol, scene, renderer binding, .dotl container and document schema have independent versions. Checked against the code by crates/wasm/tests/compatibility.rs and packages/sdk/test/compatibility.test.ts.",
+  "release": "0.1.0",
+  "packages": {
+    "crates": "0.1.0",
+    "@dotloom/sdk": "0.1.0",
+    "@dotloom/react": "0.1.0"
+  },
+  "formats": {
+    "workerProtocol": 1,
+    "renderProtocol": 1,
+    "sceneFormat": { "magic": "DLSC", "version": 1 },
+    "dotlContainer": 1,
+    "documentSchema": { "current": 1, "oldestReadable": 1 }
+  },
+  "toolchains": {
+    "rustMsrv": "1.89",
+    "rustPinned": "1.98.1",
+    "nodeTested": "24",
+    "react": "^19"
+  }
+}

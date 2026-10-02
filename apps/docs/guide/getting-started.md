@@ -13,15 +13,30 @@ units (cm, m, in, ft) only change how values are shown and typed.
 
 ## Install
 
+::: warning Not on npm yet
+Dotloom `0.1.0` is a pre-release and is not published to npm or crates.io yet.
+Build the packages from the repository and install the tarballs:
+
 ```sh
-npm install @dotloom/sdk
-# optional React editor
-npm install @dotloom/react react react-dom
+git clone https://github.com/TNYCL/dotloom
+cd dotloom
+pnpm install
+pnpm run build:wasm
+pnpm run build
+pnpm --filter @dotloom/sdk pack --pack-destination "$PWD/dist-packages"
+pnpm --filter @dotloom/react pack --pack-destination "$PWD/dist-packages"
 ```
 
-> Package names are defined in one place in the repository (`packages/names.json`).
-> If you consume Dotloom before it is published to npm, install the packed tarballs
-> (`pnpm pack`) or use the workspace.
+In your project, install both tarballs in one command (React is optional):
+
+```sh
+npm install ../dotloom/dist-packages/dotloom-sdk-0.1.0.tgz ../dotloom/dist-packages/dotloom-react-0.1.0.tgz
+npm install react react-dom   # only for @dotloom/react
+```
+:::
+
+Once published, the packages will be `@dotloom/sdk` and `@dotloom/react`
+(names are defined in one place, `packages/names.json`).
 
 ## A complete editor without React
 

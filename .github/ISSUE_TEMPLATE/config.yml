@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/TNYCL/dotloom/security/advisories/new
+    about: Private report; please do not open a public issue for security problems.
+  - name: Documentation
+    url: https://tnycl.github.io/dotloom/
+    about: Guides, API reference, examples and troubleshooting.

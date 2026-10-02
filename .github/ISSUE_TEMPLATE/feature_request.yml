@@ -1,0 +1,22 @@
+name: Feature request
+description: Propose a capability or an extension point.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to build, and what stops you today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: The API, rule, tool or file format change you have in mind. Plugins (entity types, tools, snap providers, storage adapters) can often do it without changing Dotloom.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
