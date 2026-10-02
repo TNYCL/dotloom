@@ -31,6 +31,8 @@ jobs:
         with:
           shared-key: lint
       - run: cargo fmt --all -- --check
+      - name: Dependency boundaries (core crates have no DOM/window/GPU deps)
+        run: node scripts/check-boundaries.mjs
       - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - name: clippy (wasm32 bindings)
         run: cargo clippy -p dotloom-wasm -p dotloom-render-web --target wasm32-unknown-unknown --locked -- -D warnings

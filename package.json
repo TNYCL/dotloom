@@ -11,10 +11,11 @@
     "build:wasm": "node scripts/build-wasm.mjs",
     "build": "pnpm -r --filter \"./packages/**\" run build",
     "test": "pnpm -r --filter \"./packages/**\" --filter \"./examples/**\" run test",
-    "test:e2e": "node scripts/e2e.mjs",
-    "build:docs": "node scripts/build-docs.mjs",
+    "test:e2e": "pnpm --filter @dotloom/e2e exec playwright test",
     "smoke:packages": "node scripts/smoke-packages.mjs",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "build:site": "node scripts/build-site.mjs",
+    "serve:site": "node scripts/serve-site.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

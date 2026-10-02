@@ -1,7 +1,7 @@
 //! The Dotloom expression language used by plugin model definitions.
 //!
 //! Expressions are parsed and type-checked (with physical dimensions) when a type
-//! definition is registered, then lowered to [`constraints::Expr`] trees whose
+//! definition is registered, then lowered to [`dotloom_constraints::Expr`] trees whose
 //! variables are *symbolic leaves* (properties, anchors of referenced entities,
 //! time-axis constants). The same compiled form is evaluated numerically for
 //! drawing and instantiated with solver variables for constraint solving, so the

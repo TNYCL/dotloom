@@ -19,34 +19,49 @@ if (process.platform === 'linux' || process.env.DOTLOOM_E2E_SWIFTSHADER === '1')
   )
 }
 
+// DOTLOOM_E2E_SITE=1 runs the published-site checks (site/) instead of the app specs;
+// DOTLOOM_SITE_URL points them at a deployed site.
+const siteMode = process.env.DOTLOOM_E2E_SITE === '1'
+const siteUrl = process.env.DOTLOOM_SITE_URL ?? 'http://localhost:5200/dotloom/'
+
 export default defineConfig({
-  testDir: './specs',
+  testDir: siteMode ? './site' : './specs',
   timeout: 60_000,
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['json', { outputFile: 'results/e2e.json' }]],
   use: {
-    baseURL: 'http://localhost:5199/',
+    baseURL: siteMode ? siteUrl : 'http://localhost:5199/',
     trace: 'retain-on-failure',
     // CI runs Firefox headed under Xvfb so it gets Mesa's software WebGL.
     headless: process.env.DOTLOOM_E2E_HEADED !== '1',
   },
-  webServer: [
-    {
-      command: 'pnpm run build && pnpm run preview',
-      url: 'http://localhost:5199/',
-      reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
-    },
-    {
-      // The reference React editor (apps/playground).
-      command: 'pnpm --filter @dotloom/playground run build && pnpm --filter @dotloom/playground run preview',
-      url: 'http://localhost:5198/',
-      reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
-    },
-  ],
+  webServer: siteMode
+    ? process.env.DOTLOOM_SITE_URL
+      ? []
+      : [
+          {
+            command: 'node ../../scripts/serve-site.mjs --port 5200',
+            url: siteUrl,
+            reuseExistingServer: !process.env.CI,
+          },
+        ]
+    : [
+        {
+          command: 'pnpm run build && pnpm run preview',
+          url: 'http://localhost:5199/',
+          reuseExistingServer: !process.env.CI,
+          timeout: 120_000,
+        },
+        {
+          // The reference React editor (apps/playground).
+          command: 'pnpm --filter @dotloom/playground run build && pnpm --filter @dotloom/playground run preview',
+          url: 'http://localhost:5198/',
+          reuseExistingServer: !process.env.CI,
+          timeout: 120_000,
+        },
+      ],
   projects: [
     {
       name: 'chromium',

@@ -12,6 +12,8 @@
       "!**/target",
       "!**/test-results",
       "!**/results",
+      "!site",
+      "!**/public/api",
       "!**/playwright-report",
       "!**/.vitepress/cache",
       "!**/.vitepress/dist",
