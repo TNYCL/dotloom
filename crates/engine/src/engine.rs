@@ -145,11 +145,13 @@ pub(crate) struct Pending {
     pub label: String,
     pub cause: &'static str,
     pub job: Option<(SolveJob, dotloom_constraints::Problem, Plan)>,
-    /// Relaxed second attempt used when the pinned first attempt is infeasible or
-    /// misses soft targets.
-    pub fallback: Option<(dotloom_constraints::Problem, Plan)>,
-    /// Accepted result of the pinned attempt, kept while the relaxed one runs.
+    /// Further attempts, tried in order when the current one is infeasible or
+    /// misses a requested value.
+    pub fallbacks: std::collections::VecDeque<(dotloom_constraints::Problem, Plan)>,
+    /// First accepted result, used if every later attempt fails.
     pub first: Option<(dotloom_constraints::Solution, dotloom_constraints::Problem, Plan)>,
+    /// The attempt chosen for committing.
+    pub chosen: Option<(dotloom_constraints::Solution, dotloom_constraints::Problem, Plan)>,
 }
 
 /// Progress of a pending commit.
@@ -423,11 +425,23 @@ impl Engine {
         prefer: bool,
     ) -> Result<u64, EngineError> {
         let ov = Overlay::from_data(&self.doc, data);
-        let job = solve::plan(&ov, &self.deps, &self.registry, &notes, prefer, true).map(|(problem, plan)| {
+        // Attempts (see ADR-0004 §11): requested values exact with the rest pinned,
+        // then exact with everything free (by stay priority), then — only when some
+        // values are preferences — the relaxed nearest-feasible solve.
+        let soft = prefer || notes.edits.iter().any(|e| !e.3);
+        let attempts: &[(bool, bool)] =
+            if soft { &[(true, true), (false, true), (false, false)] } else { &[(true, false), (false, false)] };
+        let mut plans: std::collections::VecDeque<_> = attempts
+            .iter()
+            .filter_map(|&(pin, hard)| {
+                let a = solve::Attempt { target: None, pin, hard_target: hard };
+                solve::plan_with(&ov, &self.deps, &self.registry, &notes, prefer, a)
+            })
+            .collect();
+        let job = plans.pop_front().map(|(problem, plan)| {
             let job = SolveJob::new(problem.clone(), self.options.solve);
             (job, problem, plan)
         });
-        let fallback = job.as_ref().and_then(|_| solve::plan(&ov, &self.deps, &self.registry, &notes, prefer, false));
         let id = self.next_pending;
         self.next_pending += 1;
         self.pending = Some(Pending {
@@ -438,8 +452,9 @@ impl Engine {
             label,
             cause,
             job,
-            fallback,
+            fallbacks: plans,
             first: None,
+            chosen: None,
         });
         Ok(id)
     }
@@ -466,20 +481,26 @@ impl Engine {
         {
             return Ok(PendingState::Running { id });
         }
-        // Pinned attempt finished: keep it if it is acceptable and meets every soft
-        // target; otherwise run the relaxed attempt (falling back to the pinned
-        // result if the relaxed one fails).
-        if let Some((problem, plan)) = p.fallback.take()
-            && let Some((job, pproblem, pplan)) = p.job.take()
-        {
+        // The current attempt finished: keep it if it is acceptable and meets every
+        // requested value; otherwise start the next attempt. The last attempt's
+        // result is used unless it failed and an earlier one was acceptable.
+        if let Some((job, problem, plan)) = p.job.take() {
             let sol = job.into_solution();
-            let good = sol.accepted() && solve::targets_met(&pproblem, &pplan, &sol);
-            if sol.accepted() {
-                p.first = Some((sol, pproblem, pplan));
-            }
-            if !good {
-                p.job = Some((SolveJob::new(problem.clone(), self.options.solve), problem, plan));
-                return Ok(PendingState::Running { id });
+            let good = sol.accepted() && solve::targets_met(&problem, &plan, &sol);
+            match p.fallbacks.pop_front() {
+                Some((next, next_plan)) if !good => {
+                    if sol.accepted() && p.first.is_none() {
+                        p.first = Some((sol, problem, plan));
+                    }
+                    p.job = Some((SolveJob::new(next.clone(), self.options.solve), next, next_plan));
+                    return Ok(PendingState::Running { id });
+                }
+                _ => {
+                    p.chosen = match p.first.take() {
+                        Some(f) if !sol.accepted() => Some(f),
+                        _ => Some((sol, problem, plan)),
+                    };
+                }
             }
         }
         let Some(p) = self.pending.take() else {
@@ -494,20 +515,10 @@ impl Engine {
     }
 
     fn finish_pending(&mut self, p: Pending) -> Result<CommitReport, EngineError> {
-        let Pending { data, mut notes, label, cause, job, first, .. } = p;
+        let Pending { data, mut notes, label, cause, chosen, .. } = p;
         let mut ov = Overlay::from_data(&self.doc, data);
         let mut status = Status::Solved;
         let mut diagnostics = Vec::new();
-        let chosen = match (job, first) {
-            (Some((job, problem, plan)), first) => {
-                let sol = job.into_solution();
-                match first {
-                    Some(f) if !sol.accepted() => Some(f),
-                    _ => Some((sol, problem, plan)),
-                }
-            }
-            (None, first) => first,
-        };
         if let Some((sol, problem, plan)) = chosen {
             status = sol.status;
             if let Err(err) = solve::finish(&mut ov, &self.registry, &problem, &plan, &sol, &mut notes) {

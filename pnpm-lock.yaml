@@ -173,6 +173,22 @@ importers:
         specifier: 6.0.3
         version: 6.0.3
 
+  examples/plugins:
+    dependencies:
+      '@dotloom/sdk':
+        specifier: workspace:^
+        version: link:../../packages/sdk
+    devDependencies:
+      '@types/node':
+        specifier: 24.9.2
+        version: 24.9.2
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 5.0.3
+        version: 5.0.3(@types/node@24.9.2)(jsdom@30.1.1)(vite@8.3.2(@types/node@24.9.2))
+
   packages/react:
     dependencies:
       '@dotloom/sdk':

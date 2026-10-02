@@ -10,7 +10,7 @@
     "check": "node scripts/check.mjs",
     "build:wasm": "node scripts/build-wasm.mjs",
     "build": "pnpm -r --filter ./packages/** run build",
-    "test": "pnpm -r --filter ./packages/** run test",
+    "test": "pnpm -r --filter \"./packages/**\" --filter \"./examples/**\" run test",
     "test:e2e": "node scripts/e2e.mjs",
     "build:docs": "node scripts/build-docs.mjs",
     "smoke:packages": "node scripts/smoke-packages.mjs",

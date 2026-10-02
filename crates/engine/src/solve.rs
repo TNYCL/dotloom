@@ -181,7 +181,7 @@ pub(crate) fn plan_with(
     // Deduplicate edits (last wins) and add them after structural rules.
     let mut edits: BTreeMap<(EntityId, String), (f64, bool)> = BTreeMap::new();
     for (e, p, v, exact) in &notes.edits {
-        edits.insert((*e, p.clone()), (*v, *exact && !prefer_all));
+        edits.insert((*e, p.clone()), (*v, (*exact && !prefer_all) || hard_target));
     }
     let mut list = Vec::new();
     for ((e, p), (v, exact)) in edits {
@@ -296,7 +296,16 @@ pub(crate) fn finish(
             continue;
         }
         let Some(val) = sol.values.get(v.index()).copied() else { continue };
-        if val != var.value || plan.edits.iter().any(|x| x.0 == *e && x.1 == *p) {
+        let tiny = 1e-12 * var.scale.max(1.0);
+        let edit = plan.edits.iter().find(|x| x.0 == *e && x.1 == *p);
+        // Exact edits store the requested value itself (no round-off from the
+        // solver); untouched parameters keep their bits unless they really moved.
+        let val = match edit {
+            Some(&(_, _, requested, true)) if (val - requested).abs() <= 1e3 * tiny => requested,
+            _ if (val - var.value).abs() <= tiny => var.value,
+            _ => val,
+        };
+        if val != var.value || edit.is_some() {
             per_entity.entry(*e).or_default().push((p.as_str(), val));
         }
     }
