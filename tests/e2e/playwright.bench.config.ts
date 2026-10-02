@@ -20,7 +20,7 @@ const chromeArgs = [
   '--js-flags=--expose-gc',
 ]
 
-const projects = [
+const projects: { name: string; backend: string; use: { browserName: 'chromium' | 'firefox'; channel?: string } }[] = [
   // No device descriptors: they would replace the real user agent.
   { name: 'chrome-webgpu', backend: 'webgpu', use: { browserName: 'chromium', channel: 'chrome' } },
   { name: 'chrome-webgl2', backend: 'webgl2', use: { browserName: 'chromium', channel: 'chrome' } },
