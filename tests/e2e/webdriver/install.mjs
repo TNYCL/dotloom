@@ -37,18 +37,33 @@ const GECKODRIVER = {
   linux64: 'e815130ea95983e162ae91843b48d3a3ce991735635fce83a647afde21e09f7e',
 }
 
+/** Fetch with up to three attempts: vendor download hosts occasionally time out. */
+async function get(url) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(120_000) })
+      if (r.ok || r.status < 500 || attempt === 3) return r
+      console.error(`${url}: HTTP ${r.status}, retrying`)
+    } catch (e) {
+      if (attempt === 3) throw e
+      console.error(`${url}: ${e.cause?.code ?? e.message}, retrying`)
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5000 * attempt))
+  }
+}
+
 async function json(url) {
-  const r = await fetch(url)
+  const r = await get(url)
   if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`)
   return r.json()
 }
 async function text(url) {
-  const r = await fetch(url)
+  const r = await get(url)
   if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`)
   return r.text()
 }
 async function download(url, file, sha256) {
-  const r = await fetch(url)
+  const r = await get(url)
   if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`)
   const bytes = Buffer.from(await r.arrayBuffer())
   if (sha256) {
