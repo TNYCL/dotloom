@@ -39,8 +39,7 @@ if (all || which.includes('rust')) {
   run('dependency boundaries', process.execPath, [join(root, 'scripts', 'check-boundaries.mjs')])
   run('third-party notices', process.execPath, [join(root, 'scripts', 'third-party-notices.mjs'), '--check'])
   // Published crates carry the license texts (crates.io packages cannot reach the root).
-  console.log('
-▶ crate license files')
+  console.log('\n▶ crate license files')
   for (const name of readdirSync(join(root, 'crates'))) {
     const manifest = readFileSync(join(root, 'crates', name, 'Cargo.toml'), 'utf8')
     if (/^publish\s*=\s*false/m.test(manifest)) continue

@@ -256,7 +256,14 @@ describe('host storage', () => {
     const h = await editor({ autosave: { key: 'host', storage: store } })
     const line = (y: number) => ({
       label: 'Line',
-      commands: [{ op: 'createEntity' as const, entity: { geometry: { type: 'line' as const, a: [0, y], b: [10, y] } } }],
+      commands: [
+        {
+          op: 'createEntity' as const,
+          entity: {
+            geometry: { type: 'line' as const, a: [0, y] as [number, number], b: [10, y] as [number, number] },
+          },
+        },
+      ],
     })
     await act(async () => {
       await h.core.apply(line(0))

@@ -171,7 +171,8 @@ function Shell(props: {
   return (
     <>
       <header className="dl-topbar">
-        <div className="dl-row" role="group" aria-label={t('menu.file')}>
+        <fieldset className="dl-row dl-plain-fieldset">
+          <legend className="dl-visually-hidden">{t('menu.file')}</legend>
           <button type="button" className="dl-btn" onClick={() => run('file.new')}>
             {t('menu.new')}
           </button>
@@ -192,7 +193,7 @@ function Shell(props: {
               {t('menu.exportPng')}
             </button>
           )}
-        </div>
+        </fieldset>
         <span className="dl-muted" data-testid="document-name">
           {props.name}
         </span>

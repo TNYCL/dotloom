@@ -296,4 +296,3 @@ test('accessibility scan (WCAG 2.1 A/AA) of the editor in light and dark themes 
   await expect(page.getByPlaceholder('Type a command…')).toBeVisible()
   await scan('command palette open')
 })
-
