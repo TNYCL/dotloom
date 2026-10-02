@@ -305,13 +305,47 @@ impl Text {
         height / ((fm::CAP_HEIGHT + fm::DESCENT) / fm::UNITS_PER_EM)
     }
 
+    /// Font units per em of the renderer's default font (the unit of
+    /// [`Text::line_pens`]).
+    pub const FONT_UNITS_PER_EM: f64 = fm::UNITS_PER_EM;
+
+    /// Model units per em for text of `height` (for renderers that place glyph
+    /// outlines with [`Text::line_pens`]).
+    #[must_use]
+    pub fn em_size(height: f64) -> f64 {
+        Self::em(height)
+    }
+
+    /// Pen positions of one line laid out with the renderer's default font: each
+    /// drawn character (after the renderer's substitutions: tabs and no-break
+    /// spaces become spaces, control characters are dropped) with its pen position
+    /// in font units from the line start — advance widths plus pair kerning — and
+    /// the line's total advance in font units. The renderer places glyphs with
+    /// exactly these positions, so drawn text and [`Text::layout_box`] agree.
+    #[must_use]
+    pub fn line_pens(line: &str) -> (Vec<(char, f64)>, f64) {
+        let mut pens = Vec::with_capacity(line.len());
+        let mut pen = 0.0;
+        let mut prev: Option<usize> = None;
+        for c in line.trim_end_matches('\r').chars() {
+            let Some(c) = substitute(c) else { continue };
+            let idx = fm::ADVANCES.binary_search_by_key(&u32::from(c), |e| e.0).ok();
+            if let (Some(a), Some(b)) = (prev, idx) {
+                pen += kerning(a, b);
+            }
+            pens.push((c, pen));
+            pen += f64::from(idx.and_then(|i| fm::ADVANCES.get(i)).map_or(fm::NOTDEF_ADVANCE, |e| e.1));
+            prev = idx;
+        }
+        (pens, pen)
+    }
+
     /// Advance width of one line in model units, measured with the renderer's
-    /// default font (its advance widths, no kerning — exactly how it is drawn).
+    /// default font (advance widths and pair kerning — exactly how it is drawn).
     /// Tabs count as spaces; control characters are skipped.
     #[must_use]
     pub fn line_width(line: &str, height: f64) -> f64 {
-        let units: f64 = line.trim_end_matches('\r').chars().filter_map(advance_units).sum();
-        units / fm::UNITS_PER_EM * Self::em(height)
+        Self::line_pens(line).1 / fm::UNITS_PER_EM * Self::em(height)
     }
 
     /// Layout box (before rotation) relative to `position`: each line's advance
@@ -354,19 +388,43 @@ impl Text {
     }
 }
 
-/// Advance of one character in font units, with the renderer's substitutions.
-fn advance_units(c: char) -> Option<f64> {
-    let c = match c {
-        '\t' | '\u{00a0}' | '\u{2007}' | '\u{202f}' => ' ',
-        '\u{2300}' => '\u{2205}',
+/// The renderer's character substitutions: tabs become spaces and other controls
+/// are dropped; characters the font lacks fall back (no-break spaces to a space,
+/// the diameter sign to the empty-set sign).
+fn substitute(c: char) -> Option<char> {
+    match c {
+        '\t' => return Some(' '),
         c if c.is_control() => return None,
+        _ => {}
+    }
+    if fm::ADVANCES.binary_search_by_key(&u32::from(c), |e| e.0).is_ok() {
+        return Some(c);
+    }
+    Some(match c {
+        '\u{00a0}' | '\u{2007}' | '\u{202f}' => ' ',
+        '\u{2300}' => '\u{2205}',
         c => c,
-    };
-    let units = match fm::ADVANCES.binary_search_by_key(&u32::from(c), |e| e.0) {
-        Ok(i) => fm::ADVANCES.get(i).map_or(fm::NOTDEF_ADVANCE, |e| e.1),
-        Err(_) => fm::NOTDEF_ADVANCE,
-    };
-    Some(f64::from(units))
+    })
+}
+
+/// Pair kerning between two characters of the default font (indices into the
+/// advance table) in font units. Per `kern` lookup an explicit pair wins over the
+/// class matrix; the lookups add up (OpenType GPOS pair positioning).
+fn kerning(a: usize, b: usize) -> f64 {
+    let key = (u16::try_from(a).unwrap_or(u16::MAX), u16::try_from(b).unwrap_or(u16::MAX));
+    let mut units = 0i32;
+    for k in &fm::KERN {
+        if let Ok(i) = k.pairs.binary_search_by_key(&key, |p| (p.0, p.1)) {
+            units += k.pairs.get(i).map_or(0, |p| i32::from(p.2));
+            continue;
+        }
+        let (Some(&left), Some(&right)) = (k.left.get(a), k.right.get(b)) else { continue };
+        if left == u8::MAX {
+            continue;
+        }
+        units += k.matrix.get(usize::from(left) * k.columns + usize::from(right)).map_or(0, |v| i32::from(*v));
+    }
+    f64::from(units)
 }
 
 /// How to handle transforms that a shape cannot represent exactly.
@@ -1292,6 +1350,42 @@ mod tests {
         );
         assert!(Shape::Path(Path { elements: vec![PathEl::LineTo(Point::ORIGIN)] }).validate().is_err());
         assert!(Shape::Circle(Circle { center: Point::ORIGIN, radius: 0.0 }).validate().is_err());
+    }
+
+    #[test]
+    fn line_layout_matches_harfbuzz_kerning() {
+        // Reference widths in font units from HarfBuzz 11 (uharfbuzz 0.56.2) shaping the
+        // same font with only `kern` enabled — an independent implementation of
+        // GPOS pair positioning (class pairs, explicit pairs, two lookups).
+        let cases = [
+            ("AV", 2686.0),
+            ("To", 2390.0),
+            ("Yo", 2461.0),
+            ("Wa", 3064.0),
+            ("LT", 2283.0),
+            ("Ölçü planı — İğdır", 17152.0),
+            ("TAVERN", 7926.0),
+            ("P.", 1829.0),
+            ("f)", 1505.0),
+            ("Tığ", 3074.0),
+            ("kv", 2275.0),
+            ("Hello", 4936.0),
+            ("AV\tA", 4675.0),
+        ];
+        for (s, expected) in cases {
+            let (pens, width) = Text::line_pens(s);
+            assert_eq!(width, expected, "{s}");
+            assert_eq!(pens.len(), s.chars().count(), "{s}");
+        }
+        // Kerning really applies: "AV" is narrower than its advances.
+        let (pens, _) = Text::line_pens("AV");
+        let a_advance = pens[1].1;
+        let (_, a_alone) = Text::line_pens("A");
+        assert!(a_advance < a_alone, "{a_advance} vs {a_alone}");
+        // Model units scale with the text height; controls are dropped.
+        let h = 10.0;
+        assert!((Text::line_width("AV", h) - 2686.0 / 2048.0 * Text::em_size(h)).abs() < 1e-12);
+        assert_eq!(Text::line_pens("A\u{7}V").1, 2686.0);
     }
 
     #[test]

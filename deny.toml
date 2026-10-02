@@ -6,12 +6,7 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
-ignore = [
-    # ttf-parser (through fontdue) is unmaintained. The renderer only parses its own
-    # embedded font, never user input; moving the glyph pipeline off fontdue is
-    # tracked in https://github.com/TNYCL/dotloom/issues/16.
-    { id = "RUSTSEC-2026-0192", reason = "parses only the embedded, trusted font; migration tracked in #16" },
-]
+ignore = []
 
 [licenses]
 version = 2

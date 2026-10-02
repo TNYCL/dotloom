@@ -83,8 +83,8 @@ npm scope cannot be obtained, the packages need another scope and a new version.
   everywhere.
 - Playwright WebKit on Windows does not composite resized WebGL2 canvases
   (reproduced with plain WebGL) — that test is skipped there with the reason.
-- `fontdue` reads only the legacy `kern` table (no kerning, issue #15) and its
-  `ttf-parser` is unmaintained (issue #16, cargo-deny exception with reason).
+- Text uses the default font's pair kerning (shared tables, checked against
+  HarfBuzz); outlines come from `read-fonts` (no advisory exceptions in cargo-deny).
 - Engine memory ≈ 2 KB per simple object (issue #14).
 - Dependabot ignores major TypeScript (7 breaks the toolchain) and `@types/node`
   (types follow the Node 24 runtime) updates.
@@ -94,8 +94,7 @@ npm scope cannot be obtained, the packages need another scope and a new version.
 1. Owner: npm org + `NPM_TOKEN` (or trusted publishing) and `CARGO_REGISTRY_TOKEN`;
    then `release` workflow with `publish: v1.0.0`; update DL-OSS-4/7.
 2. Safari 27 smoke test on a Mac (issue #13).
-3. Known limitations tracked as issues: kerning (#15), fontdue/ttf-parser (#16),
-   memory per object (#14).
+3. Known limitation tracked as an issue: memory per object (#14).
 
 ## Commands
 

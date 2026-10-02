@@ -186,11 +186,13 @@ with the worker (not observable from the page).
 
 | | Engine | Renderer |
 |---|---|---|
-| `.wasm` raw | 2154 KiB | 2813 KiB |
-| gzip −9 | 656 KiB | 1014 KiB |
-| brotli q11 | 469 KiB | 770 KiB |
+| `.wasm` raw | 2229 KiB | 2808 KiB |
+| gzip −9 | 686 KiB | 1011 KiB |
+| brotli q11 | 490 KiB | 766 KiB |
 
-`node scripts/bench/wasm-size.mjs`. The renderer includes the shader translator for
+`node scripts/bench/wasm-size.mjs` (after the kerning change: the engine carries the
+kerning tables, +10 KiB brotli; the renderer reads outlines with `read-fonts` instead
+of fontdue, −4 KiB). The renderer includes the shader translator for
 WebGL2 (naga), the tessellator and the embedded font subset.
 
 - Cold start (page script → editor ready: worker spawn, both modules fetched,

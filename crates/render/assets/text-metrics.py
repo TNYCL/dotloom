@@ -1,13 +1,17 @@
 """Generate crates/geometry/src/font_metrics.rs from the renderer's default font.
 
 Headless code (engine hit-testing, bounding boxes, culling) must measure text the
-way the renderer draws it. The renderer lays text out with the advance widths of
-`Inter-Regular-subset.ttf` (no kerning); this script writes those advances and the
-vertical metrics as a sorted table, so `dotloom-geometry` needs no font parser.
+way the renderer draws it, and the renderer positions glyphs with the same tables:
+the advance widths and the pair kerning (GPOS `kern`) of `Inter-Regular-subset.ttf`,
+plus the vertical metrics. `dotloom-geometry` therefore needs no font parser.
+
+Kerning is kept in the font's own structure: per lookup, explicit glyph pairs
+(PairPos format 1, which take precedence) and a class matrix (format 2). The script
+refuses fonts whose `kern` lookups have a different shape instead of guessing.
 
 Usage:  python -m pip install fonttools==4.66.1
         python crates/render/assets/text-metrics.py
-A render-crate test checks the table against the font the renderer loads.
+A render-crate test checks the tables against the font the renderer loads.
 """
 
 import os
@@ -22,8 +26,60 @@ upm = font["head"].unitsPerEm
 hhea = font["hhea"]
 cap = font["glyf"]["H"].yMax
 hmtx = font["hmtx"]
-rows = sorted((cp, hmtx[name][0]) for cp, name in font.getBestCmap().items())
+cmap = font.getBestCmap()
+rows = sorted((cp, hmtx[name][0]) for cp, name in cmap.items())
+index_of = {cp: i for i, (cp, _) in enumerate(rows)}
+cps_of = {}
+for cp, name in cmap.items():
+    cps_of.setdefault(name, []).append(cp)
 notdef = hmtx[".notdef"][0]
+
+# --- kerning --------------------------------------------------------------------
+gpos = font["GPOS"].table
+kern = sorted({i for fr in gpos.FeatureList.FeatureRecord if fr.FeatureTag == "kern" for i in fr.Feature.LookupListIndex})
+
+
+def subtables(lookup):
+    for st in lookup.SubTable:
+        if lookup.LookupType == 9:
+            yield st.ExtSubTable
+        else:
+            yield st
+
+
+def x_advance(value):
+    return getattr(value, "XAdvance", 0) or 0 if value is not None else 0
+
+
+lookups = []
+for li in kern:
+    sts = list(subtables(gpos.LookupList.Lookup[li]))
+    if [getattr(st, "Format", None) for st in sts] != [1, 2] or any(
+        getattr(st, "ValueFormat2", 0) for st in sts
+    ):
+        raise SystemExit(f"kern lookup {li}: expected PairPos format 1 then format 2 with first-glyph values only")
+    pairs_st, class_st = sts
+    pairs = {}
+    for i, first in enumerate(pairs_st.Coverage.glyphs):
+        for rec in pairs_st.PairSet[i].PairValueRecord:
+            for a in cps_of.get(first, []):
+                for b in cps_of.get(rec.SecondGlyph, []):
+                    # Zero-valued pairs are kept: they override the class value.
+                    pairs[(index_of[a], index_of[b])] = x_advance(rec.Value1)
+    covered = set(class_st.Coverage.glyphs)
+    c1 = class_st.ClassDef1.classDefs
+    c2 = class_st.ClassDef2.classDefs
+    if class_st.Class1Count > 255 or class_st.Class2Count > 255:
+        raise SystemExit("too many kerning classes for u8")
+    left = [255] * len(rows)
+    right = [0] * len(rows)
+    for cp, name in cmap.items():
+        i = index_of[cp]
+        if name in covered:
+            left[i] = c1.get(name, 0)
+        right[i] = c2.get(name, 0)
+    matrix = [x_advance(c.Value1) for r in class_st.Class1Record for c in r.Class2Record]
+    lookups.append((sorted(pairs.items()), left, right, class_st.Class1Count, class_st.Class2Count, matrix))
 
 lines = [
     "//! Metrics of the renderer's default font (Inter 4.1 Regular subset, SIL OFL 1.1).",
@@ -43,6 +99,41 @@ lines = [
 for i in range(0, len(rows), 6):
     lines.append("    " + " ".join(f"({cp:#06x}, {adv})," for cp, adv in rows[i : i + 6]))
 lines.append("];")
+lines += [
+    "",
+    "/// One `kern` lookup: explicit pairs first (indices into [`ADVANCES`], sorted), then",
+    "/// the class matrix for first characters with a left class (255 = not covered).",
+    "pub(crate) struct KernLookup {",
+    "    pub pairs: &'static [(u16, u16, i16)],",
+    "    pub left: &'static [u8],",
+    "    pub right: &'static [u8],",
+    "    pub columns: usize,",
+    "    pub matrix: &'static [i16],",
+    "}",
+    "",
+]
+for n, (pairs, left, right, rows1, cols, matrix) in enumerate(lookups):
+    lines.append(f"static KERN_PAIRS_{n}: [(u16, u16, i16); {len(pairs)}] = [")
+    for i in range(0, len(pairs), 6):
+        lines.append("    " + " ".join(f"({a}, {b}, {v})," for (a, b), v in pairs[i : i + 6]))
+    lines.append("];")
+    for name, data in (("LEFT", left), ("RIGHT", right)):
+        lines.append(f"static KERN_{name}_{n}: [u8; {len(data)}] = [")
+        for i in range(0, len(data), 24):
+            lines.append("    " + " ".join(f"{v}," for v in data[i : i + 24]))
+        lines.append("];")
+    lines.append(f"static KERN_MATRIX_{n}: [i16; {rows1 * cols}] = [")
+    for i in range(0, len(matrix), 20):
+        lines.append("    " + " ".join(f"{v}," for v in matrix[i : i + 20]))
+    lines.append("];")
+    lines.append("")
+lines.append("/// The `kern` lookups in application order (their adjustments add up).")
+lines.append(f"pub(crate) static KERN: [KernLookup; {len(lookups)}] = [")
+for n, (_, _, _, _, cols, _) in enumerate(lookups):
+    lines.append(
+        f"    KernLookup {{ pairs: &KERN_PAIRS_{n}, left: &KERN_LEFT_{n}, right: &KERN_RIGHT_{n}, columns: {cols}, matrix: &KERN_MATRIX_{n} }},"
+    )
+lines.append("];")
 with open(OUT, "w", encoding="utf-8", newline="\n") as f:
     f.write("\n".join(lines) + "\n")
-print(f"wrote {len(rows)} advances to {os.path.normpath(OUT)}")
+print(f"wrote {len(rows)} advances and {len(lookups)} kerning lookups to {os.path.normpath(OUT)}")

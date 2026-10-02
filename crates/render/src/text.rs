@@ -1,15 +1,25 @@
 //! Text: font loading, signed-distance-field glyph atlas and layout.
 //!
-//! Glyphs are rasterized once at [`RASTER_PX`] with `fontdue`, converted to a
-//! signed distance field and packed into a single-channel atlas. The SDF stays
-//! sharp from a few pixels up to large zoom levels, so text never needs to be
-//! re-rasterized while zooming. Layout follows the scene contract (`Text::height`
-//! is the cap-to-descender height; lines are `1.2 × height` apart) so drawn text
-//! matches the engine's text boxes used for hit-testing.
+//! Glyph outlines are read from the TrueType `glyf` table with `read-fonts` (simple
+//! and composite glyphs), rasterized once at [`RASTER_PX`] by a small coverage
+//! rasterizer, converted to a signed distance field and packed into
+//! a single-channel atlas. The SDF stays sharp from a few pixels up to large zoom
+//! levels, so text never needs to be re-rasterized while zooming.
+//!
+//! Layout follows the scene contract (`Text::height` is the cap-to-descender
+//! height; lines are `1.2 × height` apart). With the default font, glyph positions
+//! come from [`Text::line_pens`] — the advance widths and pair kerning shared with
+//! `dotloom-geometry` — so drawn text and the engine's text boxes (hit-testing,
+//! culling) agree exactly. Other fonts are laid out with their own advances.
 
 use std::collections::HashMap;
 
 use dotloom_geometry::{HAlign, Text, VAlign};
+use read_fonts::{
+    FontRef, TableProvider,
+    tables::glyf::{Anchor, CompositeGlyphFlags, CurvePoint, Glyph},
+    types::GlyphId,
+};
 
 use crate::RenderError;
 
@@ -27,6 +37,8 @@ pub const ATLAS_SIZE: usize = 2048;
 const LINE_SPACING: f64 = Text::LINE_SPACING;
 /// Ascent used for vertical alignment (scene contract: top ≈ 0.8 h above baseline).
 const TOP_ABOVE_BASELINE: f64 = Text::TOP_ABOVE_BASELINE;
+/// Curve flattening tolerance in raster pixels.
+const FLATTEN_TOLERANCE: f32 = 0.1;
 
 /// A glyph in the atlas.
 #[derive(Debug, Clone, Copy)]
@@ -67,10 +79,13 @@ struct Shelf {
 
 /// Font, atlas and glyph cache.
 pub struct TextSystem {
-    font: fontdue::Font,
+    /// Font file (validated by [`TextSystem::new`]).
+    font: Vec<u8>,
+    /// The default font: positions come from the shared layout tables.
+    shared_layout: bool,
     /// Text height → em size factor: `em = height / height_per_em`.
     height_per_em: f64,
-    glyphs: HashMap<u16, GlyphSlot>,
+    glyphs: HashMap<u32, GlyphSlot>,
     pub(crate) atlas: Vec<u8>,
     shelves: Vec<Shelf>,
     pub(crate) dirty: Option<DirtyRect>,
@@ -84,27 +99,206 @@ impl std::fmt::Debug for TextSystem {
     }
 }
 
+/// Receives glyph outlines (y up).
+trait OutlinePen {
+    fn move_to(&mut self, x: f32, y: f32);
+    fn line_to(&mut self, x: f32, y: f32);
+    fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32);
+    fn close(&mut self);
+}
+
+/// Bounding box of an outline (raster pixels, y up).
+#[derive(Default)]
+struct Bounds {
+    min: (f32, f32),
+    max: (f32, f32),
+    any: bool,
+}
+
+impl OutlinePen for Bounds {
+    fn move_to(&mut self, x: f32, y: f32) {
+        self.add(x, y);
+    }
+    fn line_to(&mut self, x: f32, y: f32) {
+        self.add(x, y);
+    }
+    fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32) {
+        // The control polygon contains the curve.
+        self.add(cx0, cy0);
+        self.add(x, y);
+    }
+    fn close(&mut self) {}
+}
+
+impl Bounds {
+    fn add(&mut self, x: f32, y: f32) {
+        if !self.any {
+            self.min = (x, y);
+            self.max = (x, y);
+            self.any = true;
+        }
+        self.min = (self.min.0.min(x), self.min.1.min(y));
+        self.max = (self.max.0.max(x), self.max.1.max(y));
+    }
+}
+
+/// Coverage rasterizer: signed-area accumulation (the approach of font-rs). Each
+/// line segment adds the area it covers to the cells it crosses; a running sum
+/// over every row turns the deltas into non-zero winding coverage.
+struct Raster {
+    w: usize,
+    h: usize,
+    /// Accumulation cells (`w × h` plus slack for the cell right of a row).
+    acc: Vec<f32>,
+    /// Offset from outline coordinates (y up) to raster pixels (y down).
+    origin: (f32, f32),
+    start: (f32, f32),
+    cur: (f32, f32),
+}
+
+impl Raster {
+    fn new(w: usize, h: usize, origin: (f32, f32)) -> Self {
+        Self { w, h, acc: vec![0.0; w * h + 2], origin, start: (0.0, 0.0), cur: (0.0, 0.0) }
+    }
+
+    fn to_px(&self, x: f32, y: f32) -> (f32, f32) {
+        (x - self.origin.0, self.origin.1 - y)
+    }
+
+    fn add(&mut self, i: isize, v: f32) {
+        if let Some(cell) = usize::try_from(i).ok().and_then(|i| self.acc.get_mut(i)) {
+            *cell += v;
+        }
+    }
+
+    fn line(&mut self, p0: (f32, f32), p1: (f32, f32)) {
+        if p0.1 == p1.1 || !(p0.0.is_finite() && p0.1.is_finite() && p1.0.is_finite() && p1.1.is_finite()) {
+            return;
+        }
+        let (dir, p0, p1) = if p0.1 < p1.1 { (1.0f32, p0, p1) } else { (-1.0f32, p1, p0) };
+        let dxdy = (p1.0 - p0.0) / (p1.1 - p0.1);
+        let y_start = p0.1.max(0.0);
+        let y_end = p1.1.min(self.h as f32);
+        let mut x = p0.0 + (y_start - p0.1) * dxdy;
+        let mut y = y_start.floor();
+        while y < y_end {
+            let row = y as isize * self.w as isize;
+            let dy = (y + 1.0).min(y_end) - y.max(y_start);
+            let x_next = x + dxdy * dy;
+            let d = dy * dir;
+            let (x0, x1) = if x < x_next { (x, x_next) } else { (x_next, x) };
+            let x0 = x0.clamp(0.0, self.w as f32);
+            let x1 = x1.clamp(0.0, self.w as f32);
+            let x0_floor = x0.floor();
+            let x0i = x0_floor as isize;
+            let x1_ceil = x1.ceil();
+            let x1i = x1_ceil as isize;
+            if x1i <= x0i + 1 {
+                // The segment stays within one cell in this row.
+                let xm = 0.5 * (x0 + x1) - x0_floor;
+                self.add(row + x0i, d - d * xm);
+                self.add(row + x0i + 1, d * xm);
+            } else {
+                let s = (x1 - x0).recip();
+                let x0f = x0 - x0_floor;
+                let a0 = 0.5 * s * (1.0 - x0f) * (1.0 - x0f);
+                let x1f = x1 - x1_ceil + 1.0;
+                let am = 0.5 * s * x1f * x1f;
+                self.add(row + x0i, d * a0);
+                if x1i == x0i + 2 {
+                    self.add(row + x0i + 1, d * (1.0 - a0 - am));
+                } else {
+                    let a1 = s * (1.5 - x0f);
+                    self.add(row + x0i + 1, d * (a1 - a0));
+                    for xi in x0i + 2..x1i - 1 {
+                        self.add(row + xi, d * s);
+                    }
+                    let a2 = a1 + (x1i - x0i - 3) as f32 * s;
+                    self.add(row + x1i - 1, d * (1.0 - a2 - am));
+                }
+                self.add(row + x1i, d * am);
+            }
+            x = x_next;
+            y += 1.0;
+        }
+    }
+
+    fn line_to_px(&mut self, p: (f32, f32)) {
+        let from = self.cur;
+        self.line(from, p);
+        self.cur = p;
+    }
+
+    fn coverage(&self) -> Vec<u8> {
+        let mut sum = 0.0f32;
+        self.acc
+            .iter()
+            .take(self.w * self.h)
+            .map(|a| {
+                sum += a;
+                (sum.abs().min(1.0) * 255.0).round() as u8
+            })
+            .collect()
+    }
+}
+
+impl OutlinePen for Raster {
+    fn move_to(&mut self, x: f32, y: f32) {
+        let p = self.to_px(x, y);
+        self.start = p;
+        self.cur = p;
+    }
+    fn line_to(&mut self, x: f32, y: f32) {
+        let p = self.to_px(x, y);
+        self.line_to_px(p);
+    }
+    fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32) {
+        let (p0, c, p2) = (self.cur, self.to_px(cx0, cy0), self.to_px(x, y));
+        let dd = ((p0.0 - 2.0 * c.0 + p2.0).powi(2) + (p0.1 - 2.0 * c.1 + p2.1).powi(2)).sqrt();
+        let n = ((dd / FLATTEN_TOLERANCE).sqrt().ceil() as usize).clamp(1, 64);
+        for i in 1..=n {
+            let t = i as f32 / n as f32;
+            let mt = 1.0 - t;
+            let p = (
+                mt * mt * p0.0 + 2.0 * mt * t * c.0 + t * t * p2.0,
+                mt * mt * p0.1 + 2.0 * mt * t * c.1 + t * t * p2.1,
+            );
+            self.line_to_px(p);
+        }
+    }
+    fn close(&mut self) {
+        let start = self.start;
+        self.line_to_px(start);
+    }
+}
+
 impl TextSystem {
     /// Load a TrueType/OpenType font.
     ///
     /// # Errors
     /// [`RenderError::Font`] when the font cannot be parsed or lacks metrics.
     pub fn new(font_bytes: &[u8]) -> Result<Self, RenderError> {
-        let font = fontdue::Font::from_bytes(font_bytes, fontdue::FontSettings::default())
-            .map_err(|e| RenderError::Font(e.to_string()))?;
-        let upm = font.units_per_em();
-        let lm = font
-            .horizontal_line_metrics(upm)
-            .ok_or_else(|| RenderError::Font("font has no horizontal metrics".into()))?;
-        let h = font.metrics('H', upm);
-        let cap = if h.height > 0 { (h.ymin as f32 + h.height as f32) / upm } else { lm.ascent / upm * 0.75 };
-        let descent = (-lm.descent / upm).max(0.0);
-        let height_per_em = f64::from(cap + descent);
+        let font = FontRef::new(font_bytes).map_err(|e| RenderError::Font(e.to_string()))?;
+        let err = |e: read_fonts::ReadError| RenderError::Font(e.to_string());
+        let upm = f32::from(font.head().map_err(err)?.units_per_em());
+        let hhea = font.hhea().map_err(err)?;
+        font.glyf().map_err(err)?;
+        font.hmtx().map_err(err)?;
+        if upm <= 0.0 {
+            return Err(RenderError::Font("font has no units per em".into()));
+        }
+        let ascent = f32::from(hhea.ascender().to_i16());
+        let cap = map_char(&font, 'H').and_then(|g| outline_bounds(&font, g, upm)).map_or(ascent * 0.75, |b| b.max.1);
+        let descent = (-f32::from(hhea.descender().to_i16())).max(0.0);
+        let shared_layout = font_bytes == DEFAULT_FONT;
+        // The default font is scaled exactly like `dotloom-geometry` measures it.
+        let height_per_em = if shared_layout { 1.0 / Text::em_size(1.0) } else { f64::from((cap + descent) / upm) };
         if !(height_per_em.is_finite() && height_per_em > 0.1) {
             return Err(RenderError::Font("implausible font metrics".into()));
         }
         Ok(Self {
-            font,
+            font: font_bytes.to_vec(),
+            shared_layout,
             height_per_em,
             glyphs: HashMap::new(),
             atlas: vec![0; ATLAS_SIZE * ATLAS_SIZE],
@@ -168,36 +362,43 @@ impl TextSystem {
         Some((0, y))
     }
 
-    fn glyph_index(&self, c: char) -> u16 {
-        if self.font.has_glyph(c) {
-            return self.font.lookup_glyph_index(c);
-        }
+    /// Glyph of a character, with the shared substitutions; `.notdef` if missing.
+    fn glyph_index(&self, c: char) -> u32 {
+        let Ok(font) = FontRef::new(&self.font) else { return 0 };
         let substitute = match c {
             '\u{2300}' => Some('\u{2205}'),
             '\u{00a0}' | '\u{2007}' | '\u{202f}' => Some(' '),
             _ => None,
         };
-        match substitute {
-            Some(s) if self.font.has_glyph(s) => self.font.lookup_glyph_index(s),
-            _ if self.font.has_glyph('\u{fffd}') => self.font.lookup_glyph_index('\u{fffd}'),
-            _ => 0,
-        }
+        map_char(&font, c)
+            .or_else(|| substitute.and_then(|s| map_char(&font, s)))
+            .or_else(|| map_char(&font, '\u{fffd}'))
+            .map_or(0, GlyphId::to_u32)
     }
 
     /// Get or rasterize a glyph. Returns `None` only when the atlas is full even
     /// after clearing it (more distinct glyphs than fit in one atlas).
-    fn glyph(&mut self, index: u16) -> Option<GlyphSlot> {
+    fn glyph(&mut self, index: u32) -> Option<GlyphSlot> {
         if let Some(g) = self.glyphs.get(&index) {
             return Some(*g);
         }
-        let (m, coverage) = self.font.rasterize_indexed(index, RASTER_PX);
-        let advance = m.advance_width / RASTER_PX;
-        if m.width == 0 || m.height == 0 {
+        let font = FontRef::new(&self.font).ok()?;
+        let gid = GlyphId::new(index);
+        let upm = f32::from(font.head().ok()?.units_per_em());
+        let advance = f32::from(font.hmtx().ok()?.advance(gid).unwrap_or(0)) / upm;
+        let bounds = outline_bounds(&font, gid, RASTER_PX);
+        let Some(b) = bounds.filter(|b| b.max.0 > b.min.0 && b.max.1 > b.min.1) else {
             let slot = GlyphSlot { uv: None, quad: [0.0; 4], advance };
             self.glyphs.insert(index, slot);
             return Some(slot);
-        }
-        let (w, h) = (m.width + 2 * SPREAD, m.height + 2 * SPREAD);
+        };
+        let (xmin, ymin) = (b.min.0.floor(), b.min.1.floor());
+        let (gw, gh) = ((b.max.0.ceil() - xmin) as usize, (b.max.1.ceil() - ymin) as usize);
+        let mut raster = Raster::new(gw, gh, (xmin, ymin + gh as f32));
+        let s = RASTER_PX / upm;
+        draw_glyph(&font, gid, [s, 0.0, 0.0, s, 0.0, 0.0], 0, &mut raster)?;
+        let coverage = raster.coverage();
+        let (w, h) = (gw + 2 * SPREAD, gh + 2 * SPREAD);
         let at = match self.allocate(w, h) {
             Some(at) => at,
             None => {
@@ -205,7 +406,7 @@ impl TextSystem {
                 self.allocate(w, h)?
             }
         };
-        let sdf = signed_distance_field(&coverage, m.width, m.height, SPREAD);
+        let sdf = signed_distance_field(&coverage, gw, gh, SPREAD);
         for row in 0..h {
             let dst = (at.1 + row) * ATLAS_SIZE + at.0;
             self.atlas[dst..dst + w].copy_from_slice(&sdf[row * w..(row + 1) * w]);
@@ -216,10 +417,10 @@ impl TextSystem {
         let slot = GlyphSlot {
             uv: Some([at.0 as f32 / size, at.1 as f32 / size, (at.0 + w) as f32 / size, (at.1 + h) as f32 / size]),
             quad: [
-                (m.xmin as f32 - pad) / RASTER_PX,
-                (m.ymin as f32 - pad) / RASTER_PX,
-                (m.xmin as f32 + m.width as f32 + pad) / RASTER_PX,
-                (m.ymin as f32 + m.height as f32 + pad) / RASTER_PX,
+                (xmin - pad) / RASTER_PX,
+                (ymin - pad) / RASTER_PX,
+                (xmin + gw as f32 + pad) / RASTER_PX,
+                (ymin + gh as f32 + pad) / RASTER_PX,
             ],
             advance,
         };
@@ -227,14 +428,28 @@ impl TextSystem {
         Some(slot)
     }
 
+    /// Characters of one line with their pen positions in em units, and the line's
+    /// advance in em units. Returns `None` if the atlas overflowed.
+    fn pens(&mut self, line: &str) -> Option<(Vec<(char, f64)>, f64)> {
+        if self.shared_layout {
+            let units = 1.0 / Text::FONT_UNITS_PER_EM;
+            let (pens, width) = Text::line_pens(line);
+            return Some((pens.into_iter().map(|(c, x)| (c, x * units)).collect(), width * units));
+        }
+        let mut pens = Vec::with_capacity(line.len());
+        let mut pen = 0.0;
+        for c in line.trim_end_matches('\r').chars().filter_map(normalize_char) {
+            pens.push((c, pen));
+            pen += f64::from(self.glyph(self.glyph_index(c))?.advance);
+        }
+        Some((pens, pen))
+    }
+
     /// Measure the advance width of one line in model units.
+    #[cfg(test)]
     pub(crate) fn line_width(&mut self, line: &str, height: f64) -> f64 {
         let em = height / self.height_per_em;
-        line.chars()
-            .filter_map(|c| self.glyph(self.glyph_index(normalize_char(c)?)))
-            .map(|g| f64::from(g.advance))
-            .sum::<f64>()
-            * em
+        self.pens(line).map_or(0.0, |p| p.1) * em
     }
 
     /// Lay out text into glyph quads (text-local coordinates, y up, before
@@ -258,21 +473,21 @@ impl TextSystem {
         let generation = self.generation;
         let mut out = Vec::with_capacity(t.content.len());
         for (i, line) in lines.iter().enumerate() {
-            let line = line.trim_end_matches('\r');
-            let width = self.line_width(line, h);
-            let mut pen = match t.halign {
+            let (pens, width) = self.pens(line)?;
+            let width = width * em;
+            let start = match t.halign {
                 HAlign::Left => 0.0,
                 HAlign::Center => -width * 0.5,
                 HAlign::Right => -width,
             };
             let baseline = first_baseline - i as f64 * LINE_SPACING * h;
-            for c in line.chars() {
-                let Some(c) = normalize_char(c) else { continue };
+            for (c, x) in pens {
                 let g = self.glyph(self.glyph_index(c))?;
                 if self.generation != generation {
                     return None;
                 }
                 if let Some(uv) = g.uv {
+                    let pen = start + x * em;
                     out.push(PlacedGlyph {
                         x0: pen + f64::from(g.quad[0]) * em,
                         y0: baseline + f64::from(g.quad[1]) * em,
@@ -281,11 +496,112 @@ impl TextSystem {
                         uv,
                     });
                 }
-                pen += f64::from(g.advance) * em;
             }
         }
         Some(out)
     }
+}
+
+/// Outline bounds of a glyph at `size` pixels per em (y up).
+fn outline_bounds(font: &FontRef<'_>, gid: GlyphId, size: f32) -> Option<Bounds> {
+    let s = size / f32::from(font.head().ok()?.units_per_em());
+    let mut b = Bounds::default();
+    draw_glyph(font, gid, [s, 0.0, 0.0, s, 0.0, 0.0], 0, &mut b)?;
+    b.any.then_some(b)
+}
+
+/// The nominal glyph of a character.
+fn map_char(font: &FontRef<'_>, c: char) -> Option<GlyphId> {
+    font.cmap().ok()?.map_codepoint(c).filter(|g| g.to_u32() != 0)
+}
+
+/// Draw a `glyf` glyph through an affine map `[xx, yx, xy, yy, dx, dy]`
+/// (`x' = xx·x + xy·y + dx`, `y' = yx·x + yy·y + dy`). Composite glyphs are drawn
+/// component by component (nesting is bounded).
+fn draw_glyph(font: &FontRef<'_>, gid: GlyphId, m: [f32; 6], depth: u8, pen: &mut impl OutlinePen) -> Option<()> {
+    if depth > 8 {
+        return None;
+    }
+    let glyf = font.glyf().ok()?;
+    let glyph = font.loca(None).ok()?.get(gid, &glyf)?.into_glyph();
+    match glyph {
+        None => Some(()),
+        Some(Glyph::Simple(g)) => {
+            let points: Vec<CurvePoint> = g.points().collect();
+            let mut first = 0usize;
+            for end in g.end_pts_of_contours() {
+                let end = usize::from(end.get());
+                draw_contour(points.get(first..=end)?, m, pen);
+                first = end + 1;
+            }
+            Some(())
+        }
+        Some(Glyph::Composite(g)) => {
+            for c in g.components() {
+                let t = c.transform;
+                let (a, b, cc, d) = (t.xx.to_f32(), t.yx.to_f32(), t.xy.to_f32(), t.yy.to_f32());
+                let (mut ox, mut oy) = match c.anchor {
+                    Anchor::Offset { x, y } => (f32::from(x), f32::from(y)),
+                    // Point-matched placement is not used by the bundled font.
+                    Anchor::Point { .. } => (0.0, 0.0),
+                };
+                if c.flags.contains(CompositeGlyphFlags::SCALED_COMPONENT_OFFSET) {
+                    (ox, oy) = (a * ox + cc * oy, b * ox + d * oy);
+                }
+                // Child map: parent ∘ (component matrix, then offset).
+                let child = [
+                    m[0] * a + m[2] * b,
+                    m[1] * a + m[3] * b,
+                    m[0] * cc + m[2] * d,
+                    m[1] * cc + m[3] * d,
+                    m[0] * ox + m[2] * oy + m[4],
+                    m[1] * ox + m[3] * oy + m[5],
+                ];
+                draw_glyph(font, GlyphId::from(c.glyph), child, depth + 1, pen)?;
+            }
+            Some(())
+        }
+    }
+}
+
+/// One TrueType contour: on-curve points are ends, off-curve points are quadratic
+/// controls, and two consecutive controls imply an on-curve midpoint.
+fn draw_contour(points: &[CurvePoint], m: [f32; 6], pen: &mut impl OutlinePen) {
+    let n = points.len();
+    if n == 0 {
+        return;
+    }
+    let map = |p: &CurvePoint| {
+        let (x, y) = (f32::from(p.x), f32::from(p.y));
+        (m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5])
+    };
+    let mid = |a: (f32, f32), b: (f32, f32)| (0.5 * (a.0 + b.0), 0.5 * (a.1 + b.1));
+    let (start, first) = match points.iter().position(|p| p.on_curve) {
+        Some(i) => (points.get(i).map_or((0.0, 0.0), map), i),
+        None => (mid(points.get(n - 1).map_or((0.0, 0.0), map), points.first().map_or((0.0, 0.0), map)), n - 1),
+    };
+    pen.move_to(start.0, start.1);
+    let mut control: Option<(f32, f32)> = None;
+    for k in 1..=n {
+        let Some(p) = points.get((first + k) % n) else { continue };
+        let q = map(p);
+        if p.on_curve {
+            match control.take() {
+                Some(c) => pen.quad_to(c.0, c.1, q.0, q.1),
+                None => pen.line_to(q.0, q.1),
+            }
+        } else {
+            if let Some(c) = control {
+                let implied = mid(c, q);
+                pen.quad_to(c.0, c.1, implied.0, implied.1);
+            }
+            control = Some(q);
+        }
+    }
+    if let Some(c) = control {
+        pen.quad_to(c.0, c.1, start.0, start.1);
+    }
+    pen.close();
 }
 
 /// Map control characters: tabs become spaces, other controls are dropped.
@@ -396,6 +712,95 @@ mod tests {
 
     use super::*;
 
+    /// Rasterize closed polygons (raster pixels, y down: the origin maps y = 0 to row 0).
+    fn raster(w: usize, h: usize, polys: &[&[(f32, f32)]]) -> Vec<u8> {
+        let mut r = Raster::new(w, h, (0.0, 0.0));
+        for poly in polys {
+            r.move_to(poly[0].0, -poly[0].1);
+            for p in &poly[1..] {
+                r.line_to(p.0, -p.1);
+            }
+            r.close();
+        }
+        r.coverage()
+    }
+
+    #[test]
+    fn rasterizer_coverage_area_and_winding() {
+        // A 7 × 7 square on half-pixel boundaries: 49 px of area, half-covered edges.
+        let sq: &[(f32, f32)] = &[(1.5, 1.5), (8.5, 1.5), (8.5, 8.5), (1.5, 8.5)];
+        let cov = raster(10, 10, &[sq]);
+        let area: f32 = cov.iter().map(|&c| f32::from(c) / 255.0).sum();
+        assert!((area - 49.0).abs() < 0.1, "area {area}");
+        assert_eq!(cov[5 * 10 + 5], 255);
+        assert_eq!(cov[5 * 10 + 1], 128);
+        assert_eq!(cov[0], 0);
+        // Same direction twice (winding 2): the inside stays fully covered (non-zero
+        // rule, clamped), the outside stays empty.
+        let twice = raster(10, 10, &[sq, sq]);
+        for i in 0..100 {
+            if cov[i] == 255 || cov[i] == 0 {
+                assert_eq!(twice[i], cov[i], "pixel {i}");
+            }
+        }
+        // An inner square in the opposite direction cuts a hole.
+        let hole: &[(f32, f32)] = &[(3.0, 3.0), (3.0, 7.0), (7.0, 7.0), (7.0, 3.0)];
+        let ring = raster(10, 10, &[sq, hole]);
+        assert_eq!(ring[5 * 10 + 5], 0);
+        let ring_area: f32 = ring.iter().map(|&c| f32::from(c) / 255.0).sum();
+        assert!((ring_area - 33.0).abs() < 0.1, "ring {ring_area}");
+        // A diagonal edge: the triangle below the diagonal covers half the square.
+        let tri: &[(f32, f32)] = &[(0.0, 0.0), (10.0, 10.0), (0.0, 10.0)];
+        let t: f32 = raster(10, 10, &[tri]).iter().map(|&c| f32::from(c) / 255.0).sum();
+        assert!((t - 50.0).abs() < 0.1, "triangle {t}");
+    }
+
+    #[test]
+    fn outlines_match_the_glyph_boxes_of_the_font() {
+        // Every glyph, simple or composite, drawn in font units has exactly the
+        // bounding box stored in its glyf header (which counts all points).
+        let font = FontRef::new(DEFAULT_FONT).unwrap();
+        let upm = f32::from(font.head().unwrap().units_per_em());
+        let glyf = font.glyf().unwrap();
+        let loca = font.loca(None).unwrap();
+        let (mut simple, mut composite) = (0, 0);
+        for id in 0..font.maxp().unwrap().num_glyphs() {
+            let gid = GlyphId::new(u32::from(id));
+            let Some(glyph) = loca.get(gid, &glyf).unwrap().into_glyph() else { continue };
+            let header = [glyph.x_min(), glyph.y_min(), glyph.x_max(), glyph.y_max()].map(f32::from);
+            match glyph {
+                Glyph::Simple(_) => simple += 1,
+                Glyph::Composite(_) => composite += 1,
+            }
+            let b = outline_bounds(&font, gid, upm).unwrap();
+            assert_eq!([b.min.0, b.min.1, b.max.0, b.max.1], header, "glyph {id}");
+        }
+        assert!(simple > 300 && composite > 100, "{simple} simple, {composite} composite");
+    }
+
+    #[test]
+    fn glyph_rasters_have_counters_and_plausible_ink() {
+        let font = FontRef::new(DEFAULT_FONT).unwrap();
+        // "O" has a counter: empty in the middle, inked on its sides.
+        let gid = map_char(&font, 'O').unwrap();
+        let b = outline_bounds(&font, gid, RASTER_PX).unwrap();
+        let (xmin, ymin) = (b.min.0.floor(), b.min.1.floor());
+        let (w, h) = ((b.max.0.ceil() - xmin) as usize, (b.max.1.ceil() - ymin) as usize);
+        let mut r = Raster::new(w, h, (xmin, ymin + h as f32));
+        let s = RASTER_PX / f32::from(font.head().unwrap().units_per_em());
+        draw_glyph(&font, gid, [s, 0.0, 0.0, s, 0.0, 0.0], 0, &mut r).unwrap();
+        let cov = r.coverage();
+        assert_eq!(cov[(h / 2) * w + w / 2], 0, "counter");
+        assert!(cov[(h / 2) * w + 1] > 200, "left stroke");
+        assert!(cov[(h / 2) * w + w - 2] > 200, "right stroke");
+        // Ink of every glyph stays inside its quad and the SDF is finite.
+        let mut ts = TextSystem::with_default_font().unwrap();
+        for c in "AgjÇğİ@%∅".chars() {
+            let g = ts.glyph(ts.glyph_index(c)).unwrap();
+            assert!(g.uv.is_some() && g.quad[2] > g.quad[0] && g.quad[3] > g.quad[1], "{c}");
+        }
+    }
+
     fn text(s: &str) -> Text {
         Text {
             position: Point::new(0.0, 0.0),
@@ -410,8 +815,10 @@ mod tests {
     #[test]
     fn turkish_and_symbols_have_glyphs() {
         let ts = TextSystem::with_default_font().unwrap();
+        let font = FontRef::new(DEFAULT_FONT).unwrap();
         for c in "çÇğĞıİöÖşŞüÜ°±×∅µ²€ΩπДж".chars() {
-            assert!(ts.font.has_glyph(c), "missing {c}");
+            assert!(map_char(&font, c).is_some(), "missing {c}");
+            assert_ne!(ts.glyph_index(c), 0, "{c}");
         }
         // Diameter sign falls back to the empty-set glyph.
         assert_eq!(ts.glyph_index('\u{2300}'), ts.glyph_index('\u{2205}'));
@@ -432,15 +839,44 @@ mod tests {
 
     #[test]
     fn headless_text_metrics_match_the_font() {
-        // dotloom-geometry measures text with a generated advance table
-        // (crates/render/assets/text-metrics.py); it must equal what is drawn.
+        // dotloom-geometry lays text out with generated tables
+        // (crates/render/assets/text-metrics.py) that the renderer also uses for
+        // the default font. Check them against the font file itself: every mapped
+        // character's advance, the units per em and the vertical scale.
         let mut ts = TextSystem::with_default_font().unwrap();
-        for s in ["Dotloom 0123 ABC xyz", "Ölçü ğüşıİç ÇĞÖŞÜ", "W i\tm", "∅ 40 mm ⌀ ±0,5 €", "Дж Ωπ", "\u{e000}?"]
+        let font = FontRef::new(DEFAULT_FONT).unwrap();
+        let upm = f32::from(font.head().unwrap().units_per_em());
+        assert_eq!(f64::from(upm), Text::FONT_UNITS_PER_EM);
+        let hmtx = font.hmtx().unwrap();
+        let mut checked = 0;
+        for cp in 0..=0xffff_u32 {
+            let Some(c) = char::from_u32(cp).filter(|c| !c.is_control()) else { continue };
+            let Some(gid) = map_char(&font, c) else { continue };
+            let want = f64::from(hmtx.advance(gid).unwrap());
+            assert_eq!(Text::line_pens(&c.to_string()).1, want, "advance of U+{cp:04X}");
+            checked += 1;
+        }
+        assert!(checked > 900, "{checked}");
+        let cap = outline_bounds(&font, map_char(&font, 'H').unwrap(), upm).unwrap().max.1;
+        let descender = -f32::from(font.hhea().unwrap().descender().to_i16());
+        assert!((1.0 / Text::em_size(1.0) - f64::from((cap + descender) / upm)).abs() < 1e-12);
+        // Missing characters advance like `.notdef`, which is what gets drawn.
+        let notdef = f64::from(hmtx.advance(GlyphId::NOTDEF).unwrap());
+        assert_eq!(Text::line_pens("\u{e000}").1, notdef);
+        assert_eq!(ts.glyph_index('\u{e000}'), 0);
+        // The renderer's line widths are the shared ones, kerning included.
+        for s in ["Dotloom 0123 ABC xyz", "Ölçü ğüşıİç ÇĞÖŞÜ", "W i\tm", "∅ 40 mm ⌀ ±0,5 €", "Дж Ωπ", "AVATAR"]
         {
             let want = ts.line_width(s, 10.0);
             let got = Text::line_width(s, 10.0);
-            assert!((got - want).abs() <= 1e-5 * want.max(1.0), "{s:?}: geometry {got} vs renderer {want}");
+            assert!((got - want).abs() <= 1e-9 * want.max(1.0), "{s:?}: geometry {got} vs renderer {want}");
         }
+        // "AV" is drawn kerned: V sits left of where A's advance alone puts it.
+        let em = Text::em_size(10.0);
+        let kerned = ts.layout(&text("AV")).unwrap();
+        let a_advance = f64::from(ts.glyph(ts.glyph_index('A')).unwrap().advance) * em;
+        let v_left = f64::from(ts.glyph(ts.glyph_index('V')).unwrap().quad[0]) * em;
+        assert!(kerned[1].x0 < a_advance + v_left - 0.01, "{} vs {}", kerned[1].x0, a_advance + v_left);
         // The layout box encloses every drawn glyph quad (minus the SDF padding).
         let t = Text { content: "Ölçü\nÇĞÖŞÜ gjpq".into(), ..text("") };
         let b = t.layout_box();
