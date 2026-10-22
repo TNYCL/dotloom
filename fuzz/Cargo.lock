@@ -111,7 +111,7 @@ dependencies = [
 
 [[package]]
 name = "dotloom-constraints"
-version = "0.1.0"
+version = "1.1.0"
 dependencies = [
  "kasuari",
  "libm",
@@ -121,7 +121,7 @@ dependencies = [
 
 [[package]]
 name = "dotloom-document"
-version = "0.1.0"
+version = "1.1.0"
 dependencies = [
  "dotloom-geometry",
  "serde",
@@ -131,7 +131,7 @@ dependencies = [
 
 [[package]]
 name = "dotloom-engine"
-version = "0.1.0"
+version = "1.1.0"
 dependencies = [
  "dotloom-constraints",
  "dotloom-document",
@@ -154,7 +154,7 @@ dependencies = [
 
 [[package]]
 name = "dotloom-geometry"
-version = "0.1.0"
+version = "1.1.0"
 dependencies = [
  "libm",
  "robust",
@@ -165,7 +165,7 @@ dependencies = [
 
 [[package]]
 name = "dotloom-io"
-version = "0.1.0"
+version = "1.1.0"
 dependencies = [
  "dotloom-document",
  "dotloom-engine",
@@ -180,7 +180,7 @@ dependencies = [
 
 [[package]]
 name = "dotloom-scene"
-version = "0.1.0"
+version = "1.1.0"
 dependencies = [
  "dotloom-geometry",
  "serde",
@@ -251,9 +251,9 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.16.1"
+version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
+checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 dependencies = [
  "allocator-api2",
  "equivalent",
@@ -297,9 +297,9 @@ dependencies = [
 
 [[package]]
 name = "kasuari"
-version = "0.4.12"
+version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bde5057d6143cc94e861d90f591b9303d6716c6b9602309150bd068853c10899"
+checksum = "72f14c90e40a6133f4805b83542a7ed7364f56070b447f56e7f4e90297122209"
 dependencies = [
  "hashbrown",
  "portable-atomic",
